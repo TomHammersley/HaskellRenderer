@@ -1,0 +1,56 @@
+Haskell Ray Tracer and Photon Mapper v0.0
+-----------------------------------------
+
+This is a parallel ray tracer and (not quite yet parallel) photon mapper written in Haskell. 
+
+Features:
+
+Fully recursive raytracer with reflection and refraction
+* Sphere primitives
+* Plane primitives
+* Triangle mesh primitives
+* Parallelised ray tracing
+* Distributed ray tracing giving depth of field and anti-aliasing
+* Photon mapping
+
+Disclaimer:
+
+I am a novice Haskell programmer. This code is not intended to be representative of best-practice Haskell programming.
+
+If you see code that could be improved in terms of style, correctness, clarity, flexibility or efficiency, please, let me know! I'm eager to learn and I'd love to hear the opinion of those far more capable than me.
+
+Usage:
+
+Currently there is a default hard-coded scene of the Cornell Box. I build the program with:
+
+./build
+
+and execute it with:
+
+time ./raytracer +RTS -N -RTS
+
+This will output a file called test.bmp containing the resulting image. Depending on the number of photons emitted, the photon gathering radius and the maximum number of photons gathered, this could take quite some time. Tune the parameters in Main.hs.
+
+Dependencies:
+
+The bmp Haskell package
+
+Bugs:
+
+The Photon Mapping is largely functional though it currently has some strange 'bokeh' type artefacts. Whilst these are pretty, work is ongoing to fix them.
+There are numerous TODO issues noted in the code.
+
+Future planned work:
+
+* Specular lighting for quad light sources
+* Caustic photon mapping
+* Irradiance caching
+* Parsing of scene data files
+* Parallelisation of photon emission
+* Parallelisation of photon gathering
+* Cabal compatability
+* Optimisation!
+* Extended shader model
+
+Tom Hammersley 12/5/2011
+tomhammersley@gmail.com
