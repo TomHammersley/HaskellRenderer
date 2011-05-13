@@ -78,7 +78,7 @@ makeTriangle !v1 !v2 !v3 = Triangle verts newPlane newHalfPlanes
           verts = map (\v -> Vertex v zeroVector newTanSpace) [v1, v2, v3]
           edgeVertices = [v1, v2, v3]
           edges = map normalise [v2 - v1, v3 - v2, v1 - v3]
-          edgeNormals = map (\edge -> normalise $ (thr newTanSpace) `cross` edge) edges
+          edgeNormals = map (\edge -> normalise $ thr newTanSpace `cross` edge) edges
           -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
           newHalfPlanes = zipWith (\edgeNormal edgeVertex -> Plane (Vector 1 0 0 1, Vector 0 1 0 1, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices
 
@@ -97,13 +97,13 @@ quadsToTriangles' verts currentList
 
 -- Area of a triangle
 triangleArea :: Position -> Position -> Position -> Float
-triangleArea !v1 !v2 !v3 = 0.5 * (magnitude $ surfaceNormal v1 v2 v3)
+triangleArea !v1 !v2 !v3 = 0.5 * magnitude (surfaceNormal v1 v2 v3)
 
 -- Calculate the barycentric co-ordinates of a point on a triangle
 calculateBarycentricCoordinates :: Position -> Triangle -> (Float, Float, Float)
 calculateBarycentricCoordinates !pos !triangle = (alpha, beta, gamma)
-    where !alpha = (triangleArea pos v2 v3) / area
-          !beta = (triangleArea pos v1 v3) / area
+    where !alpha = triangleArea pos v2 v3 / area
+          !beta = triangleArea pos v1 v3 / area
           !gamma = 1 - alpha - beta
           !area = triangleArea v1 v2 v3
           [!v1, !v2, !v3] = map vertPosition (vertices triangle)
@@ -115,12 +115,12 @@ distanceToPlane _ _ = error "distanceToPlane: Unsupport primitive for this funct
 
 -- Use halfplanes to test if a point is inside a triangle
 pointInsideTriangle :: Triangle -> Position -> Bool
-pointInsideTriangle !tri !point = all (\pln -> (distanceToPlane pln point) >= 0) (halfPlanes tri)
+pointInsideTriangle !tri !point = all (\pln -> distanceToPlane pln point >= 0) (halfPlanes tri)
 
 -- Intersect a ray with a triangle
 intersectRayTriangle :: Ray -> Object -> Triangle -> Bool -> Maybe (Float, Triangle)
 intersectRayTriangle !ray !obj !triangle !doubleSided
-    | doubleSided == False && (direction ray) `dot3` ((thr . planeTangentSpace . plane) triangle) > 0 = Nothing
+    | not doubleSided && direction ray `dot3` (thr . planeTangentSpace . plane) triangle > 0 = Nothing
     | otherwise = case primitiveClosestIntersect (plane triangle) ray obj of
                     Nothing -> Nothing
                     Just (!dist', _) -> if pointInsideTriangle triangle (pointAlongRay ray dist')
@@ -158,17 +158,17 @@ primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Float, Int)
 -- This function intersects a ray with a sphere, and returns the closest intercept
 primitiveClosestIntersect (Sphere !sphereRadius) (Ray !rayOrg !rayDir !rayLen) obj
     | discriminant < 0 = Nothing
-    | discriminant == 0 = Just (((-b) / 2), 0)
+    | discriminant == 0 = Just ((-b) / 2, 0)
     | root1 >= 0 && root1 <= rayLen = Just (root1, 0)
     | root2 >= 0 && root2 <= rayLen = Just (root2, 0)
     | otherwise = Nothing
     where 
-      !delta = rayOrg - (getCentre obj)
+      !delta = rayOrg - getCentre obj
       !b = 2.0 * (delta `dot3` rayDir)
       !c = (delta `dot3` delta) - sphereRadius**2
       !discriminant = b**2 - 4 * c -- A is 1 because the ray direction is normalised
-      !root1 = (-b - sqrt (discriminant)) / 2
-      !root2 = (-b + sqrt (discriminant)) / 2
+      !root1 = (-b - sqrt discriminant) / 2
+      !root2 = (-b + sqrt discriminant) / 2
 
 -- This function intersects a ray with a plane and returns the closest intercept
 primitiveClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray !rayOrg !rayDir !rayLen) _
@@ -194,7 +194,7 @@ primitiveTangentSpace (Sphere !sphereRadius) _ !intersectionPoint obj = (tangent
     where
       tangent = Vector 1 0 0 1 -- This is clearly incorrect - fix this later!
       binormal = Vector 0 1 0 1
-      normal = (intersectionPoint - (getCentre obj)) <*> (1 / sphereRadius)
+      normal = (intersectionPoint - getCentre obj) <*> (1 / sphereRadius)
 
 primitiveTangentSpace (Plane !planeNormal _) _ _ _ = planeNormal
 primitiveTangentSpace (TriangleMesh !tris) !triId !intersectionPoint _ = interpolatedTangentSpace triangle triAlpha triBeta triGamma
@@ -205,14 +205,14 @@ primitiveTangentSpace (TriangleMesh !tris) !triId !intersectionPoint _ = interpo
 -- Family of bounding radius functions
 primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Float
 
-primitiveBoundingRadius (Sphere sphereRadius) sphereTransform pos = sphereRadius + (pos `distance` (getTranslation sphereTransform))
+primitiveBoundingRadius (Sphere sphereRadius) sphereTransform pos = sphereRadius + (pos `distance` getTranslation sphereTransform)
 primitiveBoundingRadius (Plane _ _) _ _ = 0
 primitiveBoundingRadius (TriangleMesh tris) _ centre = triangleListRadius 0 tris centre
 
 triangleListRadius :: Float -> [Triangle] -> Vector -> Float
 triangleListRadius maximumRadius (tri:tris) centre = triangleListRadius (Prelude.max maximumRadius triangleRadius) tris centre
     where
-      radii = map (\x -> distance centre (vertPosition x)) (vertices tri)
+      radii = map (distance centre . vertPosition) (vertices tri)
       triangleRadius = foldr Prelude.max 0 radii 
 triangleListRadius maximumRadius [] _ = maximumRadius
 
@@ -223,8 +223,8 @@ triangleListRadius maximumRadius [] _ = maximumRadius
 primitiveBoundingBox :: Primitive -> Object -> Maybe AABB
 primitiveBoundingBox (Sphere sphereRadius) obj = Just (boxMin, boxMax)
     where
-      boxMin = (getCentre obj) - (Vector sphereRadius sphereRadius sphereRadius 0)
-      boxMax = (getCentre obj) + (Vector sphereRadius sphereRadius sphereRadius 0)
+      boxMin = getCentre obj - Vector sphereRadius sphereRadius sphereRadius 0
+      boxMax = getCentre obj + Vector sphereRadius sphereRadius sphereRadius 0
 primitiveBoundingBox (Plane _ _) _ = Nothing
 primitiveBoundingBox (TriangleMesh tris) obj = Just $ triangleListBoundingBox initialInvalidBox (transform obj) tris
 
@@ -238,16 +238,16 @@ triangleListBoundingBox currentBox transformMatrix (tri:tris) = triangleListBoun
 triangleListBoundingBox currentBox _ [] = currentBox
 
 objectListBoundingBox :: [Object] -> AABB
-objectListBoundingBox objs = foldr boundingBoxUnion initialInvalidBox (map (\obj -> case primitiveBoundingBox (primitive obj) obj of
-                                                                                      Just box -> box
-                                                                                      Nothing -> initialInvalidBox) objs)
+objectListBoundingBox objs = foldr (boundingBoxUnion . (\obj -> case primitiveBoundingBox (primitive obj) obj of
+                                                                  Just box -> box
+                                                                  Nothing -> initialInvalidBox)) initialInvalidBox objs
 
 -- Does a primitive intersect a box?
 -- Could maybe generalise the primitiveClosestIntersect function above via further pattern matching?
 intersectsBox :: Primitive -> Matrix -> AABB -> Bool
-intersectsBox (Sphere sphereRadius) matrix (boxMin, boxMax) = (centreX + sphereRadius) >= (vecX boxMin) && (centreX - sphereRadius) <= (vecX boxMax) &&
-                                                              (centreY + sphereRadius) >= (vecY boxMin) && (centreY - sphereRadius) <= (vecY boxMax) &&
-                                                              (centreZ + sphereRadius) >= (vecZ boxMin) && (centreZ - sphereRadius) <= (vecZ boxMax)
+intersectsBox (Sphere sphereRadius) matrix (boxMin, boxMax) = (centreX + sphereRadius) >= vecX boxMin && (centreX - sphereRadius) <= vecX boxMax &&
+                                                              (centreY + sphereRadius) >= vecY boxMin && (centreY - sphereRadius) <= vecY boxMax &&
+                                                              (centreZ + sphereRadius) >= vecZ boxMin && (centreZ - sphereRadius) <= vecZ boxMax
     where
       centre = getTranslation matrix
       centreX = vecX centre
@@ -287,5 +287,5 @@ sphereIntersect !rad !centre (Ray !rayOrg !rayDir !rayLen)
       !b = 2.0 * (delta `dot3` rayDir)
       !c = (delta `dot3` delta) - rad**2
       !discriminant = b**2 - 4 * c -- A is 1 because the ray direction is normalised
-      !root1 = (-b - sqrt (discriminant)) / 2
-      !root2 = (-b + sqrt (discriminant)) / 2
+      !root1 = (-b - sqrt discriminant) / 2
+      !root2 = (-b + sqrt discriminant) / 2

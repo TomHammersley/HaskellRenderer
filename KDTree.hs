@@ -3,7 +3,7 @@
 module KDTree(generateSceneGraphUsingKDTree, makeSplittingPlane, degenerateSplitList, findSplittingPlane) where
 import Vector
 import Primitive
-import List
+import Data.List
 import BoundingBox
 
 -- This stuff is object specific 

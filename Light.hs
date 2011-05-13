@@ -37,12 +37,12 @@ phongLighting (!shadePos, !tanSpace) (PointLight !lightPos !lightColour !lightRa
                                                                                           where
                                                                                             lightingSum = diffuseLighting + specularLighting
                                                                                             attenuation = lightAttenuation lightPos shadePos lightRange
-                                                                                            specularCorrection = ((specularPower objMaterial) + 2) / (2 * pi)
-                                                                                            specularLighting = (specular objMaterial) `colourMul` (specularCorrection * (saturate $ reflection `dot3` (Vector.negate viewDirection)) ** (specularPower objMaterial))
+                                                                                            specularCorrection = (specularPower objMaterial + 2) / (2 * pi)
+                                                                                            specularLighting = specular objMaterial `colourMul` (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
                                                                                             reflection = reflect incoming normal
                                                                                             diffuseLighting = if inPhotonMap
                                                                                                               then colBlack
-                                                                                                              else shaderDiffuse * (diffuse objMaterial) `colourMul` (saturate dotProd)
+                                                                                                              else shaderDiffuse * diffuse objMaterial `colourMul` saturate dotProd
                                                                                             shaderDiffuse = evaluateDiffuse (shader objMaterial) shadePos tanSpace
     | otherwise = colBlack
     where !intersectionPlusEpsilon = shadePos + (normal Vector.<*> surfaceEpsilon)

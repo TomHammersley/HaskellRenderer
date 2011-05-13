@@ -1,5 +1,4 @@
 -- Materials of an object
-{-# LANGUAGE BangPatterns #-}
 
 module Material where
 

@@ -37,7 +37,7 @@ assignObjectsToOctreeBoxes' objs (box:boxes) (x:xs) = assignObjectsToOctreeBoxes
     where
       (matchedObjects, remainingObjects) = objectsIntersectingBox objs box
 assignObjectsToOctreeBoxes' _ [] currentList = currentList
-assignObjectsToOctreeBoxes' objs (box:boxes) [] = assignObjectsToOctreeBoxes' remainingObjects boxes (matchedObjects : [])
+assignObjectsToOctreeBoxes' objs (box:boxes) [] = assignObjectsToOctreeBoxes' remainingObjects boxes [matchedObjects]
     where
       (matchedObjects, remainingObjects) = objectsIntersectingBox objs box
 
@@ -48,7 +48,7 @@ assignObjectsToOctreeBoxes objects boxes = assignObjectsToOctreeBoxes' objects b
 -- Make children using an octree algorithm
 generateSceneGraphUsingOctree :: [Object] -> [[Object]]
 generateSceneGraphUsingOctree (obj:objs) 
-    | boundingBoxValid nodeBox == False = error "Invalid bounding box"
+    | not (boundingBoxValid nodeBox) = error "Invalid bounding box"
     | otherwise = onlyPopulatedBoxes
     where
       nodeBox = objectListBoundingBox (obj:objs)
