@@ -1,5 +1,4 @@
 -- Generic shaders to return colour and texture information
-{-# LANGUAGE BangPatterns #-}
 
 module Shader where
 
@@ -23,7 +22,7 @@ evaluateDiffuse (CheckedShader checkScale checkColour1 checkColour2) position _ 
         scaledX = round (vecX scaledPosition) :: Int
         scaledY = round (vecY scaledPosition) :: Int
         scaledZ = round (vecZ scaledPosition) :: Int
-    in if (odd scaledX) `xor` (odd scaledY) `xor` (odd scaledZ) then checkColour1 else checkColour2
+    in if odd scaledX `xor` odd scaledY `xor` odd scaledZ then checkColour1 else checkColour2
 
 -- Normal display
 evaluateDiffuse ShowNormalShader _ (_, _, normal) = encodeNormal normal
@@ -32,8 +31,8 @@ evaluateDiffuse ShowNormalShader _ (_, _, normal) = encodeNormal normal
 evaluateDiffuse NullShader _ _ = colWhite
 
 -- Defaults
-evaluateSpecular shader position normal = evaluateDiffuse shader position normal
-evaluateAmbient shader position normal = evaluateDiffuse shader position normal
+evaluateSpecular = evaluateDiffuse
+evaluateAmbient = evaluateDiffuse
 
 -- New style shader interface
 shadePoint (CheckedShader checkScale checkColour1 checkColour2) (position, _) (ambient, diffuse, specular) = (ambient + diffuse + specular) * checkColour
@@ -42,9 +41,9 @@ shadePoint (CheckedShader checkScale checkColour1 checkColour2) (position, _) (a
       scaledX = round (vecX scaledPosition) :: Int
       scaledY = round (vecY scaledPosition) :: Int
       scaledZ = round (vecZ scaledPosition) :: Int
-      checkColour = if (odd scaledX) `xor` (odd scaledY) `xor` (odd scaledZ) then checkColour1 else checkColour2
+      checkColour = if odd scaledX `xor` odd scaledY `xor` odd scaledZ then checkColour1 else checkColour2
 
-shadePoint ShowNormalShader (_, (Vector x y z _)) (_, _, _) = Colour (x * 0.5 + 0.5) (y * 0.5 + 0.5) (z * 0.5 + 0.5) 1
+shadePoint ShowNormalShader (_, Vector x y z _) (_, _, _) = Colour (x * 0.5 + 0.5) (y * 0.5 + 0.5) (z * 0.5 + 0.5) 1
 
 -- Default fallback
 shadePoint _ (_, _) (ambient, diffuse, specular) = ambient + diffuse + specular

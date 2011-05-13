@@ -1,7 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 
 module Vector where
-import List
+import Data.List
 import Misc
 
 data Vector = Vector { vecX :: {-# UNPACK #-} !Float,
@@ -124,14 +124,14 @@ refract !incoming !normal !eta
 
 largestAxis :: Vector -> Int
 largestAxis (Vector x y z _) 
-    | (abs x) >= (abs y) && (abs x) >= (abs z) = 0
-    | (abs y) >= (abs x) && (abs y) >= (abs z) = 1
-    | (abs z) >= (abs x) && (abs z) >= (abs y) = 2
+    | abs x >= abs y && abs x >= abs z = 0
+    | abs y >= abs x && abs y >= abs z = 1
+    | abs z >= abs x && abs z >= abs y = 2
     | otherwise = error "largestAxis: Undefined case"
 
 nthLargestAxis :: Vector -> Int -> Int
 nthLargestAxis (Vector x y z _) order 
-    | order < 3 = snd (sort ([(abs x, 0), (abs y, 1), (abs z, 2)]) !! order)
+    | order < 3 = snd (sort [(abs x, 0), (abs y, 1), (abs z, 2)] !! order)
     | otherwise = error "nthLargestAXis: Undefined case"
 
 min :: Vector -> Vector -> Vector
@@ -143,11 +143,11 @@ max (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector (Prelude.max x1 x
 directionToSpherical :: Direction -> (Float, Float)
 directionToSpherical (Vector x y z _) = (theta, phi)
     where
-      theta = (acos z) / pi
-      phi = ((atan2 y x) + pi) / (2 * pi)
+      theta = acos z / pi
+      phi = (atan2 y x + pi) / (2 * pi)
 
 sphericalToDirection :: (Float, Float) -> Direction
-sphericalToDirection (theta, phi) = Vector ((sin theta) * (cos phi)) ((sin theta) * (sin phi)) (cos theta) 1
+sphericalToDirection (theta, phi) = Vector (sin theta * cos phi) (sin theta * sin phi) (cos theta) 1
 
 component :: Vector -> Int -> Float
 component (Vector x _ _ _) 0 = x

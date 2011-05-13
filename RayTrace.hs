@@ -66,9 +66,9 @@ intersectObjectList [] _ !currentHit = currentHit
 
 -- Find the nearest intersection along a line
 findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Float, Int)
-findNearestIntersection sceneGraph' !ray = case (intersectObjectList (infiniteObjects sceneGraph') ray Nothing) of
-                                             Just (obj, dist, objId) -> intersectSphereTree ((root sceneGraph') : []) (shortenRay ray dist) (Just (obj, dist, objId))
-                                             Nothing -> intersectSphereTree ((root sceneGraph') : []) ray Nothing
+findNearestIntersection sceneGraph' !ray = case intersectObjectList (infiniteObjects sceneGraph') ray Nothing of
+                                             Just (obj, dist, objId) -> intersectSphereTree [root sceneGraph'] (shortenRay ray dist) (Just (obj, dist, objId))
+                                             Nothing -> intersectSphereTree [root sceneGraph'] ray Nothing
 
 -- Intersect a ray against a scene graph. Return first (ie, any) hit without finding the closest
 findAnyIntersectionSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Float)
@@ -78,10 +78,10 @@ findAnyIntersectionSphereTree (node:nodes) !ray = let sphereIntersectionResult =
                                                        Nothing -> findAnyIntersectionSphereTree nodes ray
                                                        -- If we do find an intersection against the bounding volume, then we try again against the actual object
                                                        Just _ -> case object node of
-                                                                   Nothing -> findAnyIntersectionSphereTree (nodes ++ (children node)) ray -- No object here - just offer up the children
+                                                                   Nothing -> findAnyIntersectionSphereTree (nodes ++ children node) ray -- No object here - just offer up the children
                                                                    Just obj -> case primitiveAnyIntersect (primitive obj) ray obj of 
                                                                                  -- Didn't hit the object. Offer up the children of the scene graph node to continue with (as we did actually hit the bounding volume)
-                                                                                 Nothing -> findAnyIntersectionSphereTree (nodes ++ (children node)) ray
+                                                                                 Nothing -> findAnyIntersectionSphereTree (nodes ++ children node) ray
                                                                                   -- We did hit this object. Update the intersection, and continue with the bounding volume's children
                                                                                  Just (objHitDistance, _) -> Just (obj, objHitDistance)
 findAnyIntersectionSphereTree [] _ = Nothing
@@ -97,7 +97,7 @@ findAnyIntersectionObjectList [] _ = Nothing
 
 findAnyIntersection :: SceneGraph -> Ray -> Maybe (Object, Float)
 findAnyIntersection sceneGraph' !ray = case findAnyIntersectionObjectList (infiniteObjects sceneGraph') ray of
-                                        Nothing -> findAnyIntersectionSphereTree ((root sceneGraph') : []) ray
+                                        Nothing -> findAnyIntersectionSphereTree [root sceneGraph'] ray
                                         Just x -> Just x
 
 -- Default background colour to return when we can't match anything
@@ -110,7 +110,7 @@ enteringObject !incoming !normal = incoming `dot3` normal > 0
 
 -- Accumulate the contributions of the lights
 accumulateLight :: [Light] -> Colour -> SceneGraph -> (Position, TangentSpace) -> Material -> Vector -> Colour
-accumulateLight (x:xs) !acc sceneGraph' !posTanSpace !objMaterial !viewDirection = let result = acc + (applyLight sceneGraph' posTanSpace objMaterial viewDirection x)
+accumulateLight (x:xs) !acc sceneGraph' !posTanSpace !objMaterial !viewDirection = let result = acc + applyLight sceneGraph' posTanSpace objMaterial viewDirection x
                                                                                    in seq result (accumulateLight xs result sceneGraph' posTanSpace objMaterial viewDirection)
 accumulateLight [] !acc _ _ _ _ = acc
 
@@ -124,7 +124,7 @@ traceRay _ _ _ 0 _ _ _ = error "Should not hit this codepath"
 traceRay renderContext photonMap !ray 1 !viewDir _ _ = 
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> defaultColour $ direction ray
-        Just (obj, intersectionDistance, hitId) -> surfaceIrradiance + (accumulateLight (lights renderContext) colBlack (sceneGraph renderContext) (intersectionPoint, tanSpace) (material obj) viewDir)
+        Just (obj, intersectionDistance, hitId) -> surfaceIrradiance + accumulateLight (lights renderContext) colBlack (sceneGraph renderContext) (intersectionPoint, tanSpace) (material obj) viewDir
             where
                 -- Evaluate surface-location specific things such as shader results
                 !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
@@ -150,29 +150,29 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
                 reflectionDir = normalise $ reflect incoming normal
                 !shine = reflectivity $ material obj
                 reflection 
-                    | shine > 0 && (accumulatedReflectivity * shine) > 0.03 = (traceRay renderContext photonMap (rayWithDirection offsetToExterior reflectionDir (reflectionRayLength renderContext)) (limit - 1) viewDir currentIOR (accumulatedReflectivity * shine)) `colourMul` shine
+                    | shine > 0 && (accumulatedReflectivity * shine) > 0.03 = traceRay renderContext photonMap (rayWithDirection offsetToExterior reflectionDir (reflectionRayLength renderContext)) (limit - 1) viewDir currentIOR (accumulatedReflectivity * shine) `colourMul` shine
                     | otherwise = colBlack
 
                 -- Refraction specific
-                eta = if (enteringObject incoming normal) 
-                      then currentIOR / (indexOfRefraction $ material obj) 
-                      else (indexOfRefraction $ material obj) / currentIOR
+                eta = if enteringObject incoming normal
+                      then currentIOR / indexOfRefraction (material obj) 
+                      else indexOfRefraction (material obj) / currentIOR
                 refractionDir = normalise $ refract incoming normal eta
                 offsetToInterior = madd intersectionPoint refractionDir surfaceEpsilon
                 !transmittance = transmit $ material obj
                 refraction 
-                    | transmittance > 0 = (traceRay renderContext photonMap (rayWithDirection offsetToInterior refractionDir (refractionRayLength renderContext)) (limit - 1) viewDir (indexOfRefraction $ material obj) accumulatedReflectivity) `colourMul` transmittance
+                    | transmittance > 0 = traceRay renderContext photonMap (rayWithDirection offsetToInterior refractionDir (refractionRayLength renderContext)) (limit - 1) viewDir (indexOfRefraction $ material obj) accumulatedReflectivity `colourMul` transmittance
                     | otherwise = colBlack
 
 -- This function converts a pixel co-ordinate to a direction of the ray
 makeRayDirection :: Int -> Int -> Camera -> (Int, Int) -> Vector
 makeRayDirection !renderWidth !renderHeight !camera (x, y) =
-    let x' = ((fromIntegral x) / (fromIntegral renderWidth)) * 2.0 - 1.0
-        y' = ((fromIntegral y) / (fromIntegral renderHeight)) * 2.0 - 1.0
+    let x' = (fromIntegral x / fromIntegral renderWidth) * 2.0 - 1.0
+        y' = (fromIntegral y / fromIntegral renderHeight) * 2.0 - 1.0
         fov = 0.5 * fieldOfView camera
         fovX = tan (degreesToRadians fov)
         fovY = -tan (degreesToRadians fov)
-        aspectRatio = (fromIntegral renderWidth) / (fromIntegral renderHeight)
+        aspectRatio = fromIntegral renderWidth / fromIntegral renderHeight
         rayDir = normalise (Vector (fovX * x') (fovY * (-y') / aspectRatio) 1 0)
     in normalise $ transformVector (worldToCamera camera) rayDir
 
@@ -189,8 +189,8 @@ traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWe
     let result = sampleColour + acc
     in seq result (traceDistributedSample renderContext result xs photonMap eyeViewDir sampleWeighting)
     where
-      sampleColour = (traceRay renderContext photonMap (rayWithDirection (jitteredRayPosition x) (jitteredRayDirection x) 100000.0) (maximumRayDepth renderContext) (snd eyeViewDir) 1 1) `colourMul` sampleWeighting
-      jitteredRayPosition jitter = (fst eyeViewDir) + jitter
+      sampleColour = traceRay renderContext photonMap (rayWithDirection (jitteredRayPosition x) (jitteredRayDirection x) 100000.0) (maximumRayDepth renderContext) (snd eyeViewDir) 1 1 `colourMul` sampleWeighting
+      jitteredRayPosition jitter = fst eyeViewDir + jitter
       jitteredRayDirection jitter = normalise $ madd jitter (snd eyeViewDir) depthOfFieldFocalDistance
 traceDistributedSample _ !acc [] _ _ _ = acc
 

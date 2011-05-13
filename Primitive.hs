@@ -34,6 +34,7 @@ import Material
 import Matrix
 import BoundingBox
 import Misc
+import Data.Maybe
 
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 
@@ -232,15 +233,13 @@ primitiveBoundingBox (TriangleMesh tris) obj = Just $ triangleListBoundingBox in
 triangleListBoundingBox :: AABB -> Matrix -> [Triangle] -> AABB
 triangleListBoundingBox currentBox transformMatrix (tri:tris) = triangleListBoundingBox (boundingBoxUnion currentBox thisTriangleBox) transformMatrix tris
     where
-      worldSpaceVertices = map (\x -> transformVector transformMatrix (vertPosition x)) (vertices tri)
+      worldSpaceVertices = map (transformVector transformMatrix . vertPosition) (vertices tri)
       (invalidMin, invalidMax) = initialInvalidBox
       thisTriangleBox = (foldr Vector.min invalidMin worldSpaceVertices, foldr Vector.max invalidMax worldSpaceVertices)
 triangleListBoundingBox currentBox _ [] = currentBox
 
 objectListBoundingBox :: [Object] -> AABB
-objectListBoundingBox objs = foldr (boundingBoxUnion . (\obj -> case primitiveBoundingBox (primitive obj) obj of
-                                                                  Just box -> box
-                                                                  Nothing -> initialInvalidBox)) initialInvalidBox objs
+objectListBoundingBox = foldr (boundingBoxUnion . (\obj -> fromMaybe initialInvalidBox (primitiveBoundingBox (primitive obj) obj))) initialInvalidBox
 
 -- Does a primitive intersect a box?
 -- Could maybe generalise the primitiveClosestIntersect function above via further pattern matching?
@@ -254,7 +253,7 @@ intersectsBox (Sphere sphereRadius) matrix (boxMin, boxMax) = (centreX + sphereR
       centreY = vecY centre
       centreZ = vecZ centre
 
-intersectsBox (Plane (_, _, planeNormal) planeD) _ box = (signum minDistance) /= (signum maxDistance)
+intersectsBox (Plane (_, _, planeNormal) planeD) _ box = signum minDistance /= signum maxDistance
     where
       minAgainstPlane = Vector (selectMinBoxComponent vecX planeNormal box) (selectMinBoxComponent vecY planeNormal box) (selectMinBoxComponent vecZ planeNormal box) 1
       maxAgainstPlane = Vector (selectMaxBoxComponent vecX planeNormal box) (selectMaxBoxComponent vecY planeNormal box) (selectMaxBoxComponent vecZ planeNormal box) 1
