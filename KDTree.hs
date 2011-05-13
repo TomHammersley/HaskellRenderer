@@ -40,16 +40,16 @@ findSplittingPlane box buildCycle objs partitionFunc
 
 -- We use this dysfunctional strategy where all our smarter ideas run out
 degenerateSplitList :: (Eq t) => [t] -> ([t], [t])
-degenerateSplitList objs = ([x | x <- objs, (case x `elemIndex` objs of
-                                               Just index -> odd index
-                                               Nothing -> False)], 
-                            [x | x <- objs, (case x `elemIndex` objs of
-                                               Just index -> even index
-                                               Nothing -> False)])
+degenerateSplitList objs = ([x | x <- objs, case x `elemIndex` objs of
+                                              Just index -> odd index
+                                              Nothing -> False], 
+                            [x | x <- objs, case x `elemIndex` objs of
+                                              Just index -> even index
+                                              Nothing -> False])
 
 -- Make children using a kd tree
 generateSceneGraphUsingKDTree :: [Object] -> [[Object]]
-generateSceneGraphUsingKDTree objs = leftObjects : rightObjects : []
+generateSceneGraphUsingKDTree objs = [leftObjects, rightObjects]
     where
       objBox = objectListBoundingBox objs
       (leftObjects, rightObjects) = case findSplittingPlane objBox 0 objs onPositiveSide of

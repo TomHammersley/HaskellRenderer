@@ -13,10 +13,10 @@ import PhotonMap
 
 -- Some hardcoded values, at present
 renderWidth :: Int
-renderWidth = 640
+renderWidth = 1024
 
 renderHeight :: Int
-renderHeight = 480
+renderHeight = 768
 
 sceneGraph :: SceneGraph
 sceneGraph = buildSceneGraph cornellBox generateSceneGraphUsingKDTree
@@ -29,7 +29,7 @@ renderSettings = RenderContext numDistributedSamples sceneGraph cornellBoxLights
       photonGatherDistance = 50
       reflectionDistance = 1000
       refractionDistance = 1000
-      maxGatherPhotons = 50 -- 500
+      maxGatherPhotons = 1000
 
 -- This returns a list of colours of pixels
 raytracedImage :: PhotonMap -> [Colour]
@@ -39,7 +39,7 @@ raytracedImage photonMap = rayTraceImage renderSettings cornellBoxCamera renderW
 main :: IO ()
 main = do 
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
-  photonMap <- return $ buildPhotonMap sceneGraph cornellBoxLights 10000 -- 50000
+  photonMap <- return $ buildPhotonMap sceneGraph cornellBoxLights 50000
 --  Prelude.putStrLn $ show photonMap
   Prelude.putStrLn $ "Num photons: " ++ show (Prelude.length (photonList photonMap))
   imageData <- return (raytracedImage photonMap)

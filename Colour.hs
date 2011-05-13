@@ -76,11 +76,11 @@ encodeNormal (Vector x y z _) = gammaCorrect $ Colour (saturate $ x * 0.5 + 0.5)
 
 -- Convert a list of colours to a list of Word8s
 convertColoursToPixels :: [Colour] -> [Word8]
-convertColoursToPixels (col:cols) = r : g : b : 255 : (convertColoursToPixels cols)
+convertColoursToPixels (col:cols) = r : g : b : 255 : convertColoursToPixels cols
     where
-      r = truncate ((red col) * 255.0)
-      g = truncate ((green col) * 255.0)
-      b = truncate ((blue col) * 255.0)
+      r = truncate (red col * 255.0)
+      g = truncate (green col * 255.0)
+      b = truncate (blue col * 255.0)
 convertColoursToPixels [] = []
 
 -- Measure overall magnitude of a colour

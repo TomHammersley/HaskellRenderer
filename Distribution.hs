@@ -30,8 +30,8 @@ generatePointsOnSphere numPoints r = map uvToPosition randomUVs
             z = 2 * u - 1
             t = 2 * pi * v
             w = sqrt (1 - z * z)
-            x = w * (cos t)
-            y = w * (sin t)
+            x = w * cos t
+            y = w * sin t
 
 generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> [Position]
 generatePointsOnQuad pos deltaU deltaV numPoints = map uvToPosition randomUVs

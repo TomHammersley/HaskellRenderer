@@ -1,5 +1,4 @@
 -- Camera module
-{-# LANGUAGE BangPatterns #-}
 
 module Camera where
 
