@@ -18,6 +18,7 @@ import BoundingBox
 import KDTree
 import Debug.Trace
 import Misc
+import Control.Parallel.Strategies
 
 type GeneratorState = State StdGen
 
@@ -37,9 +38,11 @@ data PhotonMap = PhotonMap { photonList :: [Photon],
 data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
 
 -- Generate a list of photon position and direction tuples to emit
-emitPhotons :: Light -> Int -> [(Position, Direction)]
-emitPhotons (PointLight !pos _ _ True) !numPhotons = map (\dir -> (pos, dir)) $ generatePointsOnSphere numPhotons 1
-emitPhotons (QuadLight !corner !du !dv _) !numPhotons = zipWith (\pos dir -> (pos, dir)) randomPoints randomDirs
+-- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
+-- Helps parallelisation...
+emitPhotons :: Light -> Int -> [(Position, Direction, StdGen)]
+emitPhotons (PointLight !pos _ _ True) !numPhotons = zipWith (\dir num -> (pos, dir, mkStdGen num)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
+emitPhotons (QuadLight !corner !du !dv _) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, mkStdGen num)) randomPoints randomDirs [1..numPhotons]
     where
       randomPoints = generatePointsOnQuad corner du dv numPhotons
       randomDirs = generatePointsOnSphere numPhotons 1
@@ -93,16 +96,16 @@ diffuseReflectionDirection !stdGen !tanSpace = (transformDir dir tanSpace, stdGe
       dir = sphericalToDirection (theta, phi)
 
 -- Main working photon tracing function
-tracePhoton :: [Photon] -> Photon -> SceneGraph -> StdGen -> (Int, Int) -> ([Photon], StdGen)
+tracePhoton :: [Photon] -> Photon -> SceneGraph -> StdGen -> (Int, Int) -> [Photon]
 tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndState !(bounce, maxBounces) = 
     -- See if the photon intersects any surfaces
     case findNearestIntersection sceneGraph ray of
-      Nothing -> (currentPhotons, rndState)
+      Nothing -> currentPhotons
       Just (obj, t, subId) -> case photonFate of
                                 -- Diffuse reflection. Here, we store the photon that got reflected, and trace a new photon - but only if it's bright enough to be worthwhile
                                 DiffuseReflect -> if Colour.magnitude newPhotonPower > brightnessEpsilon && (bounce + 1) <= maxBounces
                                                   then tracePhoton (storedPhoton : currentPhotons) reflectedPhoton sceneGraph rndState'' (bounce + 1, maxBounces)
-                                                  else (storedPhoton : currentPhotons, rndState'')
+                                                  else storedPhoton : currentPhotons
                                     where
                                       !reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
                                       !(reflectedDir, rndState'') = diffuseReflectionDirection rndState' tanSpace
@@ -111,13 +114,13 @@ tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndS
                                 -- aim to absorb it somewhere else in the photon map
                                 SpecularReflect -> if Colour.magnitude newPhotonPower > brightnessEpsilon && (bounce + 1) <= maxBounces
                                                    then tracePhoton currentPhotons reflectedPhoton sceneGraph rndState' (bounce + 1, maxBounces)
-                                                   else (currentPhotons, rndState')
+                                                   else currentPhotons
                                     where
                                       !reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
                                       !reflectedDir = Vector.negate (snd photonPosDir) `reflect` normal
 
                                 -- Absorb. The photon simply gets absorbed into the map
-                                Absorb -> (storedPhoton : currentPhotons, rndState')
+                                Absorb -> storedPhoton : currentPhotons
           where
             !(photonFate, rndState') = runState (choosePhotonFate coefficients) rndState
             coefficients = russianRouletteCoefficients (material obj)
@@ -132,23 +135,21 @@ tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndS
       !ray = rayWithPosDir photonPosDir 10000
 
 -- Trace a list of photos and produce a list of the resulting photon interactions
-tracePhotons :: Light -> SceneGraph -> StdGen -> [Photon] -> [(Position, Direction)] -> [Photon]
-tracePhotons !light sceneGraph !rndState !photonAcc !(thisPosDir:posDirs) = tracePhotons light sceneGraph rndState' (photonAcc ++ newPhotons) posDirs
+tracePhotons :: Light -> SceneGraph -> [(Position, Direction, StdGen)] -> [Photon]
+tracePhotons !light sceneGraph !posDirsGens = concat (map (\(pos, dir, rndState) -> tracePhoton [] (Photon (colour light Colour.<*> fluxPerPhotonScaler) (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirsGens `using` parListChunk 256 rseq)
     where
-      fluxPerPhotonScaler = 1.0 / fromIntegral (length posDirs)
+      fluxPerPhotonScaler = 1.0 / fromIntegral (length posDirsGens)
       maxBounces = 5
-      (newPhotons, rndState') = tracePhoton [] (Photon (colour light Colour.<*> fluxPerPhotonScaler) thisPosDir) sceneGraph rndState (0, maxBounces)
-tracePhotons _ _ _ !acc [] = acc
 
 -- Build a list of photons for a light source
-tracePhotonsForLight :: Int -> SceneGraph -> StdGen -> Light -> [Photon]
-tracePhotonsForLight !numPhotons sceneGraph !stdGen !light = tracePhotons light sceneGraph stdGen [] (emitPhotons light numPhotons)
+tracePhotonsForLight :: Int -> SceneGraph -> Light -> [Photon]
+tracePhotonsForLight !numPhotons sceneGraph !light = tracePhotons light sceneGraph (emitPhotons light numPhotons)
 
 -- High-level function to build a photon map
 buildPhotonMap :: SceneGraph -> [Light] -> Int -> PhotonMap
 buildPhotonMap sceneGraph lights numPhotonsPerLight = PhotonMap photons (buildKDTree photons)
     where
-      photons = foldr ((++) . tracePhotonsForLight numPhotonsPerLight sceneGraph (mkStdGen 12345)) [] lights
+      photons = foldr ((++) . tracePhotonsForLight numPhotonsPerLight sceneGraph) [] lights
 
 -- Make a bounding box of a list of photons
 photonsBoundingBox :: [Photon] -> AABB

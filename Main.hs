@@ -26,7 +26,7 @@ renderSettings = RenderContext numDistributedSamples sceneGraph cornellBoxLights
     where
       numDistributedSamples = 64
       maxRayDepth = 5
-      photonGatherDistance = 20
+      photonGatherDistance = 50
       reflectionDistance = 1000
       refractionDistance = 1000
       maxGatherPhotons = 30 -- 500
