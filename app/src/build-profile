@@ -1,0 +1,2 @@
+#!/bin/sh
+ghc -tmpdir tmp -hidir hi -odir obj --make -O2 -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields Main.hs -o raytracer -optc-O3 -optc-ffast-math -funfolding-keeness-factor=10 -threaded -rtsopts -fwarn-missing-signatures -fasm -keep-tmp-files -fllvm -keep-hc-files -Wall -optc-msse4 -prof -auto-all -caf-all

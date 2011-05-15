@@ -19,6 +19,7 @@ import KDTree
 import Debug.Trace
 import Misc
 import Control.Parallel.Strategies
+import Data.Heap
 
 type GeneratorState = State StdGen
 
@@ -27,7 +28,7 @@ data PhotonMapContext = PhotonMapContext {
       maxGatherPhotons :: Int,
       coneFilterK :: Float }
 
-data Photon = Photon { power :: !Colour, posDir :: !(Position, Direction) } deriving (Show, Read, Eq)
+data Photon = Photon { power :: !Colour, posDir :: !(Position, Direction) } deriving (Show, Read, Eq, Ord)
 
 data PhotonMapTree = PhotonMapNode Int Float PhotonMapTree PhotonMapTree
                    | PhotonMapLeaf (Maybe Photon) deriving (Show, Read, Eq)
@@ -68,7 +69,6 @@ choosePhotonFate !(diffuseP, specularP) = do
       -- | bounce >= maxBounces = trace "Hit max bounces forcing absorb" Absorb
   put newGenerator
   return result
-
 
 -- Compute new power for a photon
 computeNewPhotonPower :: PhotonChoice -> (Float, Float) -> Colour -> Material -> Colour
@@ -171,28 +171,59 @@ buildKDTree photons
                                axis = largestAxis (boxMax - boxMin)
                                photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> fromIntegral (length photons)
                                value = component photonsMedian axis
-                               photonsGT = filter (\x -> component ((fst . posDir) x) axis > value) photons
-                               photonsLE = filter (\x -> component ((fst . posDir) x) axis <= value) photons
+                               photonsGT = Prelude.filter (\x -> component ((fst . posDir) x) axis > value) photons
+                               photonsLE = Prelude.filter (\x -> component ((fst . posDir) x) axis <= value) photons
                            in if length photonsGT > 0 && length photonsLE > 0
                               then PhotonMapNode axis value (buildKDTree photonsGT) (buildKDTree photonsLE)
                               else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')
-    | null photons = PhotonMapLeaf Nothing
+    | Prelude.null photons = PhotonMapLeaf Nothing
     | otherwise = error ("Invalid case, length of array is " ++ show (length photons) ++ "\n")
 
+data GatheredPhoton = GatheredPhoton Float Photon
+type PhotonHeap = MaxHeap GatheredPhoton
+
+instance Ord GatheredPhoton where
+    compare (GatheredPhoton dist1 _) (GatheredPhoton dist2 _)
+        | dist1 == dist2 = EQ
+        | dist1 <= dist2 = LT
+        | otherwise = GT
+
+instance Eq GatheredPhoton where
+    (GatheredPhoton dist1 _) == (GatheredPhoton dist2 _) = dist1 == dist2
+
+{-
+    x <= y =  compare x y /= GT
+    x <  y =  compare x y == LT
+    x >= y =  compare x y /= LT
+    x >  y =  compare x y == GT
+    max x y 
+         | x >= y    =  x
+         | otherwise =  y
+    min x y
+         | x <  y    =  x
+         | otherwise =  y
+-}
+
 -- Gather photons into a list for irradiance computations
-gatherPhotons :: PhotonMapTree -> Position -> Float -> [Photon] -> Int -> [Photon]
-gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !r !currentPhotons !maxPhotons
-    | length currentPhotons >= maxPhotons = currentPhotons -- Not strictly correct... needs replacing with a max heap
-    | abs (value - posComponent) <= r = gatherPhotons gtChild pos r currentPhotons maxPhotons ++ gatherPhotons leChild pos r currentPhotons maxPhotons
-    | posComponent > value = gatherPhotons gtChild pos r currentPhotons maxPhotons
-    | posComponent <= value = gatherPhotons leChild pos r currentPhotons maxPhotons
+gatherPhotons :: PhotonMapTree -> Position -> Float -> PhotonHeap -> Int -> PhotonHeap
+gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !r !photonHeap !maxPhotons
+    | abs (value - posComponent) <= r = let newHeap = union (gatherPhotons gtChild pos r photonHeap maxPhotons) (gatherPhotons leChild pos r photonHeap maxPhotons)
+                                        in if size newHeap > maxPhotons
+                                           then Data.Heap.drop (size newHeap - maxPhotons) newHeap
+                                           else newHeap
+    | posComponent > value = gatherPhotons gtChild pos r photonHeap maxPhotons
+    | posComponent <= value = gatherPhotons leChild pos r photonHeap maxPhotons
     | otherwise = error "gatherPhotons: Errr.. unexplained/unexpected case here"
     where
       posComponent = component pos axis
-gatherPhotons (PhotonMapLeaf (Just !p)) !pos !r !currentPhotons _
-    | pos `distanceSq` (fst . posDir) p < (r * r) = p : currentPhotons
-    | otherwise = currentPhotons
-gatherPhotons (PhotonMapLeaf Nothing) _ _ !currentPhotons _ = currentPhotons
+gatherPhotons (PhotonMapLeaf (Just !p)) !pos !r !photonHeap !maxPhotons
+    | distSq < (r * r) = let newHeap = insert (GatheredPhoton distSq p) photonHeap
+                         in if size newHeap > maxPhotons 
+                            then Data.Heap.drop 1 newHeap 
+                            else newHeap
+    | otherwise = photonHeap
+    where distSq = pos `distanceSq` (fst . posDir) p
+gatherPhotons (PhotonMapLeaf Nothing) _ _ !photonHeap !maxPhotons = photonHeap
 
 photonContribution :: Float -> (Position, TangentSpace) -> Photon -> Colour
 photonContribution !kr !(pos, (_, _, normal)) !photon = power photon Colour.<*> (Vector.negate normal `sdot3` (snd . posDir) photon) Colour.<*> weight
@@ -205,8 +236,9 @@ sumPhotonContribution !r !k !posTanSpace !photons = foldr ((+) .photonContributi
 -- Look up the resulting irradiance from the photon map at a given point
 -- Realistic Image Synthesis Using Photon Mapping, e7.6
 irradiance :: PhotonMap -> (Position, TangentSpace) -> PhotonMapContext -> Material -> Colour
-irradiance photonMap !posTanSpace !photonMapContext !mat = sumPhotonContribution r k posTanSpace (gatherPhotons (photonMapTree photonMap) (fst posTanSpace) r [] maxPhotons) * diffuse mat
+irradiance photonMap !posTanSpace !photonMapContext !mat = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
     where
       !r = photonGatherDistance photonMapContext
       !maxPhotons = maxGatherPhotons photonMapContext
       !k = coneFilterK photonMapContext
+      !gatheredPhotons = map (\(GatheredPhoton _ photon) -> photon) (Data.Heap.take maxPhotons (gatherPhotons (photonMapTree photonMap) (fst posTanSpace) r Data.Heap.empty maxPhotons))

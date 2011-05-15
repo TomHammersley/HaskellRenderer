@@ -39,7 +39,7 @@ raytracedImage = rayTraceImage renderSettings cornellBoxCamera renderWidth rende
 main :: IO ()
 main = do 
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
-  let photonMap = buildPhotonMap sceneGraph cornellBoxLights 10000
+  let photonMap = buildPhotonMap sceneGraph cornellBoxLights 20000
 --  Prelude.putStrLn $ show photonMap
   Prelude.putStrLn $ "Num photons: " ++ show (Prelude.length (photonList photonMap))
   let imageData = raytracedImage photonMap
