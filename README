@@ -42,12 +42,10 @@ There are numerous TODO issues noted in the code.
 
 Future planned work:
 
-* Use a max heap to store gathered photons and select the closest N
 * Specular lighting for quad light sources
 * Caustic photon mapping
 * Irradiance caching
 * Parsing of scene data files
-* Parallelisation of photon emission
 * Parallelisation of photon gathering
 * Cabal compatability
 * Optimisation!
