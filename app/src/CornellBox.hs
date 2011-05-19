@@ -42,7 +42,7 @@ greenMaterial :: Material
 
 cornellBoxLights = [ 
 --    PointLight   (Vector 278 440.0 279.5 1) (Colour 100 100 100 0) 5000
-    QuadLight (Vector 213 548 227 1) (Vector 130 0 0 0) (Vector 0 0 105 0) (Colour 200000 200000 200000 0)
+    QuadLight (Vector 213 548 227 1) (Vector 130 0 0 0) (Vector 0 0 105 0) (Colour 100 100 100 0)
     ]
 
 cameraPosition = Vector 278 273 (-800) 1

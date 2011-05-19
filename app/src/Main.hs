@@ -29,7 +29,7 @@ renderSettings = RenderContext numDistributedSamples sceneGraph cornellBoxLights
       photonGatherDistance = 50
       reflectionDistance = 1000
       refractionDistance = 1000
-      maxGatherPhotons = 30 -- 500
+      maxGatherPhotons = 500
 
 -- This returns a list of colours of pixels
 raytracedImage :: PhotonMap -> [Colour]
@@ -39,8 +39,8 @@ raytracedImage = rayTraceImage renderSettings cornellBoxCamera renderWidth rende
 main :: IO ()
 main = do 
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
-  let photonMap = buildPhotonMap sceneGraph cornellBoxLights 20000
---  Prelude.putStrLn $ show photonMap
+  let numPhotons = 10000
+  let photonMap = buildPhotonMap sceneGraph cornellBoxLights numPhotons
   Prelude.putStrLn $ "Num photons: " ++ show (Prelude.length (photonList photonMap))
   let imageData = raytracedImage photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
