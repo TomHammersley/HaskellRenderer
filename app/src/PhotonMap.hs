@@ -31,7 +31,7 @@ data PhotonMapContext = PhotonMapContext {
 data Photon = Photon { power :: {-# UNPACK #-} !Colour, posDir :: {-# UNPACK #-} !(Position, Direction) } deriving (Show, Read, Eq, Ord)
 
 data PhotonMapTree = PhotonMapNode !Int !Float PhotonMapTree PhotonMapTree
-                   | PhotonMapLeaf !(Maybe Photon) deriving (Show, Read, Eq)
+                   | PhotonMapLeaf !Photon deriving (Show, Read, Eq)
 
 data PhotonMap = PhotonMap { photonList :: [Photon],
                              photonMapTree :: PhotonMapTree } deriving(Show, Read, Eq)
@@ -45,12 +45,12 @@ emitPhotons :: Light -> Int -> [(Position, Direction, StdGen, Colour)]
 emitPhotons (PointLight !pos lightPower _ True) !numPhotons = zipWith (\dir num -> (pos, dir, mkStdGen num, flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
     where
       flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
-emitPhotons (QuadLight !corner !du !dv lightPower) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, mkStdGen num, flux)) randomPoints randomDirs [1..numPhotons]
+emitPhotons (QuadLight !corner !du !dv !lightPower) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, mkStdGen num, flux)) randomPoints randomDirs [1..numPhotons]
     where
       randomPoints = generatePointsOnQuad corner du dv numPhotons
       randomDirs = generatePointsOnSphere numPhotons 1
       area =  Vector.magnitude (du `cross` dv)
-      flux = lightPower Colour.<*> area Colour.<*> (1.0 / fromIntegral numPhotons)
+      flux = lightPower Colour.<*> (area / fromIntegral numPhotons)
 emitPhotons _ _ = []
 
 -- Compute russian roulette coefficients
@@ -127,14 +127,14 @@ tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndS
                                 Absorb -> storedPhoton : currentPhotons
           where
             !(photonFate, rndState') = runState (choosePhotonFate coefficients) rndState
-            coefficients = russianRouletteCoefficients (material obj)
+            !coefficients = russianRouletteCoefficients (material obj)
             !newPhotonPower = computeNewPhotonPower photonFate coefficients photonPower (material obj)
             !tanSpace = primitiveTangentSpace (primitive obj) subId hitPosition obj
             !normal = thr tanSpace
             !hitPosition = pointAlongRay ray t
             !surfacePos = hitPosition + (normal Vector.<*> surfaceEpsilon)
             !brightnessEpsilon = 0.1
-            storedPhoton = Photon photonPower (surfacePos, snd photonPosDir)
+            !storedPhoton = Photon photonPower (surfacePos, snd photonPosDir)
     where
       !ray = rayWithPosDir photonPosDir 10000
 
@@ -158,15 +158,15 @@ photonsBoundingBox = foldr (enlargeBoundingBox .fst . posDir) initialInvalidBox
 -- Construct a balanced kd tree of photons
 buildKDTree :: [Photon] -> PhotonMapTree
 buildKDTree photons
-    | length photons == 1 = PhotonMapLeaf (Just $ head photons)
+    | length photons == 1 = PhotonMapLeaf (head photons)
     | length photons == 2 = let photon0 : photon1 : [] = photons
                                 position0 = (fst . posDir) photon0
                                 position1 = (fst . posDir) photon1
                                 axis = largestAxis (position0 - position1)
                                 midPoint = component ((position0 + position1) Vector.<*> 0.5) axis
                             in if component position0 axis > component position1 axis
-                               then PhotonMapNode axis midPoint (PhotonMapLeaf $ Just photon0) (PhotonMapLeaf $ Just photon1)
-                               else PhotonMapNode axis midPoint (PhotonMapLeaf $ Just photon1) (PhotonMapLeaf $ Just photon0)
+                               then PhotonMapNode axis midPoint (PhotonMapLeaf photon0) (PhotonMapLeaf photon1)
+                               else PhotonMapNode axis midPoint (PhotonMapLeaf photon1) (PhotonMapLeaf photon0)
     | length photons > 2 = let (boxMin, boxMax) = photonsBoundingBox photons
                                axis = largestAxis (boxMax - boxMin)
                                photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> fromIntegral (length photons)
@@ -176,7 +176,6 @@ buildKDTree photons
                            in if length photonsGT > 0 && length photonsLE > 0
                               then PhotonMapNode axis value (buildKDTree photonsGT) (buildKDTree photonsLE)
                               else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')
-    | Prelude.null photons = PhotonMapLeaf Nothing
     | otherwise = error ("Invalid case, length of array is " ++ show (length photons) ++ "\n")
 
 -- Use a max heap to make it easy to eliminate distant photons
@@ -195,9 +194,9 @@ instance Eq GatheredPhoton where
 -- Return the minimum squared search radius from that specified, versus the furthest photon in the heap
 -- We don't want to locate any photons further away than our current furthest - we're looking for the closest ones, after all
 minimalSearchRadius :: Float -> PhotonHeap -> Float
-minimalSearchRadius rSq photonHeap = case viewHead photonHeap of
-                                  Nothing -> rSq
-                                  Just (GatheredPhoton dSq _) -> Prelude.min rSq dSq
+minimalSearchRadius !rSq !photonHeap = case viewHead photonHeap of
+                                         Nothing -> rSq
+                                         Just (GatheredPhoton dSq _) -> Prelude.min rSq dSq
 
 -- Gather photons for irradiance computations
 gatherPhotons :: PhotonMapTree -> Position -> Float -> PhotonHeap -> Int -> PhotonHeap
@@ -207,9 +206,7 @@ gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !rSq !photonHeap
                                                rSq'' = minimalSearchRadius rSq' heap1
                                                heap2 = gatherPhotons leChild pos rSq'' photonHeap maxPhotons
                                                newHeap = union heap1 heap2
-                                           in if size newHeap > maxPhotons
-                                              then Data.Heap.drop (size newHeap - maxPhotons) newHeap
-                                              else newHeap
+                                           in Data.Heap.drop (size newHeap - maxPhotons) newHeap
 
     -- One side of the tree...
     | posComponent > value = gatherPhotons gtChild pos rSq' photonHeap maxPhotons
@@ -220,20 +217,17 @@ gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !rSq !photonHeap
     -- Prolapse
     | otherwise = error "gatherPhotons: Errr.. unexplained/unexpected case here"
     where
-      posComponent = component pos axis
-      rSq' = minimalSearchRadius rSq photonHeap -- Refine search radius as we go down tree to search no further than closest allowed photon
-gatherPhotons (PhotonMapLeaf (Just !p)) !pos !rSq !photonHeap !maxPhotons
+      !posComponent = component pos axis
+      !rSq' = minimalSearchRadius rSq photonHeap -- Refine search radius as we go down tree to search no further than closest allowed photon
+gatherPhotons (PhotonMapLeaf !p) !pos !rSq !photonHeap !maxPhotons
     | distSq < rSq = let newHeap = insert (GatheredPhoton distSq p) photonHeap
-                     in if size newHeap > maxPhotons 
-                        then Data.Heap.drop 1 newHeap 
-                        else newHeap
+                     in Data.Heap.drop (size newHeap - maxPhotons) newHeap
     | otherwise = photonHeap
     where !distSq = pos `distanceSq` (fst . posDir) p
-gatherPhotons (PhotonMapLeaf Nothing) _ _ !photonHeap _ = photonHeap
 
 -- Return the contribution of a given photon, including a simple cos term to emulate BRDF plus the cone filter
 photonContribution :: Float -> (Position, TangentSpace) -> Photon -> Colour
-photonContribution !kr !(pos, (_, _, normal)) !photon = power photon Colour.<*> (Vector.negate normal `sdot3` (snd . posDir) photon) Colour.<*> weight
+photonContribution !kr !(pos, (_, _, normal)) !photon = power photon Colour.<*> ((Vector.negate normal `sdot3` (snd . posDir) photon) * weight)
     where
       !weight = 1 - (pos `distance` (fst . posDir) photon) / (kr + 0.000000001) -- Add on an epsilon to prevent div0 in cone filter
 
