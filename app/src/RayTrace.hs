@@ -129,7 +129,7 @@ traceRay renderContext photonMap !ray 1 !viewDir _ _ =
                 -- Evaluate surface-location specific things such as shader results
                 !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
                 !intersectionPoint = pointAlongRay ray intersectionDistance
-                !surfaceIrradiance = irradiance photonMap (intersectionPoint, tanSpace) (photonMapContext renderContext) (material obj)
+                !surfaceIrradiance = irradiance photonMap (photonMapContext renderContext) (material obj) (intersectionPoint, tanSpace)
 
 -- General case
 traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedReflectivity = 
@@ -143,7 +143,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
                 !normal = thr tanSpace
                 !incoming = Vector.negate $ direction ray
                 !surfaceShading = accumulateLight (lights renderContext) colBlack (sceneGraph renderContext) (intersectionPoint, tanSpace) (material obj) viewDir
-                !surfaceIrradiance = irradiance photonMap (intersectionPoint, tanSpace) (photonMapContext renderContext) (material obj)
+                !surfaceIrradiance = irradiance photonMap (photonMapContext renderContext) (material obj) (intersectionPoint, tanSpace)
 
                 -- Reflection specific code
                 offsetToExterior = madd intersectionPoint normal surfaceEpsilon

@@ -42,7 +42,7 @@ main = do
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
   let numPhotons = 100000
   let photonMap = buildPhotonMap sceneGraph cornellBoxLights numPhotons
-  Prelude.putStrLn $ "Num photons: " ++ show (Prelude.length (photonList photonMap))
+--  Prelude.putStrLn $ "Num photons: " ++ show (Prelude.length (photonList photonMap))
   let imageData = raytracedImage photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
   let bmp = packRGBA32ToBMP renderWidth renderHeight rgba

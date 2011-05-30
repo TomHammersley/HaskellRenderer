@@ -237,8 +237,8 @@ sumPhotonContribution !r !k !posTanSpace !photons = foldr ((+) .photonContributi
 
 -- Look up the resulting irradiance from the photon map at a given point
 -- Realistic Image Synthesis Using Photon Mapping, e7.6
-irradiance :: PhotonMap -> (Position, TangentSpace) -> PhotonMapContext -> Material -> Colour
-irradiance photonMap !posTanSpace !photonMapContext !mat = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
+irradiance :: PhotonMap -> PhotonMapContext -> Material -> (Position, TangentSpace) -> Colour
+irradiance photonMap !photonMapContext !mat !posTanSpace = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
     where
       !r = photonGatherDistance photonMapContext
       !maxPhotons = maxGatherPhotons photonMapContext
