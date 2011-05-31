@@ -38,3 +38,11 @@ selectMinBoxComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMin else
 
 selectMaxBoxComponent :: (Vector -> Float) -> Vector -> AABB -> Float
 selectMaxBoxComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMax else f boxMin
+
+-- Does a box contain a point?
+contains :: AABB -> Position -> Bool
+contains (boxMin, boxMax) p = insideInterval vecX &&
+                              insideInterval vecY &&
+                              insideInterval vecZ
+    where 
+      insideInterval f = f p >= f boxMin && f p <= f boxMax

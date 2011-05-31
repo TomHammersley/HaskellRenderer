@@ -24,12 +24,14 @@ sceneGraph = buildSceneGraph cornellBox generateSceneGraphUsingKDTree
 renderSettings :: RenderContext
 renderSettings = RenderContext numDistributedSamples sceneGraph cornellBoxLights maxRayDepth reflectionDistance refractionDistance (PhotonMapContext photonGatherDistance maxGatherPhotons coneFilterConstant)
     where
+      -- Ray trace constants
       numDistributedSamples = 64
       maxRayDepth = 5
-      photonGatherDistance = 100
       reflectionDistance = 1000
       refractionDistance = 1000
-      maxGatherPhotons = 500
+      -- Photon constants
+      photonGatherDistance = 100
+      maxGatherPhotons = 200
       coneFilterConstant = 2
 
 -- This returns a list of colours of pixels
@@ -40,7 +42,8 @@ raytracedImage = rayTraceImage renderSettings cornellBoxCamera renderWidth rende
 main :: IO ()
 main = do 
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
-  let numPhotons = 100000
+  let thousand = 1000
+  let numPhotons = 100 * thousand
   let photonMap = buildPhotonMap sceneGraph cornellBoxLights numPhotons
 --  Prelude.putStrLn $ "Num photons: " ++ show (Prelude.length (photonList photonMap))
   let imageData = raytracedImage photonMap

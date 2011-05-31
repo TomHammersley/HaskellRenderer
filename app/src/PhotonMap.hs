@@ -70,7 +70,6 @@ choosePhotonFate !(diffuseP, specularP) = do
   let result | p < diffuseP = DiffuseReflect
              | p < (diffuseP + specularP) = SpecularReflect
              | otherwise = Absorb
-      -- | bounce >= maxBounces = trace "Hit max bounces forcing absorb" Absorb
   put newGenerator
   return result
 
@@ -140,10 +139,11 @@ tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndS
 
 -- Build a list of photons for a light source
 tracePhotonsForLight :: Int -> SceneGraph -> Light -> [Photon]
-tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rndState, flux) -> tracePhoton [] (Photon flux (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirGens `using` parListChunk 256 rseq)
+tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rndState, flux) -> tracePhoton [] (Photon flux (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirGens `using` parListChunk photonsPerChunk rseq)
     where
       posDirGens = (emitPhotons light numPhotons) -- Positions, directions, random number generators
       maxBounces = 5
+      photonsPerChunk = 256
 
 -- High-level function to build a photon map
 buildPhotonMap :: SceneGraph -> [Light] -> Int -> PhotonMap
