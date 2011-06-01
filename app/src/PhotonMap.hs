@@ -99,6 +99,7 @@ diffuseReflectionDirection !stdGen !tanSpace = (transformDir dir tanSpace, stdGe
       dir = sphericalToDirection (theta, phi)
 
 -- Main working photon tracing function
+-- Realistic Image Synthesis Using Photon Mapping p60
 tracePhoton :: [Photon] -> Photon -> SceneGraph -> StdGen -> (Int, Int) -> [Photon]
 tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndState !(bounce, maxBounces) = 
     -- See if the photon intersects any surfaces
@@ -156,6 +157,7 @@ photonsBoundingBox :: [Photon] -> AABB
 photonsBoundingBox = foldr (enlargeBoundingBox .fst . posDir) initialInvalidBox
 
 -- Construct a balanced kd tree of photons
+-- Realistic Image Synthesis Using Photon Mapping p72
 buildKDTree :: [Photon] -> PhotonMapTree
 buildKDTree photons
     | length photons == 1 = PhotonMapLeaf (head photons)
@@ -199,6 +201,7 @@ minimalSearchRadius !rSq !photonHeap = case viewHead photonHeap of
                                          Just (GatheredPhoton dSq _) -> Prelude.min rSq dSq
 
 -- Gather photons for irradiance computations
+-- Algorithm adapted from Realistic Image Synthesis Using Photon Mapping p73
 gatherPhotons :: PhotonMapTree -> Position -> Float -> PhotonHeap -> Int -> PhotonHeap
 gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !rSq !photonHeap !maxPhotons
     -- In this case, the split plane bisects the search sphere - search both halves of tree
@@ -215,23 +218,25 @@ gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !rSq !photonHeap
     | posComponent <= value = gatherPhotons leChild pos rSq' photonHeap maxPhotons
 
     -- Prolapse
-    | otherwise = error "gatherPhotons: Errr.. unexplained/unexpected case here"
+    | otherwise = error "gatherPhotons: unexplained/unexpected case here"
     where
       !posComponent = component pos axis
       !rSq' = minimalSearchRadius rSq photonHeap -- Refine search radius as we go down tree to search no further than closest allowed photon
 gatherPhotons (PhotonMapLeaf !p) !pos !rSq !photonHeap !maxPhotons
     | distSq < rSq = let newHeap = insert (GatheredPhoton distSq p) photonHeap
-                     in Data.Heap.drop (size newHeap - maxPhotons) newHeap
+                     in Data.Heap.drop (size newHeap - maxPhotons) newHeap -- Discard any excess photons - we get rid of the furthest ones
     | otherwise = photonHeap
     where !distSq = pos `distanceSq` (fst . posDir) p
 
 -- Return the contribution of a given photon, including a simple cos term to emulate BRDF plus the cone filter
+-- Cone filter is from Realistic Image Synthesis Using Photon Mapping p81
 photonContribution :: Float -> (Position, TangentSpace) -> Photon -> Colour
 photonContribution !kr !(pos, (_, _, normal)) !photon = power photon Colour.<*> ((Vector.negate normal `sdot3` (snd . posDir) photon) * weight)
     where
       !weight = 1 - (pos `distance` (fst . posDir) photon) / (kr + 0.000000001) -- Add on an epsilon to prevent div0 in cone filter
 
 -- Find the overall contribution of a list of photons
+-- Radiance estimate algorithm from Realistic Image Synthesis Using Photon Mapping p81
 sumPhotonContribution :: Float -> Float -> (Position, TangentSpace) -> [Photon] -> Colour
 sumPhotonContribution !r !k !posTanSpace !photons = foldr ((+) .photonContribution (k * r) posTanSpace) colBlack photons Colour.<*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
 
