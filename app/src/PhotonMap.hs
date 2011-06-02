@@ -42,7 +42,7 @@ data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
 -- Helps parallelisation...
 emitPhotons :: Light -> Int -> [(Position, Direction, StdGen, Colour)]
-emitPhotons (PointLight !pos lightPower _ True) !numPhotons = zipWith (\dir num -> (pos, dir, mkStdGen num, flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
+emitPhotons (PointLight !pos !lightPower _ True) !numPhotons = zipWith (\dir num -> (pos, dir, mkStdGen num, flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
     where
       flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
 emitPhotons (QuadLight !corner !du !dv !lightPower) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, mkStdGen num, flux)) randomPoints randomDirs [1..numPhotons]
@@ -143,7 +143,7 @@ tracePhotonsForLight :: Int -> SceneGraph -> Light -> [Photon]
 tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rndState, flux) -> tracePhoton [] (Photon flux (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirGens `using` parListChunk photonsPerChunk rseq)
     where
       posDirGens = (emitPhotons light numPhotons) -- Positions, directions, random number generators
-      maxBounces = 5
+      maxBounces = 10
       photonsPerChunk = 256
 
 -- High-level function to build a photon map
@@ -159,26 +159,18 @@ photonsBoundingBox = foldr (enlargeBoundingBox .fst . posDir) initialInvalidBox
 -- Construct a balanced kd tree of photons
 -- Realistic Image Synthesis Using Photon Mapping p72
 buildKDTree :: [Photon] -> PhotonMapTree
-buildKDTree photons
-    | length photons == 1 = PhotonMapLeaf (head photons)
-    | length photons == 2 = let photon0 : photon1 : [] = photons
-                                position0 = (fst . posDir) photon0
-                                position1 = (fst . posDir) photon1
-                                axis = largestAxis (position0 - position1)
-                                midPoint = component ((position0 + position1) Vector.<*> 0.5) axis
-                            in if component position0 axis > component position1 axis
-                               then PhotonMapNode axis midPoint (PhotonMapLeaf photon0) (PhotonMapLeaf photon1)
-                               else PhotonMapNode axis midPoint (PhotonMapLeaf photon1) (PhotonMapLeaf photon0)
-    | length photons > 2 = let (boxMin, boxMax) = photonsBoundingBox photons
-                               axis = largestAxis (boxMax - boxMin)
-                               photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> fromIntegral (length photons)
-                               value = component photonsMedian axis
-                               photonsGT = Prelude.filter (\x -> component ((fst . posDir) x) axis > value) photons
-                               photonsLE = Prelude.filter (\x -> component ((fst . posDir) x) axis <= value) photons
-                           in if length photonsGT > 0 && length photonsLE > 0
-                              then PhotonMapNode axis value (buildKDTree photonsGT) (buildKDTree photonsLE)
-                              else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')
-    | otherwise = error ("Invalid case, length of array is " ++ show (length photons) ++ "\n")
+buildKDTree (x:[]) = PhotonMapLeaf x
+buildKDTree (x:xs) = let !photons = x:xs
+                         !(boxMin, boxMax) = photonsBoundingBox photons
+                         !axis = largestAxis (boxMax - boxMin)
+                         !photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> fromIntegral (length photons)
+                         !value = component photonsMedian axis
+                         photonsGT = Prelude.filter (\p -> component ((fst . posDir) p) axis > value) photons
+                         photonsLE = Prelude.filter (\p -> component ((fst . posDir) p) axis <= value) photons
+                     in if length photonsGT > 0 && length photonsLE > 0
+                        then PhotonMapNode axis value (buildKDTree photonsGT) (buildKDTree photonsLE)
+                        else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')
+buildKDTree [] = undefined
 
 -- Use a max heap to make it easy to eliminate distant photons
 data GatheredPhoton = GatheredPhoton Float Photon deriving (Show)
