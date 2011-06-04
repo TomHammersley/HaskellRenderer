@@ -40,7 +40,7 @@ import Data.Maybe
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 
                        vertUV :: {-# UNPACK #-} !Position, 
                        vertTangentSpace :: {-# UNPACK #-} !TangentSpace } deriving (Show, Read, Eq)
-data Triangle = Triangle { vertices :: [Vertex], plane :: Primitive, halfPlanes :: [Primitive] } deriving (Show, Read, Eq)
+data Triangle = Triangle { vertices :: ![Vertex], plane :: !Primitive, halfPlanes :: ![Primitive] } deriving (Show, Read, Eq)
 
 -- General object definition
 data Object = Object { primitive :: Primitive,
@@ -48,7 +48,7 @@ data Object = Object { primitive :: Primitive,
                        transform :: !Matrix} deriving (Show, Read, Eq)
 
 -- Different kinds of primitives that an object can have
-data Primitive = Sphere { radius :: !Float }
+data Primitive = Sphere { radius :: {-# UNPACK #-} !Float }
                | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Float }
                | TriangleMesh { triangles :: [Triangle] } deriving (Show, Read, Eq)
 

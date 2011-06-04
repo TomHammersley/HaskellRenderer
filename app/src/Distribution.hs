@@ -11,8 +11,8 @@ type GeneratorState = State StdGen
 -- Generate a pair of random normalised floats
 randomUV :: GeneratorState (Float, Float)
 randomUV = do generator <- get
-              let (u, newGenerator) = randomR (0.0::Float, 1.0::Float) generator
-              let (v, newGenerator') = randomR (0.0::Float, 1.0::Float) newGenerator
+              let !(u, newGenerator) = randomR (0.0::Float, 1.0::Float) generator
+              let !(v, newGenerator') = randomR (0.0::Float, 1.0::Float) newGenerator
               put newGenerator'
               return (u, v)
 

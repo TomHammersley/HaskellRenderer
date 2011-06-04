@@ -20,6 +20,7 @@ import Debug.Trace
 import Misc
 import Control.Parallel.Strategies
 import Data.Heap
+import IrradianceCache
 
 type GeneratorState = State StdGen
 
@@ -30,7 +31,7 @@ data PhotonMapContext = PhotonMapContext {
 
 data Photon = Photon { power :: {-# UNPACK #-} !Colour, posDir :: {-# UNPACK #-} !(Position, Direction) } deriving (Show, Read, Eq, Ord)
 
-data PhotonMapTree = PhotonMapNode !Int !Float PhotonMapTree PhotonMapTree
+data PhotonMapTree = PhotonMapNode {-# UNPACK #-} !Int {-# UNPACK #-} !Float PhotonMapTree PhotonMapTree
                    | PhotonMapLeaf !Photon deriving (Show, Read, Eq)
 
 data PhotonMap = PhotonMap { photonList :: [Photon],
@@ -142,8 +143,8 @@ tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndS
 tracePhotonsForLight :: Int -> SceneGraph -> Light -> [Photon]
 tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rndState, flux) -> tracePhoton [] (Photon flux (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirGens `using` parListChunk photonsPerChunk rseq)
     where
-      posDirGens = (emitPhotons light numPhotons) -- Positions, directions, random number generators
-      maxBounces = 10
+      posDirGens = emitPhotons light numPhotons -- Positions, directions, random number generators
+      maxBounces = 50
       photonsPerChunk = 256
 
 -- High-level function to build a photon map
@@ -197,10 +198,10 @@ minimalSearchRadius !rSq !photonHeap = case viewHead photonHeap of
 gatherPhotons :: PhotonMapTree -> Position -> Float -> PhotonHeap -> Int -> PhotonHeap
 gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !rSq !photonHeap !maxPhotons
     -- In this case, the split plane bisects the search sphere - search both halves of tree
-    | (value - posComponent) ** 2 <= rSq = let heap1 = gatherPhotons gtChild pos rSq' photonHeap maxPhotons
-                                               rSq'' = minimalSearchRadius rSq' heap1
-                                               heap2 = gatherPhotons leChild pos rSq'' photonHeap maxPhotons
-                                               newHeap = union heap1 heap2
+    | (value - posComponent) ** 2 <= rSq = let !heap1 = gatherPhotons gtChild pos rSq' photonHeap maxPhotons
+                                               !rSq'' = minimalSearchRadius rSq' heap1
+                                               !heap2 = gatherPhotons leChild pos rSq'' photonHeap maxPhotons
+                                               !newHeap = union heap1 heap2
                                            in Data.Heap.drop (size newHeap - maxPhotons) newHeap
 
     -- One side of the tree...

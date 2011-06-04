@@ -150,6 +150,7 @@ sphericalToDirection :: (Float, Float) -> Direction
 sphericalToDirection (theta, phi) = Vector (sin theta * cos phi) (sin theta * sin phi) (cos theta) 1
 
 component :: Vector -> Int -> Float
+{-# SPECIALIZE INLINE component :: Vector -> Int -> Float #-}
 component (Vector x _ _ _) 0 = x
 component (Vector _ y _ _) 1 = y
 component (Vector _ _ z _) 2 = z
