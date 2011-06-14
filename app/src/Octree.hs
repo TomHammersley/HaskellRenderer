@@ -1,8 +1,10 @@
 -- This is a module for constructing bounding volume hierarchies using an octree approach
 
-module Octree(generateSceneGraphUsingOctree) where
+module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList) where
+
 import Vector
 import Primitive
+import BoundingBox
 
 -- Generate a scene graph using an octree. Refactor this to just be an octree later
 generateOctreeBoxList :: AABB -> [AABB]
