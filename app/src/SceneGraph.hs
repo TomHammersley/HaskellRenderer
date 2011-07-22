@@ -1,11 +1,13 @@
 -- The graph structure holding the scene
 
-module SceneGraph (buildSceneGraph, SphereTreeNode(boundingRadius, boundingCentre, object, children), SceneGraph(root, infiniteObjects)) where
+module SceneGraph (buildSceneGraph, SphereTreeNode(boundingRadius, boundingCentre, object, children), SceneGraph(root, infiniteObjects, finiteBox)) where
+
 import Primitive
 import Vector
+import BoundingBox
 
 data SphereTreeNode = SphereTreeNode { object :: Maybe Object, children :: [SphereTreeNode], boundingRadius :: !Float, boundingCentre :: !Vector } deriving (Show, Read)
-data SceneGraph = SceneGraph { root :: SphereTreeNode, infiniteObjects :: [Object] } deriving (Show, Read)
+data SceneGraph = SceneGraph { root :: SphereTreeNode, infiniteObjects :: [Object], finiteBox :: AABB } deriving (Show, Read)
 
 -- Find the mean of a collection of objects
 calculateMeanPosition' :: [Object] -> Vector -> Vector
@@ -37,7 +39,7 @@ buildSphereTree _ [] = error "Should not hit this pattern for buildSphereTree"
 
 -- Build a scene graph
 buildSceneGraph :: [Object] -> ([Object] -> [[Object]]) -> SceneGraph
-buildSceneGraph objs buildFunction = SceneGraph (buildSphereTree buildFunction nonInfiniteObjects) infiniteObjs
+buildSceneGraph objs buildFunction = SceneGraph (buildSphereTree buildFunction nonInfiniteObjects) infiniteObjs (objectListBoundingBox nonInfiniteObjects)
     where
       nonInfiniteObjects = filter (not . infinitePrimitive . primitive) objs
       infiniteObjs = filter (infinitePrimitive . primitive) objs

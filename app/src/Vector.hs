@@ -7,7 +7,7 @@ import Misc
 data Vector = Vector { vecX :: {-# UNPACK #-} !Float,
                        vecY :: {-# UNPACK #-} !Float,
                        vecZ :: {-# UNPACK #-} !Float,
-                       vecW :: {-# UNPACK #-} !Float } deriving (Show, Read, Ord, Eq)
+                       vecW :: {-# UNPACK #-} !Float } deriving (Read, Ord, Eq)
 type Position = Vector
 type Direction = Vector
 type Normal = Direction
@@ -23,6 +23,9 @@ instance Num Vector where
     abs (Vector x y z w) = Vector (abs x) (abs y) (abs z) (abs w)
     signum (Vector x y z w) = Vector (signum x) (signum y) (signum z) (signum w)
     fromInteger x = Vector (fromInteger x) (fromInteger x) (fromInteger x) (fromInteger x)
+
+instance Show Vector where
+    show (Vector x y z w) = "(" ++ (show x) ++ ", " ++ (show y) ++ ", " ++ (show z) ++ ", " ++ (show w) ++ ")"
 
 xaxis :: Vector
 xaxis = Vector 1 0 0 0

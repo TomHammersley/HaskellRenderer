@@ -1,10 +1,95 @@
 -- This is a module for constructing bounding volume hierarchies using an octree approach
 
-module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList) where
+module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList, OctTree, create, insert, gather) where
 
 import Vector
 import Primitive
 import BoundingBox
+import Control.Monad.State
+
+data OctTree a = OctTreeDummy AABB
+               | OctTreeNode AABB [OctTree a]
+               | OctTreeLeaf AABB (Vector, a) deriving (Read, Eq)
+
+instance Show a => Show (OctTree a) where
+    show oct = display 0 oct
+
+tabs = '\t' : tabs
+
+display :: (Show a) => Int -> OctTree a -> String
+display level (OctTreeDummy box) = (take level tabs) ++ "[Dummy] box=" ++ (show box) ++ "\n"
+display level (OctTreeNode box children) = (take level tabs) ++ "[Node] box=" ++ (show box) ++ "\n" ++ (concatMap (display (level + 1)) children) ++ "\n"
+display level (OctTreeLeaf box (pos, value)) = (take level tabs) ++ "[Leaf] box=" ++ (show box) ++ " pos=" ++ (show pos) ++ " value=" ++ (show value) ++ "\n"
+
+create :: AABB -> OctTree a
+create box = OctTreeNode box $ map OctTreeDummy (generateOctreeBoxList box)
+
+-- This is a function I wrote that performs a map, and passes through the state of the completed operation to the next recursion
+mapS :: (a -> s -> (b, s)) -> [a] -> s -> ([b], s)
+mapS f (x:xs) state = let (result, state') = f x state
+                          (xs', state'') = mapS f xs state'
+                      in (result : xs', state'')
+mapS f [] state = ([], state)
+
+-- Insert into an octree
+insert :: Vector -> a -> OctTree a -> OctTree a
+insert pos a oct = fst $ insert' pos oct (Just a)
+
+insert' :: Vector -> OctTree a -> Maybe a -> (OctTree a, Maybe a)
+insert' pos (OctTreeDummy box) state = case state of
+                                         -- If we have been passed some state then attempt to consume it
+                                         Just value -> if box `contains` pos
+                                                       then (OctTreeLeaf box (pos, value), Nothing)
+                                                       else (OctTreeDummy box, state)
+                                         _ -> (OctTreeDummy box, state)
+insert' pos (OctTreeNode box nodeChildren) state = (OctTreeNode box nodeChildren', state')
+    where (nodeChildren', state') = mapS (insert' pos) nodeChildren state
+insert' pos (OctTreeLeaf box (pos', a')) state = (octTree', state')
+    where
+      -- First up, we turn this leaf into a node with 8 children
+      (newChildren, _) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state -- we're assuming that the octree insertion returns state of Nothing - else wtf happened?
+      -- Now we re-insert the value that this leaf originally contained into the nascent octree
+      (octTree', state') = insert' pos' (OctTreeNode box newChildren) (Just a')
+
+type InsertionState a = State (Maybe a) (OctTree a)
+
+{-
+insertM :: Vector -> OctTree a -> InsertionState a
+insertM pos (OctTreeDummy box) = 
+    do
+      x <- get
+      case x of
+        -- If we have been passed some state then attempt to consume it
+        Just value -> if box `contains` pos
+                      then do
+                        put Nothing
+                        return $ OctTreeLeaf box (pos, value)
+                      else do
+                        return $ OctTreeDummy box
+        _ -> return $ OctTreeDummy box
+insertM pos (OctTreeNode box nodeChildren) = 
+    do 
+      let (nodeChildren', state') = mapM (insertM pos) nodeChildren -- This is where it all goes wrong
+      return $ OctTreeNode box nodeChildren'
+insertM pos (OctTreeLeaf box (pos', a')) = octTree'
+    where
+      -- First up, we turn this leaf into a node with 8 children
+      (newChildren, _) = mapS (insertM pos) (map OctTreeDummy (generateOctreeBoxList box)) state -- we're assuming that the octree insertion returns state of Nothing - else wtf happened?
+      -- Now we re-insert the value that this leaf originally contained into the nascent octree
+      (octTree', state') = insertM pos' (OctTreeNode box newChildren) (Just a')
+-}
+
+gather :: Position -> Float -> OctTree a -> [(a, Float)]
+gather pos r (OctTreeNode box nodeChildren) = if overlapsSphere box pos r
+                                              then foldr (++) [] $ map (gather pos r) nodeChildren
+                                              else []
+gather pos r (OctTreeLeaf _ (pos', a))
+    | dSq <= r * r = [(a, dSq)]
+    | otherwise = []
+    where dSq = pos `distanceSq` pos'
+gather _ _ (OctTreeDummy _) = []
+
+-- Octree code that's spilt out from other modules... this is scene graph specific helper code rather than self-contained octree stuff
 
 -- Generate a scene graph using an octree. Refactor this to just be an octree later
 generateOctreeBoxList :: AABB -> [AABB]

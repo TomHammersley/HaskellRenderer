@@ -6,13 +6,18 @@ import Vector
 import Colour
 import Misc
 import BoundingBox
-import Octree
+import Octree hiding (insert)
+import SceneGraph
 
 type CacheSample = (Position, Direction, Colour, Float)
 
-data IrradianceCacheTree = IrradianceCacheDummy
+data IrradianceCacheTree = IrradianceCacheDummy AABB
                          | IrradianceCacheNode AABB [IrradianceCacheTree]
-                         | IrradianceCacheLeaf CacheSample deriving (Show, Read, Eq)
+                         | IrradianceCacheLeaf AABB CacheSample deriving (Show, Read, Eq)
+
+-- Create the initial irradiance cache tree
+initialiseCache :: SceneGraph -> IrradianceCacheTree
+initialiseCache sceneGraph = IrradianceCacheNode (finiteBox sceneGraph) $ map IrradianceCacheDummy (generateOctreeBoxList (finiteBox sceneGraph))
 
 -- Quantify the error if we use a given sample to shade a point
 errorWeight :: (Position, Direction) -> CacheSample -> Float
@@ -25,23 +30,26 @@ divideNode _ = undefined
 
 -- Insert a new sample into an octree
 insert :: CacheSample -> IrradianceCacheTree -> IrradianceCacheTree
-insert cacheSample IrradianceCacheDummy = IrradianceCacheLeaf cacheSample
-insert cacheSample (IrradianceCacheNode box children) = undefined
-insert cacheSample (IrradianceCacheLeaf _) = IrradianceCacheNode undefined (divideNode undefined)
---insert _ _ = undefined
-
+insert (pos, dir, col, r) (IrradianceCacheDummy box) = if box `contains` pos
+                                                       then IrradianceCacheLeaf box (pos, dir, col, r)
+                                                       else IrradianceCacheDummy box
+insert cacheSample (IrradianceCacheNode box nodeChildren) = IrradianceCacheNode box $ map (insert cacheSample) nodeChildren
+insert cacheSample (IrradianceCacheLeaf box cacheSample') = insert cacheSample (IrradianceCacheNode box (map (insert cacheSample') (map IrradianceCacheDummy childBoxes)))
+    where
+      childBoxes = generateOctreeBoxList box
+                  
 -- Search the tree to see if we can find a point within a given radius
 findSamples :: (Position, Direction) -> IrradianceCacheTree -> [(CacheSample, Float)]
-findSamples (pos, dir) (IrradianceCacheNode box children) = if box `contains` pos
-                                                            then foldr (++) [] $ map (findSamples (pos, dir)) children
-                                                            else []
-findSamples (pos, dir) (IrradianceCacheLeaf (samplePos, sampleDir, sampleCol, sampleR))
+findSamples (pos, dir) (IrradianceCacheNode box nodeChildren) = if box `contains` pos
+                                                                then foldr (++) [] $ map (findSamples (pos, dir)) nodeChildren
+                                                                else []
+findSamples (pos, dir) (IrradianceCacheLeaf _ (samplePos, sampleDir, sampleCol, sampleR))
     | pos `distanceSq` samplePos <= sampleR * sampleR = [(sample, weight)]
     | otherwise = []
     where
       weight = errorWeight (pos, dir) (samplePos, sampleDir, sampleCol, sampleR)
       sample = (pos, dir, sampleCol, sampleR)
-findSamples _ IrradianceCacheDummy = []
+findSamples _ (IrradianceCacheDummy _) = []
 
 -- Sum together a list of samples and error weights
 sumSamples :: [(CacheSample, Float)] -> Colour

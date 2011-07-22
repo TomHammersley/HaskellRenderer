@@ -44,3 +44,8 @@ contains :: AABB -> Position -> Bool
 contains (boxMin, boxMax) p = all insideInterval [vecX, vecY, vecZ]
     where 
       insideInterval f = f p >= f boxMin && f p <= f boxMax
+
+overlapsSphere :: AABB -> Position -> Float -> Bool
+overlapsSphere (boxMin, boxMax) p r = all insideInterval [vecX, vecY, vecZ]
+    where 
+      insideInterval f = f p >= (f boxMin - r) && f p <= (f boxMax + r)
