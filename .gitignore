@@ -1,0 +1,9 @@
+*.hi
+*.o-boot
+*.hi-boot
+*.o
+*.bmp
+*.prof
+*.hp
+raytracer
+*.DS_store

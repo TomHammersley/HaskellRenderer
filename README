@@ -48,7 +48,7 @@ Future planned work:
 * Parsing of scene data files
 * Parallelisation of photon gathering
 * Cabal compatability
-* Optimisation!
+* Optimisation! Particularly of photon mapping
 * Extended shader model
 
 Tom Hammersley 12/5/2011

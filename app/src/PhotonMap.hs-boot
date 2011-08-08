@@ -23,5 +23,5 @@ data PhotonMapTree = PhotonMapNode { splitAxis :: Int, splitValue :: Float, chil
 data PhotonMap = PhotonMap { photonList :: [Photon],
                              photonMapTree :: PhotonMapTree }
 
-irradiance :: PhotonMap -> (Position, TangentSpace) -> PhotonMapContext -> Material -> Colour
+irradiance :: PhotonMap -> PhotonMapContext -> Material -> (Position, TangentSpace) -> Colour
 buildPhotonMap :: SceneGraph -> [Light] -> Int -> PhotonMap
