@@ -20,7 +20,7 @@ rayWithPosDir !(start, dir) !rayLen = Ray start dir rayLen
 
 -- Given a ray and a distance, produce the point along the ray
 pointAlongRay :: Ray -> Float -> Position
-pointAlongRay (Ray !org !dir _) !dist = madd org dir dist
+pointAlongRay (Ray !org !dir _) !dist = setWTo1 (madd org dir dist)
 
 -- Given some intercept, work out if it is valid, for this ray
 validIntercept :: Ray -> Float -> Bool

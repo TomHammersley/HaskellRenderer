@@ -13,16 +13,16 @@ import PhotonMap
 
 -- Some hardcoded values, at present
 renderWidth :: Int
-renderWidth = 1024
+renderWidth = 320 --1024
 
 renderHeight :: Int
-renderHeight = 768
+renderHeight = 200 --768
 
 sceneGraph :: SceneGraph
 sceneGraph = buildSceneGraph cornellBox generateSceneGraphUsingKDTree
 
 renderSettings :: RenderContext
-renderSettings = RenderContext numDistributedSamples sceneGraph cornellBoxLights maxRayDepth reflectionDistance refractionDistance (PhotonMapContext photonGatherDistance maxGatherPhotons coneFilterConstant)
+renderSettings = RenderContext numDistributedSamples sceneGraph cornellBoxLights maxRayDepth reflectionDistance refractionDistance (PhotonMapContext photonGatherDistance maxGatherPhotons coneFilterConstant) rayOriginDistribution depthOfFieldFocalDistance
     where
       -- Ray trace constants
       numDistributedSamples = 64
@@ -33,6 +33,9 @@ renderSettings = RenderContext numDistributedSamples sceneGraph cornellBoxLights
       photonGatherDistance = 100
       maxGatherPhotons = 200
       coneFilterConstant = 2
+      -- Depth of field constants
+      rayOriginDistribution = 0.5
+      depthOfFieldFocalDistance = 400
 
 -- This returns a list of colours of pixels
 raytracedImage :: PhotonMap -> [Colour]

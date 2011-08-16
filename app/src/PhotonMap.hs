@@ -20,7 +20,6 @@ import Debug.Trace
 import Misc
 import Control.Parallel.Strategies
 import Data.Heap
-import IrradianceCache
 
 type GeneratorState = State StdGen
 

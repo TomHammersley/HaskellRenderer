@@ -25,7 +25,16 @@ instance Num Vector where
     fromInteger x = Vector (fromInteger x) (fromInteger x) (fromInteger x) (fromInteger x)
 
 instance Show Vector where
-    show (Vector x y z w) = "(" ++ (show x) ++ ", " ++ (show y) ++ ", " ++ (show z) ++ ", " ++ (show w) ++ ")"
+    show (Vector x y z w) = "(" ++ show x ++ ", " ++ show y ++ ", " ++ show z ++ ", " ++ show w ++ ")"
+
+tsTangent :: TangentSpace -> Normal
+tsTangent (t, _, _) = t
+
+tsBinormal :: TangentSpace -> Normal
+tsBinormal (_, b, _) = b
+
+tsNormal :: TangentSpace -> Normal
+tsNormal = thr
 
 xaxis :: Vector
 xaxis = Vector 1 0 0 0

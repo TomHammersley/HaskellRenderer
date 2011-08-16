@@ -9,12 +9,6 @@ xor :: Bool -> Bool -> Bool
 xor True a = not a
 xor False a = a
 
---fst :: (x, y, z) -> x
---fst (a, _, _) = a
-
---snd :: (x, y, z) -> y
---snd (_, b, _) = b
-
 thr :: (x, y, z) -> z
 thr (_, _, c) = c
 

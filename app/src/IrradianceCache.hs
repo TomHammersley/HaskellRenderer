@@ -1,68 +1,57 @@
 -- The irradiance cache
 
-module IrradianceCache (IrradianceCacheTree, query) where
+module IrradianceCache (IrradianceCache, query, initialiseCache) where
 
 import Vector
 import Colour
 import Misc
 import BoundingBox
-import Octree hiding (insert)
+import Octree
 import SceneGraph
+import Debug.Trace
 
-type CacheSample = (Position, Direction, Colour, Float)
+data CacheSample = CacheSample (Direction, Colour, Float)
 
-data IrradianceCacheTree = IrradianceCacheDummy AABB
-                         | IrradianceCacheNode AABB [IrradianceCacheTree]
-                         | IrradianceCacheLeaf AABB CacheSample deriving (Show, Read, Eq)
+type IrradianceCache = OctTree CacheSample
+
+-- Pretty printer for cache samples
+instance Show CacheSample where
+    show (CacheSample (dir, col, r)) = "\tDirection: " ++ show dir ++ "\n\tColour: " ++ show col ++ "\n\tRadius: " ++ show r ++ "\n"
 
 -- Create the initial irradiance cache tree
-initialiseCache :: SceneGraph -> IrradianceCacheTree
-initialiseCache sceneGraph = IrradianceCacheNode (finiteBox sceneGraph) $ map IrradianceCacheDummy (generateOctreeBoxList (finiteBox sceneGraph))
+initialiseCache :: SceneGraph -> IrradianceCache
+initialiseCache sceneGraph = OctTreeNode (finiteBox sceneGraph) $ map OctTreeDummy (generateOctreeBoxList (finiteBox sceneGraph))
 
 -- Quantify the error if we use a given sample to shade a point
-errorWeight :: (Position, Direction) -> CacheSample -> Float
-errorWeight (pos', dir') (pos, dir, _, r) = 1 / (pos `distance` pos' / r + sqrt (1 + dir `dot3` dir'))
+errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Float
+errorWeight (pos', dir') (pos, CacheSample (dir, _, r)) = 1 / (pos `distance` pos' / r + sqrt (1 + dir `dot3` dir'))
 
--- Divide up a node into the eight children
-divideNode :: IrradianceCacheTree -> [IrradianceCacheTree]
-divideNode (IrradianceCacheNode box []) = map (\x -> IrradianceCacheNode x []) $ generateOctreeBoxList box
-divideNode _ = undefined
-
--- Insert a new sample into an octree
-insert :: CacheSample -> IrradianceCacheTree -> IrradianceCacheTree
-insert (pos, dir, col, r) (IrradianceCacheDummy box) = if box `contains` pos
-                                                       then IrradianceCacheLeaf box (pos, dir, col, r)
-                                                       else IrradianceCacheDummy box
-insert cacheSample (IrradianceCacheNode box nodeChildren) = IrradianceCacheNode box $ map (insert cacheSample) nodeChildren
-insert cacheSample (IrradianceCacheLeaf box cacheSample') = insert cacheSample (IrradianceCacheNode box (map (insert cacheSample') (map IrradianceCacheDummy childBoxes)))
-    where
-      childBoxes = generateOctreeBoxList box
-                  
 -- Search the tree to see if we can find a point within a given radius
-findSamples :: (Position, Direction) -> IrradianceCacheTree -> [(CacheSample, Float)]
-findSamples (pos, dir) (IrradianceCacheNode box nodeChildren) = if box `contains` pos
-                                                                then foldr (++) [] $ map (findSamples (pos, dir)) nodeChildren
-                                                                else []
-findSamples (pos, dir) (IrradianceCacheLeaf _ (samplePos, sampleDir, sampleCol, sampleR))
-    | pos `distanceSq` samplePos <= sampleR * sampleR = [(sample, weight)]
+findSamples :: (Position, Direction) -> IrradianceCache -> [(Vector, CacheSample, Float)]
+findSamples (pos, dir) (OctTreeNode box nodeChildren) = if box `contains` pos
+                                                        then concatMap (findSamples (pos, dir)) nodeChildren --  foldr (++) [] $ map (findSamples (pos, dir)) nodeChildren
+                                                        else []
+findSamples (pos, dir) (OctTreeLeaf _ (samplePos, sample))
+    | pos `distanceSq` samplePos <= sampleR * sampleR = [(samplePos, sample, weight)]
     | otherwise = []
     where
-      weight = errorWeight (pos, dir) (samplePos, sampleDir, sampleCol, sampleR)
-      sample = (pos, dir, sampleCol, sampleR)
-findSamples _ (IrradianceCacheDummy _) = []
+      weight = errorWeight (pos, dir) (samplePos, sample)
+      (CacheSample (_, _, sampleR)) = sample
+findSamples _ (OctTreeDummy _) = []
 
 -- Sum together a list of samples and error weights
-sumSamples :: [(CacheSample, Float)] -> Colour
+sumSamples :: [(Vector, CacheSample, Float)] -> Colour
 sumSamples samples = colourSum Colour.</> weightSum
     where
-      colourSum = foldr (\((_, _, col, _), weight) b -> b + col Colour.<*> weight) colBlack samples
-      weightSum = foldr (\((_, _, _, _), weight) b -> b + weight) 0 samples
+      colourSum = foldr (\(_, CacheSample (_, col, _), weight) b -> b + col Colour.<*> weight) colBlack samples
+      weightSum = foldr (\(_, CacheSample (_, _, _), weight) b -> b + weight) 0 samples
 
 -- Query the irradiance given a point
-query :: IrradianceCacheTree -> (Position, TangentSpace) -> ((Position, TangentSpace) -> (Colour, Float)) -> (Colour, IrradianceCacheTree)
-query irrCache posTanSpace lookup = case findSamples (fst posTanSpace, (thr . snd) posTanSpace) irrCache of
-                                      [] -> (colour, insert sample irrCache)
-                                            where
-                                              sample = (fst posTanSpace, (thr . snd) posTanSpace, colour, r)
-                                              (colour, r) = lookup posTanSpace
-                                      x : xs -> (sumSamples (x:xs), irrCache)
+-- Supplied function supplies the irradiance colour at a surface location along with the radius it is valid for
+query :: IrradianceCache -> (Position, TangentSpace) -> ((Position, TangentSpace) -> (Colour, Float)) -> (Colour, IrradianceCache)
+query irrCache posTanSpace f = case findSamples (fst posTanSpace, (thr . snd) posTanSpace) irrCache of
+                                 [] -> trace ("Adding new sample to cache:\nPosition: " ++ show (fst posTanSpace) ++ "\n" ++ show sample) $ (colour, insert (fst posTanSpace) sample irrCache)
+                                     where
+                                       sample = CacheSample ((tsNormal . snd) posTanSpace, colour, r)
+                                       (colour, r) = f posTanSpace
+                                 x : xs -> trace "Using existing cache samples" $ (sumSamples (x:xs), irrCache)

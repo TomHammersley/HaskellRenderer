@@ -1,7 +1,7 @@
 -- Module for lights
 {-# LANGUAGE BangPatterns #-}
 
-module Light (applyLight, surfaceEpsilon, Light(PointLight, AmbientLight, QuadLight), LightingResult, position, colour, range, deltaU, deltaV) where
+module Light (applyLight, surfaceEpsilon, Light(PointLight, AmbientLight, QuadLight), LightingResult, position, colour, range, deltaU, deltaV, addToPhotonMap) where
 
 import Vector
 import Colour
