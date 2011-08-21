@@ -17,13 +17,19 @@ test_Sub = TestCase (assertEqual "Vector subtraction" (v1 - v2) expectedResult)
       v2 = Vector 1 2 3 4
       expectedResult = Vector 9 18 27 36
 
-test_Mul = undefined
+test_Mul = TestCase (assertEqual "Vector multiplication" (v1 * v2) expectedResult)
+    where
+      v1 = Vector 1 0 2 3
+      v2 = Vector 1 10 (-2) 3
+      expectedResult = Vector 1 0 (-4) 9
+
 test_Negate = undefined
 test_Abs = undefined
 test_Signum = undefined
 tests_BasicVectorArithmetic = TestList [
                                TestLabel "Addition" test_Add, 
-                               TestLabel "Subtraction" test_Sub
+                               TestLabel "Subtraction" test_Sub,
+                               TestLabel "Multiplication" test_Mul
                               ]
 
 test_W1 = undefined

@@ -51,7 +51,7 @@ Executable HaskellRenderer
   Main-is: app/src/Main.hs
   
   -- Packages needed in order to build this package.
-  Build-depends: bmp
+  Build-depends: heap, bmp, mtl, hunit
   
   -- Modules not exported by this package.
   -- Other-modules:       
