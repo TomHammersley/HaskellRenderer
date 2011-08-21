@@ -29,7 +29,7 @@ lightAttenuation !lightPos !shadePos !lightRange =
     in if dist < lightRange then 1 - dist / lightRange else 0
 
 -- Apply phong lighting to an object
-phongLighting :: (Position, TangentSpace) -> Light -> Material -> SceneGraph -> Direction -> Colour
+phongLighting :: SurfaceLocation -> Light -> Material -> SceneGraph -> Direction -> Colour
 phongLighting (!shadePos, !tanSpace) (PointLight !lightPos !lightColour !lightRange inPhotonMap) objMaterial sceneGraph !viewDirection 
     | (lightPos `distanceSq` shadePos) < (lightRange * lightRange) && dotProd > 0 = case findAnyIntersection sceneGraph (rayWithPoints intersectionPlusEpsilon lightPos) of
                                                                                       Just _ -> colBlack -- An object is closer to our point of consideration than the light, so occluded
@@ -54,7 +54,7 @@ phongLighting _ (AmbientLight _) _ _ _ = error "phongLighting: Do not know how t
 phongLighting _ (QuadLight _ _ _ _) _ _ _ = colBlack 
 
 -- For a given surface point, work out the lighting, including occlusion
-applyLight :: SceneGraph -> (Position, TangentSpace) -> Material -> Direction -> Light -> Colour
+applyLight :: SceneGraph -> SurfaceLocation -> Material -> Direction -> Light -> Colour
 applyLight sceneGraph !intersectionPointNormal !objMaterial !viewDirection (PointLight !lightPos !lightColour !lightRange !inPhotonMap) = phongLighting intersectionPointNormal (PointLight lightPos lightColour lightRange inPhotonMap) objMaterial sceneGraph viewDirection
 applyLight _ (!intersectionPoint, !intersectionTanSpace) !objMaterial _ (AmbientLight !ambientColour) = 
     let shaderAmbient = evaluateAmbient (shader objMaterial) intersectionPoint intersectionTanSpace

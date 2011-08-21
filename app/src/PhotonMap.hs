@@ -222,19 +222,19 @@ gatherPhotons (PhotonMapLeaf !p) !pos !rSq !photonHeap !maxPhotons
 
 -- Return the contribution of a given photon, including a simple cos term to emulate BRDF plus the cone filter
 -- Cone filter is from Realistic Image Synthesis Using Photon Mapping p81
-photonContribution :: Float -> (Position, TangentSpace) -> Photon -> Colour
+photonContribution :: Float -> SurfaceLocation -> Photon -> Colour
 photonContribution !kr !(pos, (_, _, normal)) !photon = power photon Colour.<*> ((Vector.negate normal `sdot3` (snd . posDir) photon) * weight)
     where
       !weight = 1 - (pos `distance` (fst . posDir) photon) / (kr + 0.000000001) -- Add on an epsilon to prevent div0 in cone filter
 
 -- Find the overall contribution of a list of photons
 -- Radiance estimate algorithm from Realistic Image Synthesis Using Photon Mapping p81
-sumPhotonContribution :: Float -> Float -> (Position, TangentSpace) -> [Photon] -> Colour
+sumPhotonContribution :: Float -> Float -> SurfaceLocation -> [Photon] -> Colour
 sumPhotonContribution !r !k !posTanSpace !photons = foldr ((+) .photonContribution (k * r) posTanSpace) colBlack photons Colour.<*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
 
 -- Look up the resulting irradiance from the photon map at a given point
 -- Realistic Image Synthesis Using Photon Mapping, e7.6
-irradiance :: PhotonMap -> PhotonMapContext -> Material -> (Position, TangentSpace) -> Colour
+irradiance :: PhotonMap -> PhotonMapContext -> Material -> SurfaceLocation -> Colour
 irradiance photonMap !photonMapContext !mat !posTanSpace = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
     where
       !r = photonGatherDistance photonMapContext

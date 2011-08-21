@@ -1,0 +1,2 @@
+#!/bin/sh
+runhaskell Tests/UnitTests.hs

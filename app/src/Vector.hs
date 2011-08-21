@@ -12,6 +12,7 @@ type Position = Vector
 type Direction = Vector
 type Normal = Direction
 type TangentSpace = (Normal, Normal, Normal)
+type SurfaceLocation = (Position, TangentSpace)
 
 instance Num Vector where
     {-# SPECIALIZE INLINE (+) :: Vector -> Vector -> Vector #-}

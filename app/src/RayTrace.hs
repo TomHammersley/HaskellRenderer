@@ -109,7 +109,7 @@ defaultColour :: Direction -> Colour
 defaultColour _ = colBlue
 
 -- Accumulate the contributions of the lights
-lightSurface :: [Light] -> Colour -> SceneGraph -> (Position, TangentSpace) -> Material -> Vector -> Colour
+lightSurface :: [Light] -> Colour -> SceneGraph -> SurfaceLocation -> Material -> Vector -> Colour
 lightSurface (x:xs) !acc sceneGraph' !posTanSpace !objMaterial !viewDirection = let result = acc + applyLight sceneGraph' posTanSpace objMaterial viewDirection x
                                                                                    in seq result (lightSurface xs result sceneGraph' posTanSpace objMaterial viewDirection)
 lightSurface [] !acc _ _ _ _ = acc
@@ -136,7 +136,7 @@ traceRay renderContext photonMap !ray 1 !viewDir _ _ =
           return resultColour
               where
                 irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, sampleRadius)
-                sampleRadius = 10
+                sampleRadius = 50
 
 -- General case
 traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedReflectivity = 
@@ -183,7 +183,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
           return (surfaceIrradiance + surfaceShading + (reflection `colourMul` shine) + (refraction `colourMul` transmittance))
               where
                 irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, sampleRadius)
-                sampleRadius = 10
+                sampleRadius = 50
                 enteringObject !incoming !normal = incoming `dot3` normal > 0
 
 -- This function converts a pixel co-ordinate to a direction of the ray

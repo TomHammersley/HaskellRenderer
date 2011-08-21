@@ -24,7 +24,8 @@ display level (OctTreeLeaf box (pos, value)) = (take level tabs) ++ "[Leaf] box=
 create :: AABB -> OctTree a
 create box = OctTreeNode box $ map OctTreeDummy (generateOctreeBoxList box)
 
--- This is a function I wrote that performs a map, and passes through the state of the completed operation to the next recursion
+-- This performs a map, and passes through the state of the completed operation to the next recursion
+-- Couldn't work out the equivalent using the state monad etc
 mapS :: (a -> s -> (b, s)) -> [a] -> s -> ([b], s)
 mapS f (x:xs) state = let (result, state') = f x state
                           (xs', state'') = mapS f xs state'
@@ -47,7 +48,7 @@ insert' pos (OctTreeNode box nodeChildren) state = (OctTreeNode box nodeChildren
 insert' pos (OctTreeLeaf box (pos', a')) state = (octTree', state')
     where
       -- First up, we turn this leaf into a node with 8 children
-      (newChildren, _) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state -- we're assuming that the octree insertion returns state of Nothing - else wtf happened?
+      (newChildren, Nothing) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state -- we're assuming that the octree insertion returns state of Nothing - else wtf happened?
       -- Now we re-insert the value that this leaf originally contained into the nascent octree
       (octTree', state') = insert' pos' (OctTreeNode box newChildren) (Just a')
 
