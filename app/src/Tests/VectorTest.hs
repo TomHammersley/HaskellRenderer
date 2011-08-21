@@ -23,13 +23,28 @@ test_Mul = TestCase (assertEqual "Vector multiplication" (v1 * v2) expectedResul
       v2 = Vector 1 10 (-2) 3
       expectedResult = Vector 1 0 (-4) 9
 
-test_Negate = undefined
-test_Abs = undefined
-test_Signum = undefined
+test_Negate = TestCase (assertEqual "Vector negation" (Vector.negate v1) expectedResult)
+    where
+      v1 = Vector 1 (-2) 3 (-4)
+      expectedResult = Vector (-1) 2 (-3) 4
+
+test_Abs = TestCase (assertEqual "Vector abs" (abs v1) expectedResult)
+    where
+      v1 = Vector 0 1 (-2) 3
+      expectedResult = Vector 0 1 2 3
+
+test_Signum = TestCase (assertEqual "Vector signum" (signum v1) expectedResult)
+    where
+      v1 = Vector 1 (-1) 0 (-2)
+      expectedResult = Vector 1 (-1) 0 (-1)
+
 tests_BasicVectorArithmetic = TestList [
                                TestLabel "Addition" test_Add, 
                                TestLabel "Subtraction" test_Sub,
-                               TestLabel "Multiplication" test_Mul
+                               TestLabel "Multiplication" test_Mul,
+                               TestLabel "Negation" test_Negate,
+                               TestLabel "Abs" test_Abs,
+                               TestLabel "Signum" test_Signum
                               ]
 
 test_W1 = undefined

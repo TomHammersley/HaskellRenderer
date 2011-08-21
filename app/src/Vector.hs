@@ -70,7 +70,7 @@ madd (Vector !x !y !z !w) (Vector !x' !y' !z' _) !scalar = Vector (x + x' * scal
 
 negate :: Direction -> Direction
 {-# SPECIALIZE INLINE Vector.negate :: Vector -> Vector #-}
-negate (Vector !x !y !z !w) = Vector (-x) (-y) (-z) w
+negate (Vector !x !y !z !w) = Vector (-x) (-y) (-z) (-w)
 
 vectorScalarMul :: Vector -> Float -> Vector
 {-# SPECIALIZE INLINE vectorScalarMul :: Vector -> Float -> Vector #-}
