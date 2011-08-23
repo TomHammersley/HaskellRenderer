@@ -66,7 +66,7 @@ restoreOriginalW (Vector _ _ _ !w') (Vector !x !y !z _) = Vector x y z w'
 
 madd :: Position -> Direction -> Float -> Vector
 {-# SPECIALIZE INLINE madd :: Vector -> Vector -> Float -> Vector #-}
-madd (Vector !x !y !z !w) (Vector !x' !y' !z' _) !scalar = Vector (x + x' * scalar) (y + y' * scalar) (z + z' * scalar) w
+madd (Vector !x !y !z !w) (Vector !x' !y' !z' w') !scalar = Vector (x + x' * scalar) (y + y' * scalar) (z + z' * scalar) (w + w' * scalar)
 
 negate :: Direction -> Direction
 {-# SPECIALIZE INLINE Vector.negate :: Vector -> Vector #-}
@@ -74,7 +74,7 @@ negate (Vector !x !y !z !w) = Vector (-x) (-y) (-z) (-w)
 
 vectorScalarMul :: Vector -> Float -> Vector
 {-# SPECIALIZE INLINE vectorScalarMul :: Vector -> Float -> Vector #-}
-(Vector !x !y !z !w) `vectorScalarMul` k = Vector (x * k) (y * k) (z * k) w
+(Vector !x !y !z !w) `vectorScalarMul` k = Vector (x * k) (y * k) (z * k) (w * k)
 
 (</>) :: Vector -> Float -> Vector
 a </> b = a `vectorScalarMul` (1.0 / b)

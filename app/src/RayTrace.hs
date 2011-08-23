@@ -114,6 +114,9 @@ lightSurface (x:xs) !acc sceneGraph' !posTanSpace !objMaterial !viewDirection = 
                                                                                    in seq result (lightSurface xs result sceneGraph' posTanSpace objMaterial viewDirection)
 lightSurface [] !acc _ _ _ _ = acc
 
+irrCacheSampleRadius :: Float
+irrCacheSampleRadius = 30
+
 -- Perform a full trace of a ray
 type RayTraceState = State IrradianceCache Colour
 traceRay :: RenderContext -> PhotonMap -> Ray -> Int -> Direction -> Float -> Float -> RayTraceState
@@ -124,37 +127,37 @@ traceRay _ _ _ 0 _ _ _ = error "Should not hit this codepath"
 -- Special case for penultimate level - we're not allowed to spawn rays here
 traceRay renderContext photonMap !ray 1 !viewDir _ _ = 
     case findNearestIntersection (sceneGraph renderContext) ray of
-        Nothing -> do return $ defaultColour (direction ray)
+        Nothing -> return $ defaultColour (direction ray)
         Just (obj, intersectionDistance, hitId) -> do
           irrCache <- get
           let !intersectionPoint = pointAlongRay ray intersectionDistance
           let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let (!surfaceIrradiance, newIrrCache) = query irrCache (intersectionPoint, tanSpace) irradiance'
           -- TODO - Need to plug irradiance values into surface shading more correctly
-          let resultColour = surfaceIrradiance + lightSurface (lights renderContext) colBlack (sceneGraph renderContext) (intersectionPoint, tanSpace) (material obj) viewDir
+          let resultColour = lightSurface (lights renderContext) surfaceIrradiance (sceneGraph renderContext) (intersectionPoint, tanSpace) (material obj) viewDir
           put newIrrCache
           return resultColour
               where
-                irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, sampleRadius)
-                sampleRadius = 50
+                irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, irrCacheSampleRadius)
 
 -- General case
 traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedReflectivity = 
     case findNearestIntersection (sceneGraph renderContext) ray of
-        Nothing -> do return $ defaultColour (direction ray)
+        Nothing -> return $ defaultColour (direction ray)
         Just (obj, intersectionDistance, hitId) -> do
           -- Evaluate surface-location specific things such as shader results
           let !intersectionPoint = pointAlongRay ray intersectionDistance
           let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let !normal = thr tanSpace
           let !incoming = Vector.negate $ direction ray
-          let !surfaceShading = lightSurface (lights renderContext) colBlack (sceneGraph renderContext) (intersectionPoint, tanSpace) (material obj) viewDir
           -- TODO - Need to plug irradiance values into surface shading more correctly
 
           -- Evaluate result from irradiance cache
           irrCache <- get
           let (!surfaceIrradiance, irrCache') = query irrCache (intersectionPoint, tanSpace) irradiance'
           put irrCache'
+
+          let !surfaceShading = lightSurface (lights renderContext) surfaceIrradiance (sceneGraph renderContext) (intersectionPoint, tanSpace) (material obj) viewDir
 
           -- Reflection specific code
           let offsetToExterior = madd intersectionPoint normal surfaceEpsilon
@@ -180,10 +183,9 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
           put irrCache'''
 
           -- Final colour combine
-          return (surfaceIrradiance + surfaceShading + (reflection `colourMul` shine) + (refraction `colourMul` transmittance))
+          return (surfaceShading + (reflection `colourMul` shine) + (refraction `colourMul` transmittance))
               where
-                irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, sampleRadius)
-                sampleRadius = 50
+                irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, irrCacheSampleRadius)
                 enteringObject !incoming !normal = incoming `dot3` normal > 0
 
 -- This function converts a pixel co-ordinate to a direction of the ray
@@ -211,7 +213,7 @@ traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWe
       let (col, irrCache'') = runState (traceDistributedSample renderContext result xs photonMap eyeViewDir sampleWeighting) irrCache'
       put irrCache''
       return col
-traceDistributedSample _ !acc [] _ _ _ = do return acc
+traceDistributedSample _ !acc [] _ _ _ = return acc
 
 -- Need to remove hard coded constants of 8 here
 -- This traces for a given pixel (x, y)
@@ -225,7 +227,7 @@ tracePixel renderContext !eye photonMap !viewDirection = do
 
 -- Generate a list of colours which contains a raytraced image. In parallel
 rayTraceImage :: RenderContext -> Camera -> Int -> Int -> PhotonMap -> [Colour]
-rayTraceImage renderContext camera renderWidth renderHeight photonMap = (tracePixelPassingState rayDirections irrCache) `using` parListChunk 256 rseq
+rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePixelPassingState rayDirections irrCache `using` parListChunk 256 rseq
     where !rayDirections = [makeRayDirection renderWidth renderHeight camera (x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
           !eyePosition = Camera.position camera
           irrCache = initialiseCache (sceneGraph renderContext)

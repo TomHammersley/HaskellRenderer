@@ -25,6 +25,14 @@ boundingBoxOverlaps box1 box2 = overlaps box1 box2 || overlaps box2 box1
 enlargeBoundingBox :: Position -> AABB -> AABB
 enlargeBoundingBox pos(boxMin, boxMax) = (Vector.min boxMin pos, Vector.max boxMax pos)
 
+-- Linearly scale a box
+scaleBoundingBox :: AABB -> Float -> AABB
+scaleBoundingBox (boxMin, boxMax) k = (setWTo1 $ boxMin <*> k, setWTo1 $ boxMax <*> k)
+
+-- Give a bounding box a buffer of a certain distance all the way around
+growBoundingBox :: AABB -> Float -> AABB
+growBoundingBox (Vector x1 y1 z1 _, Vector x2 y2 z2 _) k = (Vector (x1 - k) (y1 - k) (z1 - k) 1, Vector (x2 + k) (y2 + k) (z2 + k) 1)
+
 -- This is a dummy box that is used initially. If anything is intersected with it, it becomes valid. Else it is an invalid box that can be tested for
 initialInvalidBox :: AABB
 initialInvalidBox = (Vector bigNumber bigNumber bigNumber 1, Vector smallNumber smallNumber smallNumber 1)

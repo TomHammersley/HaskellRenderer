@@ -1,4 +1,5 @@
 -- This is a module for constructing bounding volume hierarchies using an octree approach
+{-# LANGUAGE BangPatterns #-}
 
 module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList, OctTree(OctTreeNode, OctTreeLeaf, OctTreeDummy), create, insert, gather) where
 
@@ -11,15 +12,15 @@ data OctTree a = OctTreeDummy AABB
                | OctTreeLeaf AABB (Vector, a) deriving (Read, Eq)
 
 instance Show a => Show (OctTree a) where
-    show oct = display 0 oct
+    show = display 0
 
-tabs :: [Char]
+tabs :: String
 tabs = '\t' : tabs
 
 display :: (Show a) => Int -> OctTree a -> String
-display level (OctTreeDummy box) = (take level tabs) ++ "[Dummy] box=" ++ (show box) ++ "\n"
-display level (OctTreeNode box children) = (take level tabs) ++ "[Node] box=" ++ (show box) ++ "\n" ++ (concatMap (display (level + 1)) children) ++ "\n"
-display level (OctTreeLeaf box (pos, value)) = (take level tabs) ++ "[Leaf] box=" ++ (show box) ++ " pos=" ++ (show pos) ++ " value=" ++ (show value) ++ "\n"
+display level (OctTreeDummy box) = take level tabs ++ "[Dummy] box=" ++ show box ++ "\n"
+display level (OctTreeNode box children) = take level tabs ++ "[Node] box=" ++ show box ++ "\n" ++ concatMap (display (level + 1)) children ++ "\n"
+display level (OctTreeLeaf box (pos, value)) = take level tabs ++ "[Leaf] box=" ++ show box ++ " pos=" ++ show pos ++ " value=" ++ show value ++ "\n"
 
 create :: AABB -> OctTree a
 create box = OctTreeNode box $ map OctTreeDummy (generateOctreeBoxList box)
@@ -34,30 +35,30 @@ mapS _ [] state = ([], state)
 
 -- Insert into an octree
 insert :: Vector -> a -> OctTree a -> OctTree a
-insert pos a oct = fst $ insert' pos oct (Just a)
+insert !pos a oct = fst $ insert' pos oct (Just a)
 
 insert' :: Vector -> OctTree a -> Maybe a -> (OctTree a, Maybe a)
-insert' pos (OctTreeDummy box) state = case state of
-                                         -- If we have been passed some state then attempt to consume it
-                                         Just value -> if box `contains` pos
-                                                       then (OctTreeLeaf box (pos, value), Nothing)
-                                                       else (OctTreeDummy box, state)
-                                         _ -> (OctTreeDummy box, state)
-insert' pos (OctTreeNode box nodeChildren) state = (OctTreeNode box nodeChildren', state')
-    where (nodeChildren', state') = mapS (insert' pos) nodeChildren state
-insert' pos (OctTreeLeaf box (pos', a')) state = (octTree', state')
+insert' !pos (OctTreeDummy !box) !state = case state of
+                                            -- If we have been passed some state then attempt to consume it
+                                            Just value -> if box `contains` pos
+                                                          then (OctTreeLeaf box (pos, value), Nothing)
+                                                          else (OctTreeDummy box, state)
+                                            _ -> (OctTreeDummy box, state)
+insert' !pos (OctTreeNode !box nodeChildren) !state = (OctTreeNode box nodeChildren', state')
+    where (!nodeChildren', !state') = mapS (insert' pos) nodeChildren state
+insert' !pos (OctTreeLeaf !box (!pos', !a')) !state = (octTree', state')
     where
       -- First up, we turn this leaf into a node with 8 children
-      (newChildren, Nothing) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state -- we're assuming that the octree insertion returns state of Nothing - else wtf happened?
+      (newChildren, _) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state -- we're assuming that the octree insertion returns state of Nothing - else wtf happened?
       -- Now we re-insert the value that this leaf originally contained into the nascent octree
       (octTree', state') = insert' pos' (OctTreeNode box newChildren) (Just a')
 
 -- Gather data within a sphere from an octree
 gather :: Position -> Float -> OctTree a -> [(a, Float)]
-gather pos r (OctTreeNode box nodeChildren) = if overlapsSphere box pos r
-                                              then foldr (++) [] $ map (gather pos r) nodeChildren
-                                              else []
-gather pos r (OctTreeLeaf _ (pos', a))
+gather !pos !r (OctTreeNode box nodeChildren) = if overlapsSphere box pos r
+                                                then foldr ((++) . gather pos r) [] nodeChildren
+                                                else []
+gather !pos !r (OctTreeLeaf _ (pos', a))
     | dSq <= r * r = [(a, dSq)]
     | otherwise = []
     where dSq = pos `distanceSq` pos'
@@ -65,20 +66,22 @@ gather _ _ (OctTreeDummy _) = []
 
 -- Generate a scene graph using an octree. Refactor this to just be an octree later
 generateOctreeBoxList :: AABB -> [AABB]
-generateOctreeBoxList (boxMin, boxMax) = 
+generateOctreeBoxList (Vector !xmin !ymin !zmin _, Vector !xmax !ymax !zmax _) =
     [
-     (Vector (vecX boxMin) (vecY boxMin) (vecZ boxMin) 1, Vector (vecX centre) (vecY centre) (vecZ centre) 1),
-     (Vector (vecX centre) (vecY boxMin) (vecZ boxMin) 1, Vector (vecX boxMax) (vecY centre) (vecZ centre) 1),
-     (Vector (vecX boxMin) (vecY centre) (vecZ boxMin) 1, Vector (vecX centre) (vecY boxMax) (vecZ centre) 1),
-     (Vector (vecX centre) (vecY centre) (vecZ boxMin) 1, Vector (vecX boxMax) (vecY boxMax) (vecZ centre) 1),
+     (Vector xmin ymin zmin 1, Vector centreX centreY centreZ 1),
+     (Vector centreX ymin zmin 1, Vector xmax centreY centreZ 1),
+     (Vector xmin centreY zmin 1, Vector centreX ymax centreZ 1),
+     (Vector centreX centreY zmin 1, Vector xmax ymax centreZ 1),
 
-     (Vector (vecX boxMin) (vecY boxMin) (vecZ centre) 1, Vector (vecX centre) (vecY centre) (vecZ boxMax) 1),
-     (Vector (vecX centre) (vecY boxMin) (vecZ centre) 1, Vector (vecX boxMax) (vecY centre) (vecZ boxMax) 1),
-     (Vector (vecX boxMin) (vecY centre) (vecZ centre) 1, Vector (vecX centre) (vecY boxMax) (vecZ boxMax) 1),
-     (Vector (vecX centre) (vecY centre) (vecZ centre) 1, Vector (vecX boxMax) (vecY boxMax) (vecZ boxMax) 1)
+     (Vector xmin ymin centreZ 1, Vector centreX centreY zmax 1),
+     (Vector centreX ymin centreZ 1, Vector xmax centreY zmax 1),
+     (Vector xmin centreY centreZ 1, Vector centreX ymax zmax 1),
+     (Vector centreX centreY centreZ 1, Vector xmax ymax zmax 1)
     ]
     where
-      centre = (boxMin + boxMax) <*> 0.5
+      !centreX = (xmin + xmax) * 0.5
+      !centreY = (ymin + ymax) * 0.5
+      !centreZ = (zmin + zmax) * 0.5
 
 -- Octree code that's spilt out from other modules... this is scene graph specific helper code rather than self-contained octree stuff
 
