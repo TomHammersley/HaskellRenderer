@@ -6,6 +6,7 @@ module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList, OctTree(OctT
 import Vector
 import Primitive
 import BoundingBox
+import Control.Parallel.Strategies
 
 data OctTree a = OctTreeDummy AABB
                | OctTreeNode AABB [OctTree a]
@@ -28,40 +29,44 @@ create box = OctTreeNode box $ map OctTreeDummy (generateOctreeBoxList box)
 -- This performs a map, and passes through the state of the completed operation to the next recursion
 -- Couldn't work out the equivalent using the state monad etc
 mapS :: (a -> s -> (b, s)) -> [a] -> s -> ([b], s)
-mapS f (x:xs) state = let (result, state') = f x state
-                          (xs', state'') = mapS f xs state'
-                      in (result : xs', state'')
-mapS _ [] state = ([], state)
+mapS f xs state = mapS' f xs state []
+
+mapS' :: (a -> s -> (b, s)) -> [a] -> s -> [b] -> ([b], s)
+mapS' !f !(x:xs) !state !acc = seq (result, state') $ mapS' f xs state' (result : acc)
+    where (!result, !state') = f x state `using` rseq
+mapS' _ [] !state !acc = (acc, state)
 
 -- Insert into an octree
 insert :: Vector -> a -> OctTree a -> OctTree a
 insert !pos a oct = fst $ insert' pos oct (Just a)
 
 insert' :: Vector -> OctTree a -> Maybe a -> (OctTree a, Maybe a)
-insert' !pos (OctTreeDummy !box) !state = case state of
-                                            -- If we have been passed some state then attempt to consume it
-                                            Just value -> if box `contains` pos
-                                                          then (OctTreeLeaf box (pos, value), Nothing)
-                                                          else (OctTreeDummy box, state)
-                                            _ -> (OctTreeDummy box, state)
-insert' !pos (OctTreeNode !box nodeChildren) !state = (OctTreeNode box nodeChildren', state')
-    where (!nodeChildren', !state') = mapS (insert' pos) nodeChildren state
+insert' !pos oct@(OctTreeDummy !box) !state = case state of
+                                                -- If we have been passed some state then attempt to consume it
+                                                Just !value -> if box `contains` pos
+                                                               then (OctTreeLeaf box (pos, value), Nothing)
+                                                               else (oct, state)
+                                                _ -> (oct, state)
+insert' !pos oct@(OctTreeNode !box !nodeChildren) !state = if box `contains` pos
+                                                           then let (nodeChildren', state') = mapS (insert' pos) nodeChildren state 
+                                                                in (OctTreeNode box nodeChildren', state')
+                                                           else (oct, state)
 insert' !pos (OctTreeLeaf !box (!pos', !a')) !state = (octTree', state')
     where
       -- First up, we turn this leaf into a node with 8 children
-      (newChildren, _) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state -- we're assuming that the octree insertion returns state of Nothing - else wtf happened?
+      (!newChildren, _) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state -- we're assuming that the octree insertion returns state of Nothing - else wtf happened?
       -- Now we re-insert the value that this leaf originally contained into the nascent octree
-      (octTree', state') = insert' pos' (OctTreeNode box newChildren) (Just a')
+      (!octTree', !state') = insert' pos' (OctTreeNode box newChildren) (Just a')
 
 -- Gather data within a sphere from an octree
 gather :: Position -> Float -> OctTree a -> [(a, Float)]
 gather !pos !r (OctTreeNode box nodeChildren) = if overlapsSphere box pos r
                                                 then foldr ((++) . gather pos r) [] nodeChildren
                                                 else []
-gather !pos !r (OctTreeLeaf _ (pos', a))
+gather !pos !r (OctTreeLeaf _ (!pos', a))
     | dSq <= r * r = [(a, dSq)]
     | otherwise = []
-    where dSq = pos `distanceSq` pos'
+    where !dSq = pos `distanceSq` pos'
 gather _ _ (OctTreeDummy _) = []
 
 -- Generate a scene graph using an octree. Refactor this to just be an octree later

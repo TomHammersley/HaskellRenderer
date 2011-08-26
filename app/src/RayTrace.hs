@@ -111,11 +111,11 @@ defaultColour _ = colBlue
 -- Accumulate the contributions of the lights
 lightSurface :: [Light] -> Colour -> SceneGraph -> SurfaceLocation -> Material -> Vector -> Colour
 lightSurface (x:xs) !acc sceneGraph' !posTanSpace !objMaterial !viewDirection = let result = acc + applyLight sceneGraph' posTanSpace objMaterial viewDirection x
-                                                                                   in seq result (lightSurface xs result sceneGraph' posTanSpace objMaterial viewDirection)
+                                                                                in seq result (lightSurface xs result sceneGraph' posTanSpace objMaterial viewDirection)
 lightSurface [] !acc _ _ _ _ = acc
 
 irrCacheSampleRadius :: Float
-irrCacheSampleRadius = 30
+irrCacheSampleRadius = 5
 
 -- Perform a full trace of a ray
 type RayTraceState = State IrradianceCache Colour
@@ -232,7 +232,7 @@ rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePix
           !eyePosition = Camera.position camera
           irrCache = initialiseCache (sceneGraph renderContext)
           -- This function is the equivalent to map, but it passes the ending state of one invocation to the next invocation
-          tracePixelPassingState (x:xs) st = clamp result : tracePixelPassingState xs st'
+          tracePixelPassingState (x:xs) st = seq (result, st') $ clamp result : tracePixelPassingState xs st'
               where
                 (result, st') = runState (tracePixel renderContext eyePosition photonMap x) st
           tracePixelPassingState [] _ = []

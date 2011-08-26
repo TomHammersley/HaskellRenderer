@@ -18,6 +18,7 @@ type IrradianceCache = OctTree CacheSample
 instance Show CacheSample where
     show (CacheSample (dir, col, r)) = "\tDirection: " ++ show dir ++ "\n\tColour: " ++ show col ++ "\n\tRadius: " ++ show r ++ "\n"
 
+-- This gives an initial empty cache that will later be populated
 initialiseCache :: SceneGraph -> IrradianceCache
 initialiseCache sceneGraph = OctTreeNode slightlyEnlargedBox $ map OctTreeDummy (generateOctreeBoxList slightlyEnlargedBox)
     where
@@ -30,35 +31,34 @@ errorWeight (!pos', !dir') (!pos, CacheSample (!dir, _, !r)) = 1 / (pos `distanc
 
 -- Find samples that make a useful contribution
 findSamples :: (Position, Direction) -> IrradianceCache -> [(Vector, CacheSample, Float)]
-findSamples (!pos, !dir) (OctTreeNode box nodeChildren) = if box `contains` pos
-                                                          then concatMap (findSamples (pos, dir)) nodeChildren
-                                                          else {- trace ("Box " ++ show box ++ " does not contains pos " ++ show pos ++ "\n") $ -} []
-findSamples (!pos, !dir) (OctTreeLeaf _ (!samplePos, sample))
+findSamples posDir@(!pos, _) (OctTreeNode box nodeChildren) = if box `contains` pos
+                                                              then concatMap (findSamples posDir) nodeChildren
+                                                              else {- trace ("Box " ++ show box ++ " does not contains pos " ++ show pos ++ "\n") $ -} []
+findSamples posDir@(!pos, _) (OctTreeLeaf _ (!samplePos, sample))
     | pos `distanceSq` samplePos <= sampleR * sampleR && weight > 0 = [(samplePos, sample, weight)]
     | otherwise = []
     where
-      !weight = errorWeight (pos, dir) (samplePos, sample)
+      !weight = errorWeight posDir (samplePos, sample)
       (CacheSample (_, _, !sampleR)) = sample
 findSamples _ (OctTreeDummy _) = []
 
 -- Sum together a list of samples and error weights
 sumSamples :: [(Vector, CacheSample, Float)] -> Colour
-sumSamples samples = colourSum Colour.</> weightSum
+sumSamples !samples = colourSum Colour.</> weightSum
     where
-      !colourSum = foldr (\(_, CacheSample (_, col, _), weight) b -> b + col Colour.<*> weight) colBlack samples
-      !weightSum = foldr (\(_, CacheSample (_, _, _), weight) b -> b + weight) 0 samples
+      !colourSum = foldr (\(_, CacheSample (_, !col, _), !weight) !b -> b + col Colour.<*> weight) colBlack samples
+      !weightSum = foldr (\(_, CacheSample (_, _, _), !weight) !b -> b + weight) 0 samples
 
 -- Query the irradiance given a point
 -- Supplied function supplies the irradiance colour at a surface location along with the radius it is valid for
 query :: IrradianceCache -> SurfaceLocation -> (SurfaceLocation -> (Colour, Float)) -> (Colour, IrradianceCache)
-query irrCache posTanSpace f = case findSamples (position, normal) irrCache of
-                                 [] -> {-trace ("Adding new sample to cache:\nPosition: " ++ show (fst posTanSpace) ++ "\n" ++ show sample) $-} (colour, insert (fst posTanSpace) sample irrCache)
-                                     where
-                                       (colour, r) = f posTanSpace
-                                       sample = CacheSample (normal, colour, r)
-                                 x : xs -> {-trace "Using existing cache samples" $-} (sumSamples (x:xs), irrCache)
+query irrCache !posTanSpace f = case findSamples (position, normal) irrCache of
+                                  [] -> {-trace ("Adding new sample to cache:\nPosition: " ++ show (fst posTanSpace) ++ "\n" ++ show sample) $-} (colour, insert (fst posTanSpace) sample irrCache)
+                                      where
+                                        (!colour, !r) = f posTanSpace
+                                        !sample = CacheSample (normal, colour, r)
+                                  list -> {-trace "Using existing cache samples" $-} (sumSamples list, irrCache)
     where
-      position = fst posTanSpace
-      tanSpace = snd posTanSpace
-      normal = tsNormal tanSpace
-                                                
+      !position = fst posTanSpace
+      !tanSpace = snd posTanSpace
+      !normal = tsNormal tanSpace
