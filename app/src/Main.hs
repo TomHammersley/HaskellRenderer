@@ -1,5 +1,9 @@
 -- Main module of raytracer
 
+import Data.Bits
+import Data.ByteString
+import System.Console.GetOpt
+import System.Environment
 import RayTrace
 import Colour
 import SceneGraph
@@ -7,10 +11,21 @@ import KDTree
 import CornellBox
 import GHC.Conc (numCapabilities)
 import Codec.BMP
-import Data.ByteString
---import System.Console.GetOpt
 import PhotonMap
-import Data.Bits
+
+data Option
+    = ShowIntermediate -- -i
+      deriving (Eq, Ord, Enum, Show, Bounded)
+
+options :: [OptDescr Option]
+options = [
+    Option ['i'] [] (NoArg ShowIntermediate) "Show intermediates"
+    ]
+
+parsedOptions :: [String] -> [Option]
+parsedOptions argv = case getOpt Permute options argv of
+        (args,_,[]) -> args
+        (_,_,_) -> []
 
 -- Some hardcoded values, at present
 renderWidth :: Int -> Int
@@ -60,18 +75,17 @@ writeRaytracedImage (mipLevel:mipLevels) photonMap = do
   writeBMP filename bmp
   writeRaytracedImage mipLevels photonMap
 
-outputIntermediateResult :: Bool
-outputIntermediateResult = True
-
 -- Main function
 main :: IO ()
 main = do 
+  args <- getArgs
+  let opts = parsedOptions args
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
   let thousand = 1000
   let numPhotons = 100 * thousand
   let photonMap = buildPhotonMap sceneGraph cornellBoxLights numPhotons
   let maxMipLevel = 8
-  let intermediateMipLevels = if outputIntermediateResult
+  let intermediateMipLevels = if ShowIntermediate `Prelude.elem` opts
                               then Prelude.reverse [1..maxMipLevel]
                               else []
   writeRaytracedImage intermediateMipLevels photonMap
