@@ -5,14 +5,14 @@ module Matrix where
 
 import Vector
 
-data Matrix = Matrix ![Float] deriving (Show, Read, Eq)
+data Matrix = Matrix ![Double] deriving (Show, Read, Eq)
 
 -- Just pass back the identity matrix
 identity ::  Matrix
 identity = Matrix [1, 0, 0, 0,   0, 1, 0, 0,   0, 0, 1, 0,   0, 0, 0, 1]
 
 -- This multiplies one element of the matrix against
-mulElement :: Matrix -> Matrix -> Int -> Int -> Float
+mulElement :: Matrix -> Matrix -> Int -> Int -> Double
 mulElement (Matrix mat1) (Matrix mat2) i j = sum [(mat1 !! (i * 4 + k)) * (mat2 !! (k * 4 + j)) | k <- [0..3]]
 
 -- Multiply together two matrices
@@ -46,7 +46,7 @@ getTranslation (Matrix a) = Vector x y z 1
     where
       [!x, !y, !z, _] = drop 12 a
 
-translationMatrix :: Float -> Float -> Float -> Matrix
+translationMatrix :: Double -> Double -> Double -> Matrix
 translationMatrix x y z = Matrix [1, 0, 0, 0,   0, 1, 0, 0,   0, 0, 1, 0,   x, y, z, 1]
 translationMatrix' :: Vector -> Matrix
 translationMatrix' (Vector x y z _) = Matrix [1, 0, 0, 0,   0, 1, 0, 0,   0, 0, 1, 0,   x, y, z, 1]

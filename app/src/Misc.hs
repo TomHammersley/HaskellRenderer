@@ -2,7 +2,7 @@
 
 module Misc where
 
-degreesToRadians :: Float -> Float
+degreesToRadians :: Double -> Double
 degreesToRadians x = x * pi / 180
 
 xor :: Bool -> Bool -> Bool

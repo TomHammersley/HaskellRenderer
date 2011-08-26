@@ -9,19 +9,19 @@ import Control.Monad.State
 type GeneratorState = State StdGen
 
 -- Generate a pair of random normalised floats
-randomUV :: GeneratorState (Float, Float)
+randomUV :: GeneratorState (Double, Double)
 randomUV = do generator <- get
-              let !(u, newGenerator) = randomR (0.0::Float, 1.0::Float) generator
-              let !(v, newGenerator') = randomR (0.0::Float, 1.0::Float) newGenerator
+              let !(u, newGenerator) = randomR (0.0::Double, 1.0::Double) generator
+              let !(v, newGenerator') = randomR (0.0::Double, 1.0::Double) newGenerator
               put newGenerator'
               return (u, v)
 
 -- Generate a list of N random UVs
-generateRandomUVs :: Int -> GeneratorState [(Float, Float)]
+generateRandomUVs :: Int -> GeneratorState [(Double, Double)]
 generateRandomUVs n = replicateM n randomUV
 
 -- Generate a list of random points on a unit sphere
-generatePointsOnSphere :: Int -> Float -> [Position]
+generatePointsOnSphere :: Int -> Double -> [Position]
 generatePointsOnSphere numPoints r = map uvToPosition randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (mkStdGen 12345)

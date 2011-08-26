@@ -6,10 +6,10 @@ import Misc
 import Data.Word
 
 -- Normalised RGBA colour
-data Colour = Colour { red :: {-# UNPACK #-} !Float, 
-                       green :: {-# UNPACK #-} !Float, 
-                       blue :: {-# UNPACK #-} !Float, 
-                       alpha :: {-# UNPACK #-} !Float } deriving (Show, Read, Ord, Eq)
+data Colour = Colour { red :: {-# UNPACK #-} !Double, 
+                       green :: {-# UNPACK #-} !Double, 
+                       blue :: {-# UNPACK #-} !Double, 
+                       alpha :: {-# UNPACK #-} !Double } deriving (Show, Read, Ord, Eq)
 
 instance Num Colour where
     {-# SPECIALIZE INLINE (+) :: Colour -> Colour -> Colour #-}
@@ -23,13 +23,13 @@ instance Num Colour where
     fromInteger x = Colour (fromInteger x) (fromInteger x) (fromInteger x) (fromInteger x)
 
 -- Multiply a colour by a scalar
-colourMul :: Colour -> Float -> Colour
+colourMul :: Colour -> Double -> Colour
 (Colour !r !g !b !a) `colourMul` m = Colour (r * m) (g * m) (b * m) (a * m)
 
-(<*>) :: Colour -> Float -> Colour
+(<*>) :: Colour -> Double -> Colour
 (Colour !r !g !b !a) <*> k = Colour (r * k) (g * k) (b * k) (a * k)
 
-(</>) :: Colour -> Float -> Colour
+(</>) :: Colour -> Double -> Colour
 (Colour !r !g !b !a) </> k = Colour (r / k) (g / k) (b / k) (a / k)
 
 clamp :: Colour -> Colour
@@ -57,10 +57,10 @@ colGrey = Colour 0.5 0.5 0.5 1
 colYellow :: Colour
 colYellow = Colour 1 1 0 1
 
-gamma :: Float
+gamma :: Double
 gamma = 2.2
 
-invGamma :: Float
+invGamma :: Double
 invGamma = 1.0 / gamma
 
 -- Gamma correct a colour
@@ -84,12 +84,12 @@ convertColoursToPixels (col:cols) = r : g : b : 255 : convertColoursToPixels col
 convertColoursToPixels [] = []
 
 -- Measure overall magnitude of a colour
-magnitude :: Colour -> Float
+magnitude :: Colour -> Double
 magnitude (Colour r g b _) = r * 0.3 + g * 0.6 + b * 0.1
 
 -- Convert to a list
-toListRGBA :: Colour -> [Float]
+toListRGBA :: Colour -> [Double]
 toListRGBA (Colour r g b a) = [r, g, b, a]
 
-toListRGB :: Colour -> [Float]
+toListRGB :: Colour -> [Double]
 toListRGB (Colour r g b _) = [r, g, b]

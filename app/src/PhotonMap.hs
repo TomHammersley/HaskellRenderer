@@ -24,13 +24,13 @@ import Data.Heap
 type GeneratorState = State StdGen
 
 data PhotonMapContext = PhotonMapContext {
-      photonGatherDistance :: Float,
+      photonGatherDistance :: Double,
       maxGatherPhotons :: Int,
-      coneFilterK :: Float }
+      coneFilterK :: Double }
 
 data Photon = Photon { power :: {-# UNPACK #-} !Colour, posDir :: {-# UNPACK #-} !(Position, Direction) } deriving (Show, Read, Eq, Ord)
 
-data PhotonMapTree = PhotonMapNode {-# UNPACK #-} !Int {-# UNPACK #-} !Float PhotonMapTree PhotonMapTree
+data PhotonMapTree = PhotonMapNode {-# UNPACK #-} !Int {-# UNPACK #-} !Double PhotonMapTree PhotonMapTree
                    | PhotonMapLeaf !Photon deriving (Show, Read, Eq)
 
 data PhotonMap = PhotonMap { photonList :: [Photon],
@@ -54,7 +54,7 @@ emitPhotons (QuadLight !corner !du !dv !lightPower) !numPhotons = zipWith3 (\pos
 emitPhotons _ _ = []
 
 -- Compute russian roulette coefficients
-russianRouletteCoefficients :: Material -> (Float, Float)
+russianRouletteCoefficients :: Material -> (Double, Double)
 russianRouletteCoefficients !mat = (diffuseP, specularP)
     where
       (Colour diffuseR diffuseG diffuseB _) = Material.diffuse mat
@@ -63,10 +63,10 @@ russianRouletteCoefficients !mat = (diffuseP, specularP)
       specularP = (specularR + specularG + specularB) / 3
 
 -- Decide what to do with a photon
-choosePhotonFate :: (Float, Float) -> GeneratorState PhotonChoice
+choosePhotonFate :: (Double, Double) -> GeneratorState PhotonChoice
 choosePhotonFate !(diffuseP, specularP) = do
   generator <- get
-  let (p, newGenerator) = randomR (0.0::Float, 1.0::Float) generator
+  let (p, newGenerator) = randomR (0.0::Double, 1.0::Double) generator
   let result | p < diffuseP = DiffuseReflect
              | p < (diffuseP + specularP) = SpecularReflect
              | otherwise = Absorb
@@ -74,17 +74,17 @@ choosePhotonFate !(diffuseP, specularP) = do
   return result
 
 -- Compute new power for a photon
-computeNewPhotonPower :: PhotonChoice -> (Float, Float) -> Colour -> Material -> Colour
+computeNewPhotonPower :: PhotonChoice -> (Double, Double) -> Colour -> Material -> Colour
 computeNewPhotonPower !fate !(diffuseP, specularP) photonPower !mat = case fate of
                                                                         DiffuseReflect -> photonPower * diffuse mat Colour.</> diffuseP
                                                                         SpecularReflect -> photonPower * specular mat Colour.</> specularP
                                                                         Absorb -> colBlack
 
 -- Compute a new diffuse reflection in spherical co-ordinates
-generateUV :: GeneratorState (Float, Float)
+generateUV :: GeneratorState (Double, Double)
 generateUV = do generator <- get
-                let (u, newGenerator) = randomR (0.0::Float, 1.0::Float) generator
-                let (v, newGenerator') = randomR (0.0::Float, 1.0::Float) newGenerator
+                let (u, newGenerator) = randomR (0.0::Double, 1.0::Double) generator
+                let (v, newGenerator') = randomR (0.0::Double, 1.0::Double) newGenerator
                 put newGenerator'
                 return (u, v)
 
@@ -173,7 +173,7 @@ buildKDTree (x:xs) = let !photons = x:xs
 buildKDTree [] = undefined
 
 -- Use a max heap to make it easy to eliminate distant photons
-data GatheredPhoton = GatheredPhoton Float Photon deriving (Show)
+data GatheredPhoton = GatheredPhoton Double Photon deriving (Show)
 type PhotonHeap = MaxHeap GatheredPhoton
 
 instance Ord GatheredPhoton where
@@ -187,14 +187,14 @@ instance Eq GatheredPhoton where
 
 -- Return the minimum squared search radius from that specified, versus the furthest photon in the heap
 -- We don't want to locate any photons further away than our current furthest - we're looking for the closest ones, after all
-minimalSearchRadius :: Float -> PhotonHeap -> Float
+minimalSearchRadius :: Double -> PhotonHeap -> Double
 minimalSearchRadius !rSq !photonHeap = case viewHead photonHeap of
                                          Nothing -> rSq
                                          Just (GatheredPhoton dSq _) -> Prelude.min rSq dSq
 
 -- Gather photons for irradiance computations
 -- Algorithm adapted from Realistic Image Synthesis Using Photon Mapping p73
-gatherPhotons :: PhotonMapTree -> Position -> Float -> PhotonHeap -> Int -> PhotonHeap
+gatherPhotons :: PhotonMapTree -> Position -> Double -> PhotonHeap -> Int -> PhotonHeap
 gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !rSq !photonHeap !maxPhotons
     -- In this case, the split plane bisects the search sphere - search both halves of tree
     | (value - posComponent) ** 2 <= rSq = let !heap1 = gatherPhotons gtChild pos rSq' photonHeap maxPhotons
@@ -222,14 +222,14 @@ gatherPhotons (PhotonMapLeaf !p) !pos !rSq !photonHeap !maxPhotons
 
 -- Return the contribution of a given photon, including a simple cos term to emulate BRDF plus the cone filter
 -- Cone filter is from Realistic Image Synthesis Using Photon Mapping p81
-photonContribution :: Float -> SurfaceLocation -> Photon -> Colour
+photonContribution :: Double -> SurfaceLocation -> Photon -> Colour
 photonContribution !kr !(pos, (_, _, normal)) !photon = power photon Colour.<*> ((Vector.negate normal `sdot3` (snd . posDir) photon) * weight)
     where
       !weight = 1 - (pos `distance` (fst . posDir) photon) / (kr + 0.000000001) -- Add on an epsilon to prevent div0 in cone filter
 
 -- Find the overall contribution of a list of photons
 -- Radiance estimate algorithm from Realistic Image Synthesis Using Photon Mapping p81
-sumPhotonContribution :: Float -> Float -> SurfaceLocation -> [Photon] -> Colour
+sumPhotonContribution :: Double -> Double -> SurfaceLocation -> [Photon] -> Colour
 sumPhotonContribution !r !k !posTanSpace !photons = foldr ((+) .photonContribution (k * r) posTanSpace) colBlack photons Colour.<*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
 
 -- Look up the resulting irradiance from the photon map at a given point

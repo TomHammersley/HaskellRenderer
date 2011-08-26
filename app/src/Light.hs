@@ -12,18 +12,18 @@ import SceneGraph
 import Misc
 import RayTrace (findAnyIntersection)
 
-data Light = PointLight { position :: !Position, colour :: !Colour, range :: !Float, addToPhotonMap :: Bool }
+data Light = PointLight { position :: !Position, colour :: !Colour, range :: !Double, addToPhotonMap :: Bool }
            | AmbientLight { colour :: !Colour }
            | QuadLight { position :: !Position, deltaU :: !Direction, deltaV :: !Direction, colour :: !Colour }
 
 type LightingResult = (Colour, Colour, Colour) -- Ambient, diffuse, specular
 
 -- Value for the surface epsilon
-surfaceEpsilon :: Float
+surfaceEpsilon :: Double
 surfaceEpsilon = 0.1
 
 -- Find the attenuation for a light source
-lightAttenuation :: Vector -> Vector -> Float -> Float
+lightAttenuation :: Vector -> Vector -> Double -> Double
 lightAttenuation !lightPos !shadePos !lightRange =
     let dist = lightPos `Vector.distance` shadePos
     in if dist < lightRange then 1 - dist / lightRange else 0

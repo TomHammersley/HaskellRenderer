@@ -8,14 +8,14 @@ import Shader
 data Material = Material { ambient :: {-# UNPACK #-} !Colour, 
                            diffuse :: {-# UNPACK #-} !Colour, 
                            specular :: {-# UNPACK #-} !Colour, 
-                           specularPower :: {-# UNPACK #-} !Float,
-                           reflectivity :: {-# UNPACK #-} !Float,
-                           transmit :: {-# UNPACK #-} !Float,
-                           indexOfRefraction :: {-# UNPACK #-} !Float,
+                           specularPower :: {-# UNPACK #-} !Double,
+                           reflectivity :: {-# UNPACK #-} !Double,
+                           transmit :: {-# UNPACK #-} !Double,
+                           indexOfRefraction :: {-# UNPACK #-} !Double,
                            shader :: Shader } deriving (Show, Read, Eq)
 
-iorAir :: Float
+iorAir :: Double
 iorAir = 1.000293
 
-iorWater :: Float
+iorWater :: Double
 iorWater = 1.3330

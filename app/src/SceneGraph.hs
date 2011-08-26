@@ -6,7 +6,7 @@ import Primitive
 import Vector
 import BoundingBox
 
-data SphereTreeNode = SphereTreeNode { object :: Maybe Object, children :: [SphereTreeNode], boundingRadius :: !Float, boundingCentre :: !Vector } deriving (Show, Read)
+data SphereTreeNode = SphereTreeNode { object :: Maybe Object, children :: [SphereTreeNode], boundingRadius :: !Double, boundingCentre :: !Vector } deriving (Show, Read)
 data SceneGraph = SceneGraph { root :: SphereTreeNode, infiniteObjects :: [Object], finiteBox :: AABB } deriving (Show, Read)
 
 -- Find the mean of a collection of objects
@@ -18,7 +18,7 @@ calculateMeanPosition :: [Object] -> Vector
 calculateMeanPosition objects = setWTo1 (calculateMeanPosition' objects zeroVector </> fromIntegral (length objects))
 
 -- Find the overall bounding radius of a list of objects
-calculateBoundingRadius :: [Object] -> Vector -> Float
+calculateBoundingRadius :: [Object] -> Vector -> Double
 calculateBoundingRadius objs centre = foldr (Prelude.max . (\obj -> primitiveBoundingRadius (primitive obj) (transform obj) centre)) 0 objs
 
 -- Build up a sphere tree

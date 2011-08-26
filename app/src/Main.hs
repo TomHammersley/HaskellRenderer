@@ -60,6 +60,9 @@ writeRaytracedImage (mipLevel:mipLevels) photonMap = do
   writeBMP filename bmp
   writeRaytracedImage mipLevels photonMap
 
+outputIntermediateResult :: Bool
+outputIntermediateResult = True
+
 -- Main function
 main :: IO ()
 main = do 
@@ -68,5 +71,7 @@ main = do
   let numPhotons = 100 * thousand
   let photonMap = buildPhotonMap sceneGraph cornellBoxLights numPhotons
   let maxMipLevel = 8
---  writeRaytracedImage [7] photonMap
-  writeRaytracedImage (Prelude.reverse [1..maxMipLevel]) photonMap
+  let intermediateMipLevels = if outputIntermediateResult
+                              then Prelude.reverse [1..maxMipLevel]
+                              else []
+  writeRaytracedImage intermediateMipLevels photonMap

@@ -9,7 +9,7 @@ import BoundingBox
 -- This stuff is object specific 
 
 -- What side of a plane is an object on?
-onPositiveSide :: (Vector, Float) -> Object -> Bool
+onPositiveSide :: (Vector, Double) -> Object -> Bool
 onPositiveSide (planeNormal, planeDist) obj = planeDist + (planeNormal `dot3` objBoxCentre) > 0.01
     where
       Just (boxMin, boxMax) = primitiveBoundingBox (primitive obj) obj
@@ -18,7 +18,7 @@ onPositiveSide (planeNormal, planeDist) obj = planeDist + (planeNormal `dot3` ob
 -- This stuff is generic
 
 -- Generate a plane to split the objects along
-makeSplittingPlane :: AABB -> Int -> (Vector, Float)
+makeSplittingPlane :: AABB -> Int -> (Vector, Double)
 makeSplittingPlane (boxMin, boxMax) buildCycle = case nthLargestAxis (boxMax - boxMin) buildCycle of
                                                    0 -> (xaxis, -(vecX midPoint))
                                                    1 -> (yaxis, -(vecY midPoint))
@@ -28,7 +28,7 @@ makeSplittingPlane (boxMin, boxMax) buildCycle = case nthLargestAxis (boxMax - b
       midPoint = (boxMin + boxMax) <*> 0.5
 
 -- Find a working splitting plane
-findSplittingPlane :: AABB -> Int -> [t] -> ((Vector, Float) -> t -> Bool) -> Maybe (Vector, Float) 
+findSplittingPlane :: AABB -> Int -> [t] -> ((Vector, Double) -> t -> Bool) -> Maybe (Vector, Double) 
 findSplittingPlane box buildCycle objs partitionFunc
     | buildCycle > 2 = Nothing
     | otherwise = if length leftObjects > 0 && length rightObjects > 0 

@@ -24,14 +24,14 @@ data RenderContext = RenderContext {
       sceneGraph :: SceneGraph,
       lights :: [Light],
       maximumRayDepth :: Int,
-      reflectionRayLength :: Float,
-      refractionRayLength :: Float,
+      reflectionRayLength :: Double,
+      refractionRayLength :: Double,
       photonMapContext :: PhotonMapContext,
-      rayOriginDistribution :: Float,
-      depthOfFieldFocalDistance :: Float }
+      rayOriginDistribution :: Double,
+      depthOfFieldFocalDistance :: Double }
 
 -- Intersect a ray against a sphere tree
-intersectSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Float, Int) -> Maybe (Object, Float, Int)
+intersectSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Double, Int) -> Maybe (Object, Double, Int)
 intersectSphereTree !(node:nodes) !ray !currentHit = seq result (intersectSphereTree (newNodeList ++ nodes) newRay thisResult)
     where
       -- Intersect the ray with the bounding volume of this node
@@ -60,7 +60,7 @@ intersectSphereTree !(node:nodes) !ray !currentHit = seq result (intersectSphere
 intersectSphereTree [] _ !currentHit = currentHit
 
 -- Intersect with the list of infinite objects
-intersectObjectList :: [Object] -> Ray -> Maybe (Object, Float, Int) -> Maybe (Object, Float, Int)
+intersectObjectList :: [Object] -> Ray -> Maybe (Object, Double, Int) -> Maybe (Object, Double, Int)
 intersectObjectList !(obj:objs) !ray !currentHit = intersectObjectList objs newRay thisResult
     where
       (!thisResult, !newRay) = case primitiveClosestIntersect (primitive obj) ray obj of
@@ -69,13 +69,13 @@ intersectObjectList !(obj:objs) !ray !currentHit = intersectObjectList objs newR
 intersectObjectList [] _ !currentHit = currentHit
 
 -- Find the nearest intersection along a line
-findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Float, Int)
+findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Double, Int)
 findNearestIntersection sceneGraph' !ray = case intersectObjectList (infiniteObjects sceneGraph') ray Nothing of
                                              Just (obj, dist, objId) -> intersectSphereTree [root sceneGraph'] (shortenRay ray dist) (Just (obj, dist, objId))
                                              Nothing -> intersectSphereTree [root sceneGraph'] ray Nothing
 
 -- Intersect a ray against a scene graph. Return first (ie, any) hit without finding the closest
-findAnyIntersectionSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Float)
+findAnyIntersectionSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Double)
 findAnyIntersectionSphereTree (node:nodes) !ray = let sphereIntersectionResult = sphereIntersect (boundingRadius node) (boundingCentre node) ray
                                                   in case sphereIntersectionResult of -- (make a sphere centred at the object's transform matrix with given radius)
                                                        -- If we do not find an intersection, traverse to the rest of the list
@@ -91,7 +91,7 @@ findAnyIntersectionSphereTree (node:nodes) !ray = let sphereIntersectionResult =
 findAnyIntersectionSphereTree [] _ = Nothing
 
 -- Find any intersection against an object list
-findAnyIntersectionObjectList :: [Object] -> Ray -> Maybe (Object, Float)
+findAnyIntersectionObjectList :: [Object] -> Ray -> Maybe (Object, Double)
 findAnyIntersectionObjectList (obj:objs) !ray = case primitiveAnyIntersect (primitive obj) ray obj of
                                                   -- Didn't hit he object. Retain the current hit, but offer up the children of the node as we hit the bounding volume
                                                   Nothing -> findAnyIntersectionObjectList objs ray
@@ -99,7 +99,7 @@ findAnyIntersectionObjectList (obj:objs) !ray = case primitiveAnyIntersect (prim
                                                   Just (objHitDistance, _) -> Just (obj, objHitDistance)
 findAnyIntersectionObjectList [] _ = Nothing
 
-findAnyIntersection :: SceneGraph -> Ray -> Maybe (Object, Float)
+findAnyIntersection :: SceneGraph -> Ray -> Maybe (Object, Double)
 findAnyIntersection sceneGraph' !ray = case findAnyIntersectionObjectList (infiniteObjects sceneGraph') ray of
                                         Nothing -> findAnyIntersectionSphereTree [root sceneGraph'] ray
                                         Just x -> Just x
@@ -114,12 +114,12 @@ lightSurface (x:xs) !acc sceneGraph' !posTanSpace !objMaterial !viewDirection = 
                                                                                 in seq result (lightSurface xs result sceneGraph' posTanSpace objMaterial viewDirection)
 lightSurface [] !acc _ _ _ _ = acc
 
-irrCacheSampleRadius :: Float
+irrCacheSampleRadius :: Double
 irrCacheSampleRadius = 5
 
 -- Perform a full trace of a ray
 type RayTraceState = State IrradianceCache Colour
-traceRay :: RenderContext -> PhotonMap -> Ray -> Int -> Direction -> Float -> Float -> RayTraceState
+traceRay :: RenderContext -> PhotonMap -> Ray -> Int -> Direction -> Double -> Double -> RayTraceState
 
 -- Special case for lowest level of recursion (theoretically this should not get hit)
 traceRay _ _ _ 0 _ _ _ = error "Should not hit this codepath"
@@ -201,7 +201,7 @@ makeRayDirection !renderWidth !renderHeight !camera (x, y) =
     in normalise $ transformVector (worldToCamera camera) rayDir
 
 -- Trace a list of distributed samples with tail recursion
-traceDistributedSample :: RenderContext -> Colour -> [Position] -> PhotonMap -> (Position, Direction) -> Float -> RayTraceState
+traceDistributedSample :: RenderContext -> Colour -> [Position] -> PhotonMap -> (Position, Direction) -> Double -> RayTraceState
 traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWeighting = 
     do
       irrCache <- get

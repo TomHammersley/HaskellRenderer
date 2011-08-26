@@ -10,7 +10,7 @@ import Octree
 import SceneGraph
 import Debug.Trace
 
-data CacheSample = CacheSample (Direction, Colour, Float)
+data CacheSample = CacheSample (Direction, Colour, Double)
 
 type IrradianceCache = OctTree CacheSample
 
@@ -26,11 +26,11 @@ initialiseCache sceneGraph = OctTreeNode slightlyEnlargedBox $ map OctTreeDummy 
       slightlyEnlargedBox = growBoundingBox (finiteBox sceneGraph) 10
 
 -- Quantify the error if we use a given sample to shade a point
-errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Float
+errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Double
 errorWeight (!pos', !dir') (!pos, CacheSample (!dir, _, !r)) = 1 / (pos `distance` pos' / r + sqrt (1 + dir `dot3` dir'))
 
 -- Find samples that make a useful contribution
-findSamples :: (Position, Direction) -> IrradianceCache -> [(Vector, CacheSample, Float)]
+findSamples :: (Position, Direction) -> IrradianceCache -> [(Vector, CacheSample, Double)]
 findSamples posDir@(!pos, _) (OctTreeNode box nodeChildren) = if box `contains` pos
                                                               then concatMap (findSamples posDir) nodeChildren
                                                               else {- trace ("Box " ++ show box ++ " does not contains pos " ++ show pos ++ "\n") $ -} []
@@ -43,7 +43,7 @@ findSamples posDir@(!pos, _) (OctTreeLeaf _ (!samplePos, sample))
 findSamples _ (OctTreeDummy _) = []
 
 -- Sum together a list of samples and error weights
-sumSamples :: [(Vector, CacheSample, Float)] -> Colour
+sumSamples :: [(Vector, CacheSample, Double)] -> Colour
 sumSamples !samples = colourSum Colour.</> weightSum
     where
       !colourSum = foldr (\(_, CacheSample (_, !col, _), !weight) !b -> b + col Colour.<*> weight) colBlack samples
@@ -51,7 +51,7 @@ sumSamples !samples = colourSum Colour.</> weightSum
 
 -- Query the irradiance given a point
 -- Supplied function supplies the irradiance colour at a surface location along with the radius it is valid for
-query :: IrradianceCache -> SurfaceLocation -> (SurfaceLocation -> (Colour, Float)) -> (Colour, IrradianceCache)
+query :: IrradianceCache -> SurfaceLocation -> (SurfaceLocation -> (Colour, Double)) -> (Colour, IrradianceCache)
 query irrCache !posTanSpace f = case findSamples (position, normal) irrCache of
                                   [] -> {-trace ("Adding new sample to cache:\nPosition: " ++ show (fst posTanSpace) ++ "\n" ++ show sample) $-} (colour, insert (fst posTanSpace) sample irrCache)
                                       where
