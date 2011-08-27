@@ -8,7 +8,6 @@ import Vector
 import Distribution
 import Material
 import Colour
-import Random
 import SceneGraph
 import RayTrace
 import Ray hiding (direction)
@@ -20,8 +19,9 @@ import Debug.Trace
 import Misc
 import Control.Parallel.Strategies
 import Data.Heap
+import System.Random.Mersenne.Pure64
 
-type GeneratorState = State StdGen
+type GeneratorState = State PureMT
 
 data PhotonMapContext = PhotonMapContext {
       photonGatherDistance :: Double,
@@ -41,11 +41,11 @@ data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
 -- Generate a list of photon position and direction tuples to emit
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
 -- Helps parallelisation...
-emitPhotons :: Light -> Int -> [(Position, Direction, StdGen, Colour)]
-emitPhotons (PointLight !pos !lightPower _ True) !numPhotons = zipWith (\dir num -> (pos, dir, mkStdGen num, flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
+emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
+emitPhotons (PointLight !pos !lightPower _ True) !numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
     where
       flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
-emitPhotons (QuadLight !corner !du !dv !lightPower) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, mkStdGen num, flux)) randomPoints randomDirs [1..numPhotons]
+emitPhotons (QuadLight !corner !du !dv !lightPower) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
       randomPoints = generatePointsOnQuad corner du dv numPhotons
       randomDirs = generatePointsOnSphere numPhotons 1
@@ -66,11 +66,11 @@ russianRouletteCoefficients !mat = (diffuseP, specularP)
 choosePhotonFate :: (Double, Double) -> GeneratorState PhotonChoice
 choosePhotonFate !(diffuseP, specularP) = do
   generator <- get
-  let (p, newGenerator) = randomR (0.0::Double, 1.0::Double) generator
+  let (p, generator') = randomDouble generator
   let result | p < diffuseP = DiffuseReflect
              | p < (diffuseP + specularP) = SpecularReflect
              | otherwise = Absorb
-  put newGenerator
+  put generator'
   return result
 
 -- Compute new power for a photon
@@ -83,14 +83,14 @@ computeNewPhotonPower !fate !(diffuseP, specularP) photonPower !mat = case fate 
 -- Compute a new diffuse reflection in spherical co-ordinates
 generateUV :: GeneratorState (Double, Double)
 generateUV = do generator <- get
-                let (u, newGenerator) = randomR (0.0::Double, 1.0::Double) generator
-                let (v, newGenerator') = randomR (0.0::Double, 1.0::Double) newGenerator
-                put newGenerator'
+                let (u, generator') = randomDouble generator
+                let (v, generator'') = randomDouble generator'
+                put generator''
                 return (u, v)
 
 -- Find a diffuse reflection direction in the hemisphere of the normal
 -- Realistic Image Synthesis Using Photon Mapping - Eq 2.24
-diffuseReflectionDirection :: StdGen -> TangentSpace -> (Direction, StdGen)
+diffuseReflectionDirection :: PureMT -> TangentSpace -> (Direction, PureMT)
 diffuseReflectionDirection !stdGen !tanSpace = (transformDir dir tanSpace, stdGen')
     where
       ((u, v), stdGen') = runState generateUV stdGen
@@ -100,7 +100,7 @@ diffuseReflectionDirection !stdGen !tanSpace = (transformDir dir tanSpace, stdGe
 
 -- Main working photon tracing function
 -- Realistic Image Synthesis Using Photon Mapping p60
-tracePhoton :: [Photon] -> Photon -> SceneGraph -> StdGen -> (Int, Int) -> [Photon]
+tracePhoton :: [Photon] -> Photon -> SceneGraph -> PureMT -> (Int, Int) -> [Photon]
 tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndState !(bounce, maxBounces) = 
     -- See if the photon intersects any surfaces
     case findNearestIntersection sceneGraph ray of
