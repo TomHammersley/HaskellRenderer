@@ -9,15 +9,15 @@ import Material
 import {-# SOURCE #-} Light
 
 data PhotonMapContext = PhotonMapContext {
-      photonGatherDistance :: Float,
+      photonGatherDistance :: Double,
       maxGatherPhotons :: Int,
-      coneFilterK :: Float }
+      coneFilterK :: Double }
 
 data Photon = Photon { power :: !Colour,
                        position :: !Position,
                        direction :: !Direction }
 
-data PhotonMapTree = PhotonMapNode { splitAxis :: Int, splitValue :: Float, child0 :: PhotonMapTree, child1 :: PhotonMapTree} 
+data PhotonMapTree = PhotonMapNode { splitAxis :: Int, splitValue :: Double, child0 :: PhotonMapTree, child1 :: PhotonMapTree} 
                    | PhotonMapLeaf { photon :: Photon }
 
 data PhotonMap = PhotonMap { photonList :: [Photon],

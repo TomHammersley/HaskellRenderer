@@ -12,11 +12,11 @@ import SceneGraph
 
 data RenderContext = RenderContext {
       numDistribSamples :: Int,
-      photonGatherDistance :: Float,
+      photonGatherDistance :: Double,
       sceneGraph :: SceneGraph,
       lights :: [Light],
       maximumRayDepth :: Int }
 
 rayTraceImage :: RenderContext -> Camera -> Int -> Int -> PhotonMap -> [Colour]
-findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Float, Int)
-findAnyIntersection :: SceneGraph -> Ray -> Maybe (Object, Float)
+findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Double, Int)
+findAnyIntersection :: SceneGraph -> Ray -> Maybe (Object, Double)

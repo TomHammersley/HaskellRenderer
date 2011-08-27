@@ -1,3 +1,3 @@
 #!/bin/sh
-ghc -tmpdir tmp -hidir hi -odir obj --make -O2 -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields Main.hs -o ../raytracer -funfolding-keeness-factor=10 -fwarn-missing-signatures -fllvm -Wall -feager-blackholing -rtsopts -fvia-c -prof -auto-all
+ghc -tmpdir tmp -hidir hi -odir obj --make -O2 -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields Main.hs -o ../raytracer -funfolding-keeness-factor=10 -fwarn-missing-signatures -Wall -feager-blackholing -prof -auto-all -caf-all -rtsopts
 
