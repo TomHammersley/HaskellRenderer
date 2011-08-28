@@ -49,9 +49,14 @@ selectMaxBoxComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMax else
 
 -- Does a box contain a point?
 contains :: AABB -> Position -> Bool
-contains (boxMin, boxMax) p = all insideInterval [vecX, vecY, vecZ]
-    where 
-      insideInterval f = f p >= f boxMin && f p <= f boxMax
+{-# SPECIALIZE INLINE contains :: AABB -> Position -> Bool #-}
+contains (Vector minX minY minZ _, Vector maxX maxY maxZ _) (Vector x y z _) = 
+    x >= minX && x <= maxX &&
+    y >= minY && y <= maxY &&
+    z >= minZ && z <= maxZ
+-- contains (boxMin, boxMax) p = all insideInterval [vecX, vecY, vecZ]
+--     where 
+--       insideInterval f = f p >= f boxMin && f p <= f boxMax
 
 overlapsSphere :: AABB -> Position -> Double -> Bool
 overlapsSphere (boxMin, boxMax) p r = all insideInterval [vecX, vecY, vecZ]
