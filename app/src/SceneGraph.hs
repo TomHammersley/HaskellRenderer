@@ -1,13 +1,15 @@
 -- The graph structure holding the scene
+{-# LANGUAGE MagicHash #-}
 
 module SceneGraph (buildSceneGraph, SphereTreeNode(boundingRadius, boundingCentre, object, children), SceneGraph(root, infiniteObjects, finiteBox)) where
 
 import Primitive
 import Vector
 import BoundingBox
+import Data.List
 
-data SphereTreeNode = SphereTreeNode { object :: Maybe Object, children :: [SphereTreeNode], boundingRadius :: !Double, boundingCentre :: !Vector } deriving (Show, Read)
-data SceneGraph = SceneGraph { root :: SphereTreeNode, infiniteObjects :: [Object], finiteBox :: AABB } deriving (Show, Read)
+data SphereTreeNode = SphereTreeNode { object :: Maybe Object, children :: [SphereTreeNode], boundingRadius :: !Double, boundingCentre :: !Vector } deriving (Show)
+data SceneGraph = SceneGraph { root :: SphereTreeNode, infiniteObjects :: [Object], finiteBox :: AABB } deriving (Show)
 
 -- Find the mean of a collection of objects
 calculateMeanPosition' :: [Object] -> Vector -> Vector
@@ -15,7 +17,9 @@ calculateMeanPosition' (obj : objects) acc = calculateMeanPosition' objects acc 
 calculateMeanPosition' [] acc = acc
 
 calculateMeanPosition :: [Object] -> Vector
-calculateMeanPosition objects = setWTo1 (calculateMeanPosition' objects zeroVector </> fromIntegral (length objects))
+calculateMeanPosition objects = setWTo1 (calculateMeanPosition' objects zeroVector </> len')
+    where
+      !len' = fromIntegral (length objects)
 
 -- Find the overall bounding radius of a list of objects
 calculateBoundingRadius :: [Object] -> Vector -> Double
@@ -39,7 +43,7 @@ buildSphereTree _ [] = error "Should not hit this pattern for buildSphereTree"
 
 -- Build a scene graph
 buildSceneGraph :: [Object] -> ([Object] -> [[Object]]) -> SceneGraph
-buildSceneGraph objs buildFunction = SceneGraph (buildSphereTree buildFunction nonInfiniteObjects) infiniteObjs (objectListBoundingBox nonInfiniteObjects)
+buildSceneGraph objs buildFunction = SceneGraph (buildSphereTree buildFunction nonInfiniteObjs) infiniteObjs (objectListBoundingBox nonInfiniteObjs)
     where
-      nonInfiniteObjects = filter (not . infinitePrimitive . primitive) objs
-      infiniteObjs = filter (infinitePrimitive . primitive) objs
+      -- TODO - surely there is some list partition function I could use here instead?
+      (infiniteObjs, nonInfiniteObjs) = partition (infinite . primitive) objs

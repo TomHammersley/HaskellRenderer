@@ -12,7 +12,7 @@ data Material = Material { ambient :: {-# UNPACK #-} !Colour,
                            reflectivity :: {-# UNPACK #-} !Double,
                            transmit :: {-# UNPACK #-} !Double,
                            indexOfRefraction :: {-# UNPACK #-} !Double,
-                           shader :: Shader } deriving (Show, Read, Eq)
+                           shader :: Shader } deriving (Show, Eq)
 
 iorAir :: Double
 iorAir = 1.000293

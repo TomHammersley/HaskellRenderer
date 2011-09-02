@@ -1,5 +1,6 @@
 -- This is a module for constructing bounding volume hierarchies using an octree approach
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 
 module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList, OctTree(OctTreeNode, OctTreeLeaf, OctTreeDummy), create, insert, gather) where
 
@@ -10,7 +11,7 @@ import Control.Parallel.Strategies
 
 data OctTree a = OctTreeDummy AABB
                | OctTreeNode AABB [OctTree a]
-               | OctTreeLeaf AABB (Vector, a) deriving (Read, Eq)
+               | OctTreeLeaf AABB (Vector, a) deriving (Eq)
 
 instance Show a => Show (OctTree a) where
     show = display 0

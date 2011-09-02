@@ -52,6 +52,8 @@ Executable HaskellRenderer
   
   -- Packages needed in order to build this package.
   Build-depends: heap, bmp, mtl, hunit, mersenne-random-pure
+
+  ghc-options: -tmpdir tmp -hidir hi -odir obj -O2 -fext-core -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields -funfolding-keeness-factor=10 -threaded -rtsopts -fwarn-missing-signatures -Wall -feager-blackholing
   
   -- Modules not exported by this package.
   -- Other-modules:       

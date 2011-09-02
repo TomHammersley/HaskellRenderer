@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 
 module Colour where
 import Vector hiding (min, max)
@@ -72,7 +73,7 @@ invGammaCorrect (Colour !r !g !b !a) = Colour (r ** invGamma) (g ** invGamma) (b
 
 -- Colour encode a normal
 encodeNormal :: Vector -> Colour
-encodeNormal (Vector x y z _) = gammaCorrect $ Colour (saturate $ x * 0.5 + 0.5) (saturate $ y * 0.5 + 0.5) (saturate $ z * 0.5 + 0.5) 1
+encodeNormal (Vector !x !y !z _) = gammaCorrect $ Colour (saturate $ x * 0.5 + 0.5) (saturate $ y * 0.5 + 0.5) (saturate $ z * 0.5 + 0.5) 1
 
 -- Convert a list of colours to a list of Word8s
 convertColoursToPixels :: [Colour] -> [Word8]

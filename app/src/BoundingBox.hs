@@ -1,8 +1,12 @@
 -- Bounding box code
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE BangPatterns #-}
 
 module BoundingBox where
 
 import Vector
+import GHC.Types
+import GHC.Prim
 
 type AABB = (Vector, Vector)
 
@@ -37,8 +41,8 @@ growBoundingBox (Vector x1 y1 z1 _, Vector x2 y2 z2 _) k = (Vector (x1 - k) (y1 
 initialInvalidBox :: AABB
 initialInvalidBox = (Vector bigNumber bigNumber bigNumber 1, Vector smallNumber smallNumber smallNumber 1)
     where
-      bigNumber = 10000000
-      smallNumber = -10000000
+      !bigNumber = 10000000
+      !smallNumber = -10000000
 
 -- These functions are useful for finding the greatest or smallest part of a box relative to a normal
 selectMinBoxComponent :: (Vector -> Double) -> Vector -> AABB -> Double
@@ -50,13 +54,10 @@ selectMaxBoxComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMax else
 -- Does a box contain a point?
 contains :: AABB -> Position -> Bool
 {-# SPECIALIZE INLINE contains :: AABB -> Position -> Bool #-}
-contains (Vector minX minY minZ _, Vector maxX maxY maxZ _) (Vector x y z _) = 
-    x >= minX && x <= maxX &&
-    y >= minY && y <= maxY &&
-    z >= minZ && z <= maxZ
--- contains (boxMin, boxMax) p = all insideInterval [vecX, vecY, vecZ]
---     where 
---       insideInterval f = f p >= f boxMin && f p <= f boxMax
+contains (Vector !(D# minX) !(D# minY) !(D# minZ) _, Vector !(D# maxX) !(D# maxY) !(D# maxZ) _) (Vector !(D# x) !(D# y) !(D# z) _) = 
+    x >=## minX && x <=## maxX &&
+    y >=## minY && y <=## maxY &&
+    z >=## minZ && z <=## maxZ
 
 overlapsSphere :: AABB -> Position -> Double -> Bool
 overlapsSphere (boxMin, boxMax) p r = all insideInterval [vecX, vecY, vecZ]

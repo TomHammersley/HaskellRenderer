@@ -1,4 +1,5 @@
 -- Cornell box reference data
+{-# LANGUAGE MagicHash #-}
 
 module CornellBox(cornellBox, cornellBoxCamera, cornellBoxLights) where
 
@@ -10,6 +11,7 @@ import Colour
 import Shader
 import Matrix
 import Light
+--import GHC.Types
 
 cornellBoxLights :: [Light]
 
@@ -41,10 +43,10 @@ redMaterial :: Material
 greenMaterial :: Material
 
 cornellBoxLights = [ 
-    QuadLight (Vector 213 548 227 1) (Vector 130 0 0 0) (Vector 0 0 105 0) (Colour 500 500 500 0)
+    QuadLight (Vector 213.0 548.0 227.0 1.0) (Vector 130.0 0.0 0.0 0.0) (Vector 0.0 0.0 105.0 0.0) (Colour 500 500 500 0) True
     ]
 
-cameraPosition = Vector 278 273 (-800) 1
+cameraPosition = Vector 278.0 273.0 (-800.0) 1.0
 cornellBoxCamera = withVectors cameraPosition xaxis yaxis zaxis 45.0
 
 whiteMaterial = Material (Colour 0.5 0.5 0.5 1) (Colour 0.5 0.5 0.5 1) colBlack 0 0 0 iorAir NullShader
@@ -52,106 +54,99 @@ redMaterial   = Material (Colour 0.5 0.0 0.0 1) (Colour 0.5 0.0 0.0 1) colBlack 
 greenMaterial = Material (Colour 0.0 0.5 0.0 1) (Colour 0.0 0.5 0.0 1) colBlack 0 0 0 iorAir NullShader
 
 floorVertices = [
-    Vector 556.0 0.0   0.0 1,
-    Vector   0.0 0.0   0.0 1,
-    Vector   0.0 0.0 559.2 1,
-    Vector 556.0 0.0 559.2 1
+    Vector 556.0 0.0   0.0 1.0,
+    Vector   0.0 0.0   0.0 1.0,
+    Vector   0.0 0.0 559.2 1.0,
+    Vector 556.0 0.0 559.2 1.0
     ]
 
-{-lightVertices = [
-    Vector 343.0 548.0 227.0 1,
-    Vector 343.0 548.0 332.0 1,
-    Vector 213.0 548.0 332.0 1,
-    Vector 213.0 548.0 227.0 1
-    ]-}
-
 ceilingVertices = [
-    Vector 556.0 548.8   0.0 1,
-    Vector 556.0 548.8 559.2 1,
-    Vector   0.0 548.8 559.2 1,
-    Vector   0.0 548.8   0.0 1
+    Vector 556.0 548.8   0.0 1.0,
+    Vector 556.0 548.8 559.2 1.0,
+    Vector   0.0 548.8 559.2 1.0,
+    Vector   0.0 548.8   0.0 1.0
     ]
 
 backWallVertices = [
-    Vector 556.0   0.0 559.2 1,
-    Vector   0.0   0.0 559.2 1,
-    Vector   0.0 548.8 559.2 1,
-    Vector 556.0 548.8 559.2 1
+    Vector 556.0   0.0 559.2 1.0,
+    Vector   0.0   0.0 559.2 1.0,
+    Vector   0.0 548.8 559.2 1.0,
+    Vector 556.0 548.8 559.2 1.0
     ]
 
 frontWallVertices = [
-    Vector 556.0 548.8 0.0 1,
-    Vector   0.0 548.8 0.0 1,
-    Vector   0.0   0.0 0.0 1,
-    Vector 556.0   0.0 0.0 1
+    Vector 556.0 548.8 0.0 1.0,
+    Vector   0.0 548.8 0.0 1.0,
+    Vector   0.0   0.0 0.0 1.0,
+    Vector 556.0   0.0 0.0 1.0
     ]
 
 rightWallVertices = [
-    Vector 0.0   0.0 559.2 1 ,
-    Vector 0.0   0.0   0.0 1,
-    Vector 0.0 548.8   0.0 1,
-    Vector 0.0 548.8 559.2 1
+    Vector 0.0   0.0 559.2 1.0,
+    Vector 0.0   0.0   0.0 1.0,
+    Vector 0.0 548.8   0.0 1.0,
+    Vector 0.0 548.8 559.2 1.0
     ]
 
 leftWallVertices = [
-    Vector 556.0   0.0   0.0 1,
-    Vector 556.0   0.0 559.2 1,
-    Vector 556.0 548.8 559.2 1,
-    Vector 556.0 548.8   0.0 1
+    Vector 556.0   0.0   0.0 1.0,
+    Vector 556.0   0.0 559.2 1.0,
+    Vector 556.0 548.8 559.2 1.0,
+    Vector 556.0 548.8   0.0 1.0
     ]
 
 shortBlockVertices = [
-    Vector 130.0 165.0  65.0 1,
-    Vector  82.0 165.0 225.0 1,
-    Vector 240.0 165.0 272.0 1,
-    Vector 290.0 165.0 114.0 1,
+    Vector 130.0 165.0  65.0 1.0,
+    Vector  82.0 165.0 225.0 1.0,
+    Vector 240.0 165.0 272.0 1.0,
+    Vector 290.0 165.0 114.0 1.0,
 
-    Vector 290.0   0.0 114.0 1,
-    Vector 290.0 165.0 114.0 1,
-    Vector 240.0 165.0 272.0 1,
-    Vector 240.0   0.0 272.0 1,
+    Vector 290.0   0.0 114.0 1.0,
+    Vector 290.0 165.0 114.0 1.0,
+    Vector 240.0 165.0 272.0 1.0,
+    Vector 240.0   0.0 272.0 1.0,
 
-    Vector 130.0   0.0  65.0 1,
-    Vector 130.0 165.0  65.0 1,
-    Vector 290.0 165.0 114.0 1,
-    Vector 290.0   0.0 114.0 1,
+    Vector 130.0   0.0  65.0 1.0,
+    Vector 130.0 165.0  65.0 1.0,
+    Vector 290.0 165.0 114.0 1.0,
+    Vector 290.0   0.0 114.0 1.0,
 
-    Vector  82.0   0.0 225.0 1,
-    Vector  82.0 165.0 225.0 1,
-    Vector 130.0 165.0  65.0 1,
-    Vector 130.0   0.0  65.0 1,
+    Vector  82.0   0.0 225.0 1.0,
+    Vector  82.0 165.0 225.0 1.0,
+    Vector 130.0 165.0  65.0 1.0,
+    Vector 130.0   0.0  65.0 1.0,
 
-    Vector 240.0   0.0 272.0 1,
-    Vector 240.0 165.0 272.0 1,
-    Vector  82.0 165.0 225.0 1,
-    Vector  82.0   0.0 225.0 1
+    Vector 240.0   0.0 272.0 1.0,
+    Vector 240.0 165.0 272.0 1.0,
+    Vector  82.0 165.0 225.0 1.0,
+    Vector  82.0   0.0 225.0 1.0
     ]
 
 tallBlockVertices = [
-    Vector 423.0 330.0 247.0 1,
-    Vector 265.0 330.0 296.0 1,
-    Vector 314.0 330.0 456.0 1,
-    Vector 472.0 330.0 406.0 1,
+    Vector 423.0 330.0 247.0 1.0,
+    Vector 265.0 330.0 296.0 1.0,
+    Vector 314.0 330.0 456.0 1.0,
+    Vector 472.0 330.0 406.0 1.0,
 
-    Vector 423.0   0.0 247.0 1,
-    Vector 423.0 330.0 247.0 1,
-    Vector 472.0 330.0 406.0 1,
-    Vector 472.0   0.0 406.0 1,
+    Vector 423.0   0.0 247.0 1.0,
+    Vector 423.0 330.0 247.0 1.0,
+    Vector 472.0 330.0 406.0 1.0,
+    Vector 472.0   0.0 406.0 1.0,
 
-    Vector 472.0   0.0 406.0 1,
-    Vector 472.0 330.0 406.0 1,
-    Vector 314.0 330.0 456.0 1,
-    Vector 314.0   0.0 456.0 1,
+    Vector 472.0   0.0 406.0 1.0,
+    Vector 472.0 330.0 406.0 1.0,
+    Vector 314.0 330.0 456.0 1.0,
+    Vector 314.0   0.0 456.0 1.0,
 
-    Vector 314.0   0.0 456.0 1,
-    Vector 314.0 330.0 456.0 1,
-    Vector 265.0 330.0 296.0 1,
-    Vector 265.0   0.0 296.0 1,
+    Vector 314.0   0.0 456.0 1.0,
+    Vector 314.0 330.0 456.0 1.0,
+    Vector 265.0 330.0 296.0 1.0,
+    Vector 265.0   0.0 296.0 1.0,
 
-    Vector 265.0   0.0 296.0 1,
-    Vector 265.0 330.0 296.0 1,
-    Vector 423.0 330.0 247.0 1,
-    Vector 423.0   0.0 247.0 1
+    Vector 265.0   0.0 296.0 1.0,
+    Vector 265.0 330.0 296.0 1.0,
+    Vector 423.0 330.0 247.0 1.0,
+    Vector 423.0   0.0 247.0 1.0
     ]
 
 floorObject = Object (TriangleMesh (quadsToTriangles floorVertices)) whiteMaterial identity

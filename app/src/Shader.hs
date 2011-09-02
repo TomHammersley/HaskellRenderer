@@ -1,4 +1,5 @@
 -- Generic shaders to return colour and texture information
+{-# LANGUAGE MagicHash #-}
 
 module Shader where
 
@@ -8,7 +9,7 @@ import Misc
 
 data Shader = CheckedShader { scale :: {-# UNPACK #-} !Vector, colour1 :: {-# UNPACK #-} !Colour, colour2 :: {-# UNPACK #-} !Colour }
             | ShowNormalShader
-            | NullShader deriving (Show, Read, Eq)
+            | NullShader deriving (Show, Eq)
 
 -- Functions available for each shader
 evaluateAmbient :: Shader -> Position -> TangentSpace -> Colour
@@ -43,7 +44,7 @@ shadePoint (CheckedShader checkScale checkColour1 checkColour2) (position, _) (a
       scaledZ = round (vecZ scaledPosition) :: Int
       checkColour = if odd scaledX `xor` odd scaledY `xor` odd scaledZ then checkColour1 else checkColour2
 
-shadePoint ShowNormalShader (_, Vector x y z _) (_, _, _) = Colour (x * 0.5 + 0.5) (y * 0.5 + 0.5) (z * 0.5 + 0.5) 1
+shadePoint ShowNormalShader (_, norm) (_, _, _) = encodeNormal norm
 
 -- Default fallback
 shadePoint _ (_, _) (ambient, diffuse, specular) = ambient + diffuse + specular

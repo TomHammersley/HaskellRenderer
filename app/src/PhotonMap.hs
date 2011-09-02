@@ -1,5 +1,6 @@
 -- Photon mapping
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 
 module PhotonMap(buildPhotonMap, PhotonMap(photonList), irradiance, PhotonMapContext(PhotonMapContext)) where
 
@@ -18,8 +19,9 @@ import KDTree
 import Debug.Trace
 import Misc
 import Control.Parallel.Strategies
-import Data.Heap
+import Data.Heap hiding (partition)
 import System.Random.Mersenne.Pure64
+import Data.List (partition)
 
 type GeneratorState = State PureMT
 
@@ -28,13 +30,13 @@ data PhotonMapContext = PhotonMapContext {
       maxGatherPhotons :: Int,
       coneFilterK :: Double }
 
-data Photon = Photon { power :: {-# UNPACK #-} !Colour, posDir :: {-# UNPACK #-} !(Position, Direction) } deriving (Show, Read, Eq, Ord)
+data Photon = Photon { power :: {-# UNPACK #-} !Colour, posDir :: {-# UNPACK #-} !(Position, Direction) } deriving (Show, Eq, Ord)
 
 data PhotonMapTree = PhotonMapNode {-# UNPACK #-} !Int {-# UNPACK #-} !Double PhotonMapTree PhotonMapTree
-                   | PhotonMapLeaf !Photon deriving (Show, Read, Eq)
+                   | PhotonMapLeaf !Photon deriving (Show, Eq)
 
 data PhotonMap = PhotonMap { photonList :: [Photon],
-                             photonMapTree :: PhotonMapTree } deriving(Show, Read, Eq)
+                             photonMapTree :: PhotonMapTree } deriving(Show, Eq)
 
 data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
 
@@ -45,11 +47,11 @@ emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
 emitPhotons (PointLight !pos !lightPower _ True) !numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
     where
       flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
-emitPhotons (QuadLight !corner !du !dv !lightPower) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
+emitPhotons (QuadLight !corner !du !dv !lightPower True) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
       randomPoints = generatePointsOnQuad corner du dv numPhotons
       randomDirs = generatePointsOnSphere numPhotons 1
-      area =  Vector.magnitude (du `cross` dv)
+      !area =  Vector.magnitude (du `cross` dv)
       flux = lightPower Colour.<*> (area / fromIntegral numPhotons)
 emitPhotons _ _ = []
 
@@ -94,9 +96,9 @@ diffuseReflectionDirection :: PureMT -> TangentSpace -> (Direction, PureMT)
 diffuseReflectionDirection !stdGen !tanSpace = (transformDir dir tanSpace, stdGen')
     where
       ((u, v), stdGen') = runState generateUV stdGen
-      theta = acos (sqrt u)
-      phi = 2 * pi * v
-      dir = sphericalToDirection (theta, phi)
+      !theta = acos (sqrt u)
+      !phi = 2 * pi * v
+      dir = sphericalToDirection theta phi
 
 -- Main working photon tracing function
 -- Realistic Image Synthesis Using Photon Mapping p60
@@ -147,10 +149,11 @@ tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rn
       photonsPerChunk = 256
 
 -- High-level function to build a photon map
-buildPhotonMap :: SceneGraph -> [Light] -> Int -> PhotonMap
-buildPhotonMap sceneGraph lights numPhotonsPerLight = PhotonMap photons (buildKDTree photons)
+buildPhotonMap :: SceneGraph -> [Light] -> Int -> (PhotonMap, [Light])
+buildPhotonMap sceneGraph lights numPhotonsPerLight = (PhotonMap photons (buildKDTree photons), lightsNotForPhotonMap)
     where
-      photons = foldr ((++) . tracePhotonsForLight numPhotonsPerLight sceneGraph) [] lights
+      (lightsForPhotonMap, lightsNotForPhotonMap) = partition addToPhotonMap lights
+      photons = foldr ((++) . tracePhotonsForLight numPhotonsPerLight sceneGraph) [] lightsForPhotonMap
 
 -- Make a bounding box of a list of photons
 photonsBoundingBox :: [Photon] -> AABB
@@ -163,10 +166,11 @@ buildKDTree (x:[]) = PhotonMapLeaf x
 buildKDTree (x:xs) = let !photons = x:xs
                          !(boxMin, boxMax) = photonsBoundingBox photons
                          !axis = largestAxis (boxMax - boxMin)
-                         !photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> fromIntegral (length photons)
+                         !numPhotons = fromIntegral (length photons)
+                         !photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> numPhotons
                          !value = component photonsMedian axis
-                         photonsGT = Prelude.filter (\p -> component ((fst . posDir) p) axis > value) photons
-                         photonsLE = Prelude.filter (\p -> component ((fst . posDir) p) axis <= value) photons
+                         photonsGT = Prelude.filter (\p -> (component ((fst . posDir) p) axis) > value) photons
+                         photonsLE = Prelude.filter (\p -> (component ((fst . posDir) p) axis) <= value) photons
                      in if length photonsGT > 0 && length photonsLE > 0
                         then PhotonMapNode axis value (buildKDTree photonsGT) (buildKDTree photonsLE)
                         else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')

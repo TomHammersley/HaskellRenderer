@@ -1,8 +1,13 @@
 module Tests.BoundingBoxTest where
 
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
+
+import Test.HUnit
 import Vector
 import BoundingBox
-import Test.HUnit
+import GHC.Prim
+import GHC.Types
 
 test_InsideBox = TestCase (assertEqual "Inside box" (box `contains` pos) True)
     where

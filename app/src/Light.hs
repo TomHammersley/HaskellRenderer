@@ -1,5 +1,6 @@
 -- Module for lights
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 
 module Light (applyLight, surfaceEpsilon, Light(PointLight, AmbientLight, QuadLight), LightingResult, position, colour, range, deltaU, deltaV, addToPhotonMap) where
 
@@ -13,8 +14,8 @@ import Misc
 import RayTrace (findAnyIntersection)
 
 data Light = PointLight { position :: !Position, colour :: !Colour, range :: !Double, addToPhotonMap :: Bool }
-           | AmbientLight { colour :: !Colour }
-           | QuadLight { position :: !Position, deltaU :: !Direction, deltaV :: !Direction, colour :: !Colour }
+           | AmbientLight { colour :: !Colour, addToPhotonMap :: Bool }
+           | QuadLight { position :: !Position, deltaU :: !Direction, deltaV :: !Direction, colour :: !Colour, addToPhotonMap :: Bool } deriving (Show)
 
 type LightingResult = (Colour, Colour, Colour) -- Ambient, diffuse, specular
 
@@ -35,29 +36,36 @@ phongLighting (!shadePos, !tanSpace) (PointLight !lightPos !lightColour !lightRa
                                                                                       Just _ -> colBlack -- An object is closer to our point of consideration than the light, so occluded
                                                                                       Nothing -> (lightColour * lightingSum) `colourMul` attenuation
                                                                                           where
-                                                                                            lightingSum = diffuseLighting + specularLighting
-                                                                                            attenuation = lightAttenuation lightPos shadePos lightRange
-                                                                                            specularCorrection = (specularPower objMaterial + 2) / (2 * pi)
-                                                                                            specularLighting = specular objMaterial `colourMul` (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
-                                                                                            reflection = reflect incoming normal
-                                                                                            diffuseLighting = if inPhotonMap
-                                                                                                              then colBlack
-                                                                                                              else shaderDiffuse * diffuse objMaterial `colourMul` saturate dotProd
-                                                                                            shaderDiffuse = evaluateDiffuse (shader objMaterial) shadePos tanSpace
+                                                                                            !lightingSum = diffuseLighting + specularLighting
+                                                                                            !attenuation = lightAttenuation lightPos shadePos lightRange
+                                                                                            !specularCorrection = (specularPower objMaterial + 2) / (2 * pi)
+                                                                                            !specularLighting = specular objMaterial `colourMul` (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
+                                                                                            !reflection = reflect incoming normal
+                                                                                            !diffuseLighting = if inPhotonMap
+                                                                                                               then colBlack
+                                                                                                               else shaderDiffuse * diffuse objMaterial `colourMul` saturate dotProd
+                                                                                            !shaderDiffuse = evaluateDiffuse (shader objMaterial) shadePos tanSpace
     | otherwise = colBlack
-    where !intersectionPlusEpsilon = shadePos + (normal Vector.<*> surfaceEpsilon)
-          !incoming = normalise (lightPos - shadePos)
-          !dotProd = normal `dot3` incoming
-          !normal = thr tanSpace
-phongLighting _ (AmbientLight _) _ _ _ = error "phongLighting: Do not know how to handle AmbientLight"
+    where 
+      !intersectionPlusEpsilon = shadePos + (normal Vector.<*> surfaceEpsilon)
+      !incoming = normalise (lightPos - shadePos)
+      !dotProd = normal `dot3` incoming
+      !normal = thr tanSpace
+phongLighting _ (AmbientLight _ _) _ _ _ = error "phongLighting: Do not know how to handle AmbientLight"
 -- TODO Implement specular calculations for this light. We assume it is always in the photon map
-phongLighting _ (QuadLight _ _ _ _) _ _ _ = colBlack 
+phongLighting _ (QuadLight _ _ _ _ _) _ _ _ = colBlack 
 
 -- For a given surface point, work out the lighting, including occlusion
 applyLight :: SceneGraph -> SurfaceLocation -> Material -> Direction -> Light -> Colour
-applyLight sceneGraph !intersectionPointNormal !objMaterial !viewDirection (PointLight !lightPos !lightColour !lightRange !inPhotonMap) = phongLighting intersectionPointNormal (PointLight lightPos lightColour lightRange inPhotonMap) objMaterial sceneGraph viewDirection
-applyLight _ (!intersectionPoint, !intersectionTanSpace) !objMaterial _ (AmbientLight !ambientColour) = 
+applyLight sceneGraph !intersectionPointNormal !objMaterial !viewDirection (PointLight !lightPos !lightColour !lightRange !inPhotonMap) 
+    = phongLighting 
+      intersectionPointNormal 
+      (PointLight lightPos lightColour lightRange inPhotonMap) 
+      objMaterial 
+      sceneGraph
+      viewDirection
+applyLight _ (!intersectionPoint, !intersectionTanSpace) !objMaterial _ (AmbientLight !ambientColour _) = 
     let shaderAmbient = evaluateAmbient (shader objMaterial) intersectionPoint intersectionTanSpace
         materialAmbient = ambient objMaterial
     in ambientColour * shaderAmbient * materialAmbient
-applyLight _ (_, _) _ _ (QuadLight _ _ _ _) = colBlack
+applyLight _ (_, _) _ _ (QuadLight _ _ _ _ _) = colBlack

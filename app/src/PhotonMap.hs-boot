@@ -24,4 +24,4 @@ data PhotonMap = PhotonMap { photonList :: [Photon],
                              photonMapTree :: PhotonMapTree }
 
 irradiance :: PhotonMap -> PhotonMapContext -> Material -> (Position, TangentSpace) -> Colour
-buildPhotonMap :: SceneGraph -> [Light] -> Int -> PhotonMap
+buildPhotonMap :: SceneGraph -> [Light] -> Int -> (PhotonMap, [Light])

@@ -1,4 +1,6 @@
 -- Module for generating sample patterns for distributed ray tracing
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 
 module Distribution (generatePointsOnSphere, generatePointsOnQuad) where
 
@@ -25,13 +27,13 @@ generatePointsOnSphere :: Int -> Double -> [Position]
 generatePointsOnSphere numPoints r = map uvToPosition randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT 12345)
-      uvToPosition (u, v) = Vector (r * x) (r * y) (r * z) 1
+      uvToPosition (!u, !v) = Vector (r * x) (r * y) (r * z) 1
           where
-            z = 2 * u - 1
-            t = 2 * pi * v
-            w = sqrt (1 - z * z)
-            x = w * cos t
-            y = w * sin t
+            !z = 2 * u - 1
+            !t = 2 * pi * v
+            !w = sqrt (1 - z * z)
+            !x = w * cos t
+            !y = w * sin t
 
 generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> [Position]
 generatePointsOnQuad pos deltaU deltaV numPoints = map uvToPosition randomUVs

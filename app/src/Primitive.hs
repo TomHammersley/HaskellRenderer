@@ -1,5 +1,7 @@
 -- Module for general primitives and intersections
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 module Primitive (primitiveBoundingRadius, 
                   primitiveClosestIntersect, 
@@ -23,7 +25,7 @@ module Primitive (primitiveBoundingRadius,
                   primitiveBoundingBox, 
                   objectListBoundingBox, 
                   intersectsBox, 
-                  infinitePrimitive, 
+                  infinite, 
                   boundingBoxValid, 
                   sphereIntersect,
                   TangentSpace) where
@@ -39,18 +41,18 @@ import Data.Maybe
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 
                        vertUV :: {-# UNPACK #-} !Position, 
-                       vertTangentSpace :: {-# UNPACK #-} !TangentSpace } deriving (Show, Read, Eq)
-data Triangle = Triangle { vertices :: ![Vertex], plane :: !Primitive, halfPlanes :: ![Primitive] } deriving (Show, Read, Eq)
+                       vertTangentSpace :: {-# UNPACK #-} !TangentSpace } deriving (Show, Eq)
+data Triangle = Triangle { vertices :: ![Vertex], plane :: !Primitive, halfPlanes :: ![Primitive] } deriving (Show, Eq)
 
 -- General object definition
 data Object = Object { primitive :: Primitive,
                        material :: Material,
-                       transform :: !Matrix} deriving (Show, Read, Eq)
+                       transform :: !Matrix} deriving (Show, Eq)
 
 -- Different kinds of primitives that an object can have
 data Primitive = Sphere { radius :: {-# UNPACK #-} !Double }
                | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Double }
-               | TriangleMesh { triangles :: [Triangle] } deriving (Show, Read, Eq)
+               | TriangleMesh { triangles :: [Triangle] } deriving (Show, Eq)
 
 -- Get the centre of an object
 getCentre :: Object -> Vector
@@ -65,8 +67,8 @@ makePlane :: Position -> Position -> Position -> Primitive
 makePlane !v1 !v2 !v3 = Plane (tangent, binormal, normal) (-(v1 `dot3` normal))
     where 
       !normal = normalise (surfaceNormal v1 v2 v3)
-      !tangent = normalise $ v2 - v1
-      !binormal = normalise $ v3 - v1
+      !tangent = normalise (v2 - v1)
+      !binormal = normalise (v3 - v1)
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Triangle base functionality
@@ -111,37 +113,37 @@ calculateBarycentricCoordinates !pos !triangle = (alpha, beta, gamma)
 
 -- Distance to a plane
 distanceToPlane :: Primitive -> Vector -> Double
-distanceToPlane (Plane !(_, _, norm) !dist) !pos = pos `dot3` norm + dist
-distanceToPlane _ _ = error "distanceToPlane: Unsupport primitive for this function"
+distanceToPlane (Plane !(_, _, norm) !dist) !pos = (pos `dot3` norm) + dist
+distanceToPlane _ _ = error "distanceToPlane: Unsupported primitive for this function"
 
 -- Use halfplanes to test if a point is inside a triangle
 pointInsideTriangle :: Triangle -> Position -> Bool
 pointInsideTriangle !tri !point = all (\pln -> distanceToPlane pln point >= 0) (halfPlanes tri)
 
 -- Intersect a ray with a triangle
-intersectRayTriangle :: Ray -> Object -> Triangle -> Bool -> Maybe (Double, Triangle)
+intersectRayTriangle :: Ray -> Object -> Triangle -> Bool -> (# Bool, Double, Triangle #)
 intersectRayTriangle !ray !obj !triangle !doubleSided
-    | not doubleSided && direction ray `dot3` (thr . planeTangentSpace . plane) triangle > 0 = Nothing
+    | not doubleSided && direction ray `dot3` (thr . planeTangentSpace . plane) triangle > 0 = (# False, 0, triangle #)
     | otherwise = case primitiveClosestIntersect (plane triangle) ray obj of
-                    Nothing -> Nothing
+                    Nothing -> (# False, 0, triangle #)
                     Just (!dist', _) -> if pointInsideTriangle triangle (pointAlongRay ray dist')
-                                        then Just (dist', triangle)
-                                        else Nothing
+                                        then (# True, dist', triangle #)
+                                        else (# False, 0, triangle #)
 
 -- Intersect against a list of triangles
 intersectRayTriangleList :: [Triangle] -> Int -> Maybe (Double, Int) -> Ray -> Object -> Maybe (Double, Int)
 intersectRayTriangleList !(x:xs) !index !currentResult !currentRay !obj = intersectRayTriangleList xs (index + 1) newResult newRay obj
     where
       (!newRay, !newResult) = case intersectRayTriangle currentRay obj x False of
-                                Nothing -> (currentRay, currentResult)
-                                Just (dist, _) -> (shortenRay currentRay dist, Just (dist, index))
+                                (# False, _, _ #) -> (currentRay, currentResult)
+                                (# True, !dist, _ #) -> (shortenRay currentRay dist, Just (dist, index))
 intersectRayTriangleList [] _ !currentResult _ _ = currentResult
 
 -- Intersect against any triangle
 intersectRayAnyTriangleList :: [Triangle] -> Int  -> Ray -> Object -> Maybe (Double, Int)
 intersectRayAnyTriangleList !(x:xs) !index !ray !obj = case intersectRayTriangle ray obj x True of
-                                                         Nothing -> intersectRayAnyTriangleList xs (index + 1) ray obj
-                                                         Just (!dist, _) -> Just (dist, index)
+                                                         (# False, _, _ #) -> intersectRayAnyTriangleList xs (index + 1) ray obj
+                                                         (# True, !dist, _ #) -> Just (dist, index)
 intersectRayAnyTriangleList [] _ _ _ = Nothing
 
 -- Get the interpolated vertex normal
@@ -159,17 +161,17 @@ primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
 -- This function intersects a ray with a sphere, and returns the closest intercept
 primitiveClosestIntersect (Sphere !sphereRadius) (Ray !rayOrg !rayDir !rayLen) obj
     | discriminant < 0 = Nothing
-    | discriminant == 0 = Just ((-b) / 2, 0)
+    | discriminant == 0 = Just (((-b) ** 0.5), 0)
     | root1 >= 0 && root1 <= rayLen = Just (root1, 0)
     | root2 >= 0 && root2 <= rayLen = Just (root2, 0)
     | otherwise = Nothing
     where 
       !delta = rayOrg - getCentre obj
-      !b = 2.0 * (delta `dot3` rayDir)
-      !c = (delta `dot3` delta) - sphereRadius**2
-      !discriminant = b**2 - 4 * c -- A is 1 because the ray direction is normalised
-      !root1 = (-b - sqrt discriminant) / 2
-      !root2 = (-b + sqrt discriminant) / 2
+      !b = 2 * (delta `dot3` rayDir)
+      !c = (delta `dot3` delta) - sphereRadius ** 2
+      !discriminant = b ** 2 - 4 * c -- A is 1 because the ray direction is normalised
+      !root1 = ((-b) - sqrt discriminant) * 0.5
+      !root2 = ((-b) + sqrt discriminant) * 0.5
 
 -- This function intersects a ray with a plane and returns the closest intercept
 primitiveClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray !rayOrg !rayDir !rayLen) _
@@ -193,8 +195,8 @@ primitiveTangentSpace :: Primitive -> Int -> Position -> Object -> TangentSpace
 -- Normal for a sphere
 primitiveTangentSpace (Sphere !sphereRadius) _ !intersectionPoint obj = (tangent, binormal, normal)
     where
-      tangent = Vector 1 0 0 1 -- This is clearly incorrect - fix this later!
-      binormal = Vector 0 1 0 1
+      tangent = Vector 1 0 0 0 -- This is clearly incorrect - fix this later!
+      binormal = Vector 0 1 0 0
       normal = (intersectionPoint - getCentre obj) <*> (1 / sphereRadius)
 
 primitiveTangentSpace (Plane !planeNormal _) _ _ _ = planeNormal
@@ -213,8 +215,8 @@ primitiveBoundingRadius (TriangleMesh tris) _ centre = triangleListRadius 0 tris
 triangleListRadius :: Double -> [Triangle] -> Vector -> Double
 triangleListRadius maximumRadius (tri:tris) centre = triangleListRadius (Prelude.max maximumRadius triangleRadius) tris centre
     where
-      radii = map (distance centre . vertPosition) (vertices tri)
-      triangleRadius = foldr Prelude.max 0 radii 
+      radii = map (\v -> centre `distance` (vertPosition v)) (vertices tri)
+      triangleRadius = foldr Prelude.max 0 radii
 triangleListRadius maximumRadius [] _ = maximumRadius
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -248,17 +250,23 @@ intersectsBox (Sphere sphereRadius) matrix (boxMin, boxMax) = (centreX + sphereR
                                                               (centreY + sphereRadius) >= vecY boxMin && (centreY - sphereRadius) <= vecY boxMax &&
                                                               (centreZ + sphereRadius) >= vecZ boxMin && (centreZ - sphereRadius) <= vecZ boxMax
     where
-      centre = getTranslation matrix
-      centreX = vecX centre
-      centreY = vecY centre
-      centreZ = vecZ centre
+      !centre = getTranslation matrix
+      !centreX = vecX centre
+      !centreY = vecY centre
+      !centreZ = vecZ centre
 
 intersectsBox (Plane (_, _, planeNormal) planeD) _ box = signum minDistance /= signum maxDistance
     where
-      minAgainstPlane = Vector (selectMinBoxComponent vecX planeNormal box) (selectMinBoxComponent vecY planeNormal box) (selectMinBoxComponent vecZ planeNormal box) 1
-      maxAgainstPlane = Vector (selectMaxBoxComponent vecX planeNormal box) (selectMaxBoxComponent vecY planeNormal box) (selectMaxBoxComponent vecZ planeNormal box) 1
-      minDistance = (planeNormal `dot3` minAgainstPlane) + planeD
-      maxDistance = (planeNormal `dot3` maxAgainstPlane) + planeD
+      !minX = selectMinBoxComponent vecX planeNormal box
+      !minY = selectMinBoxComponent vecY planeNormal box
+      !minZ = selectMinBoxComponent vecZ planeNormal box
+      !maxX = selectMaxBoxComponent vecX planeNormal box
+      !maxY = selectMaxBoxComponent vecY planeNormal box
+      !maxZ = selectMaxBoxComponent vecZ planeNormal box
+      !minAgainstPlane = Vector minX minY minZ 1
+      !maxAgainstPlane = Vector maxX maxY maxZ 1
+      !minDistance = (planeNormal `dot3` minAgainstPlane) + planeD
+      !maxDistance = (planeNormal `dot3` maxAgainstPlane) + planeD
       
 intersectsBox (TriangleMesh tris) matrix box = boundingBoxOverlaps box triListBox
     where
@@ -266,10 +274,9 @@ intersectsBox (TriangleMesh tris) matrix box = boundingBoxOverlaps box triListBo
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Aspect querying of objects
-infinitePrimitive :: Primitive -> Bool
-infinitePrimitive (Plane _ _) = True
-infinitePrimitive (TriangleMesh _) = False
-infinitePrimitive _ = False
+infinite :: Primitive -> Bool
+infinite (Plane _ _) = True
+infinite _ = False
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Specialised intersection code for bounding volume hierarchies

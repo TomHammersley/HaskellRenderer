@@ -1,13 +1,18 @@
+-- Vector library for 3d graphics
+
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 
 module Vector where
 import Data.List
 import Misc
+import GHC.Prim
+import GHC.Types
 
 data Vector = Vector { vecX :: {-# UNPACK #-} !Double,
                        vecY :: {-# UNPACK #-} !Double,
                        vecZ :: {-# UNPACK #-} !Double,
-                       vecW :: {-# UNPACK #-} !Double } deriving (Read, Ord, Eq)
+                       vecW :: {-# UNPACK #-} !Double } deriving (Ord, Eq)
 type Position = Vector
 type Direction = Vector
 type Normal = Direction
@@ -16,17 +21,30 @@ type SurfaceLocation = (Position, TangentSpace)
 
 instance Num Vector where
     {-# SPECIALIZE INLINE (+) :: Vector -> Vector -> Vector #-}
-    (Vector !x !y !z !w) + (Vector !x' !y' !z' !w') = Vector (x + x') (y + y') (z + z') (w + w')
+    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) + (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = Vector (D# $ x +## x') (D# $ y +## y') (D# $ z +## z') (D# $ w +## w')
     {-# SPECIALIZE INLINE (-) :: Vector -> Vector -> Vector #-}
-    (Vector !x !y !z !w) - (Vector !x' !y' !z' !w') = Vector (x - x') (y - y') (z - z') (w - w')
+    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) - (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = Vector (D# $ x -## x') (D# $ y -## y') (D# $ z -## z') (D# $ w -## w')
     {-# SPECIALIZE INLINE (*) :: Vector -> Vector -> Vector #-}
-    (Vector !x !y !z !w) * (Vector !x' !y' !z' !w') = Vector (x * x') (y * y') (z * z') (w * w')
-    abs (Vector x y z w) = Vector (abs x) (abs y) (abs z) (abs w)
-    signum (Vector x y z w) = Vector (signum x) (signum y) (signum z) (signum w)
-    fromInteger x = Vector (fromInteger x) (fromInteger x) (fromInteger x) (fromInteger x)
+    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) * (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = Vector (D# $ x *## x') (D# $ y *## y') (D# $ z *## z') (D# $ w *## w')
+    abs (Vector !x !y !z !w) = Vector absX absY absZ absW
+        where
+          !absX = abs x
+          !absY = abs y
+          !absZ = abs z
+          !absW = abs w
+    signum (Vector !x !y !z !w) = Vector signumX signumY signumZ signumW
+        where
+          !signumX = signum x
+          !signumY = signum y
+          !signumZ = signum z
+          !signumW = signum w
+
+    fromInteger x = Vector x' x' x' x'
+        where
+          !x' = fromInteger x
 
 instance Show Vector where
-    show (Vector x y z w) = "(" ++ show x ++ ", " ++ show y ++ ", " ++ show z ++ ", " ++ show w ++ ")"
+    show (Vector !x !y !z !w) = "(" ++ show x ++ ", " ++ show y ++ ", " ++ show z ++ ", " ++ show w ++ ")"
 
 tsTangent :: TangentSpace -> Normal
 tsTangent (t, _, _) = t
@@ -50,7 +68,7 @@ waxis :: Vector
 waxis = Vector 0 0 0 1
 
 zeroVector :: Vector
-zeroVector = Vector 0 0 0 0 
+zeroVector = Vector 0 0 0 0
 
 setWTo1 :: Vector -> Vector
 {-# SPECIALIZE INLINE setWTo1 :: Vector -> Vector #-}
@@ -66,7 +84,12 @@ restoreOriginalW (Vector _ _ _ !w') (Vector !x !y !z _) = Vector x y z w'
 
 madd :: Position -> Direction -> Double -> Vector
 {-# SPECIALIZE INLINE madd :: Vector -> Vector -> Double -> Vector #-}
-madd (Vector !x !y !z !w) (Vector !x' !y' !z' w') !scalar = Vector (x + x' * scalar) (y + y' * scalar) (z + z' * scalar) (w + w' * scalar)
+madd (Vector !(D# x) !(D# y) !(D# z) !(D# w)) (Vector !(D# x') !(D# y') !(D# z') !(D# w')) !(D# scalar) = Vector x'' y'' z'' w''
+    where
+      x'' = D# (x +## (x' *## scalar))
+      y'' = D# (y +## (y' *## scalar))
+      z'' = D# (z +## (z' *## scalar))
+      w'' = D# (w +## (w' *## scalar))
 
 negate :: Direction -> Direction
 {-# SPECIALIZE INLINE Vector.negate :: Vector -> Vector #-}
@@ -77,42 +100,46 @@ vectorScalarMul :: Vector -> Double -> Vector
 (Vector !x !y !z !w) `vectorScalarMul` k = Vector (x * k) (y * k) (z * k) (w * k)
 
 (</>) :: Vector -> Double -> Vector
-a </> b = a `vectorScalarMul` (1.0 / b)
+a </> b = a `vectorScalarMul` (1 / b)
 
 (<*>) :: Vector -> Double -> Vector
 a <*> b = a `vectorScalarMul` b
 
 dot3 :: Vector -> Vector -> Double
 {-# SPECIALIZE INLINE dot3 :: Vector -> Vector -> Double #-}
-(Vector !x !y !z _) `dot3` (Vector !x' !y' !z' _) = x * x' + y * y' + z * z'
+(Vector !(D# x) !(D# y) !(D# z) _) `dot3` (Vector !(D# x') !(D# y') !(D# z') _) = D# $ (x *## x') +## (y *## y') +## (z *## z')
 
 dot4 :: Vector -> Vector -> Double
 {-# SPECIALIZE INLINE dot4 :: Vector -> Vector -> Double #-}
-(Vector !x !y !z w) `dot4` (Vector !x' !y' !z' w') = x * x' + y * y' + z * z' + w * w'
+(Vector !(D# x) !(D# y) !(D# z) !(D# w)) `dot4` (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = D# $ (x *## x') +## (y *## y') +## (z *## z') +## (w *## w')
 
 sdot3 :: Vector -> Vector -> Double
 {-# SPECIALIZE INLINE dot3 :: Vector -> Vector -> Double #-}
-(Vector !x !y !z _) `sdot3` (Vector !x' !y' !z' _) = saturate (x * x' + y * y' + z * z')
+(Vector !(D# x) !(D# y) !(D# z) _) `sdot3` (Vector !(D# x') !(D# y') !(D# z') _) = D# $ saturate## ((x *## x') +## (y *## y') +## (z *## z'))
 
 sdot4 :: Vector -> Vector -> Double
 {-# SPECIALIZE INLINE sdot4 :: Vector -> Vector -> Double #-}
-(Vector !x !y !z w) `sdot4` (Vector !x' !y' !z' w') = saturate (x * x' + y * y' + z * z' + w * w')
+(Vector !(D# x) !(D# y) !(D# z) !(D# w)) `sdot4` (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = D# $ saturate## ((x *## x') +## (y *## y') +## (z *## z') +## (w *## w'))
 
 cross :: Direction -> Direction -> Direction
 {-# SPECIALIZE INLINE cross :: Vector -> Vector -> Vector #-}
-(Vector !x1 !y1 !z1 _) `cross` (Vector !x2 !y2 !z2 _) = Vector (y1 * z2 - y2 * z1) (z1 * x2 - z2 * x1) (x1 * y2 - x2 * y1) 0
+(Vector !(D# x1) !(D# y1) !(D# z1) _) `cross` (Vector !(D# x2) !(D# y2) !(D# z2) _) = Vector x y z 0
+    where
+      !x = D# ((y1 *## z2) -## (y2 *## z1))
+      !y = D# ((z1 *## x2) -## (z2 *## x1))
+      !z = D# ((x1 *## y2) -## (x2 *## y1))
 
 magnitude :: Vector -> Double
 {-# SPECIALIZE INLINE magnitude :: Vector -> Double #-}
-magnitude !vec = sqrt(magnitudeSq vec)
+magnitude !vec = sqrt (magnitudeSq vec)
 
 magnitudeSq :: Vector -> Double
 {-# SPECIALIZE INLINE magnitudeSq :: Vector -> Double #-}
-magnitudeSq (Vector !x !y !z _) = x * x + y * y + z * z
+magnitudeSq (Vector !(D# x#) !(D# y#) !(D# z#) _) = D# ((x# *## x#) +## (y# *## y#) +## (z# *## z#))
 
 normalise :: Direction -> Direction
 {-# SPECIALIZE INLINE normalise :: Vector -> Vector #-}
-normalise a = setWTo0 (a `vectorScalarMul` (1.0 / magnitude a))
+normalise !a = setWTo0 (a `vectorScalarMul` (1 / magnitude a))
 
 distance :: Position -> Position -> Double
 {-# SPECIALIZE INLINE distance :: Vector -> Vector -> Double #-}
@@ -129,38 +156,49 @@ reflect !incoming !normal = restoreOriginalW incoming $ (normal `vectorScalarMul
 refract :: Direction -> Direction -> Double -> Direction
 {-# SPECIALIZE INLINE refract :: Vector -> Vector -> Double -> Vector #-}
 refract !incoming !normal !eta
-    | cosTheta1 > 0.0 = setWTo0 $ (l `vectorScalarMul` eta) + (normal `vectorScalarMul` (eta * cosTheta1 - cosTheta2))
-    | otherwise       = setWTo0 $ (l `vectorScalarMul` eta) + (normal `vectorScalarMul` (eta * cosTheta1 + cosTheta2))
-    where cosTheta1 = normal `dot3` incoming
-          cosTheta2 = sqrt(1 - eta**2 * (1 - cosTheta1**2))
-          l = Vector.negate incoming
+    | cosTheta1 >## 0.0## = setWTo0 $ (l `vectorScalarMul` eta) + (normal `vectorScalarMul` D# (eta# *## cosTheta1 -## cosTheta2))
+    | otherwise = setWTo0 $ (l `vectorScalarMul` eta) + (normal `vectorScalarMul` D# (eta# *## cosTheta1 +## cosTheta2))
+    where !(D# cosTheta1) = normal `dot3` incoming
+          !cosTheta2 = sqrtDouble# (1.0## -## eta# **## 2.0## *## (1.0## -## cosTheta1 **## 2.0##))
+          !l = Vector.negate incoming
+          !(D# eta#) = eta
 
 largestAxis :: Vector -> Int
-largestAxis (Vector x y z _) 
+largestAxis (Vector !x !y !z _) 
     | abs x >= abs y && abs x >= abs z = 0
     | abs y >= abs x && abs y >= abs z = 1
     | abs z >= abs x && abs z >= abs y = 2
     | otherwise = error "largestAxis: Undefined case"
 
 nthLargestAxis :: Vector -> Int -> Int
-nthLargestAxis (Vector x y z _) order 
+nthLargestAxis (Vector !x !y !z _) order 
     | order < 3 = snd (sort [(abs x, 0), (abs y, 1), (abs z, 2)] !! order)
     | otherwise = error "nthLargestAXis: Undefined case"
 
 min :: Vector -> Vector -> Vector
-min (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector (Prelude.min x1 x2) (Prelude.min y1 y2) (Prelude.min z1 z2) (Prelude.min w1 w2)
+min (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector x y z w
+    where
+      !x = Prelude.min x1 x2
+      !y = Prelude.min y1 y2
+      !z = Prelude.min z1 z2
+      !w = Prelude.min w1 w2
 
 max :: Vector -> Vector -> Vector
-max (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector (Prelude.max x1 x2) (Prelude.max y1 y2) (Prelude.max z1 z2) (Prelude.max w1 w2)
+max (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector x y z w
+    where
+      !x = Prelude.max x1 x2
+      !y = Prelude.max y1 y2
+      !z = Prelude.max z1 z2
+      !w = Prelude.max w1 w2
 
 directionToSpherical :: Direction -> (Double, Double)
-directionToSpherical (Vector x y z _) = (theta, phi)
+directionToSpherical (Vector !x !y !z _) = (theta, phi)
     where
       theta = acos z / pi
-      phi = (atan2 y x + pi) / (2 * pi)
+      phi = (atan2 y x + pi) / (2.0 * pi)
 
-sphericalToDirection :: (Double, Double) -> Direction
-sphericalToDirection (theta, phi) = Vector (sin theta * cos phi) (sin theta * sin phi) (cos theta) 1
+sphericalToDirection :: Double -> Double -> Direction
+sphericalToDirection (D# !theta) (D# !phi) = Vector (D# $ sinDouble# theta *## cosDouble# phi) (D# $ sinDouble# theta *## sinDouble# phi) (D# $ cosDouble# theta) 1
 
 component :: Vector -> Int -> Double
 {-# SPECIALIZE INLINE component :: Vector -> Int -> Double #-}

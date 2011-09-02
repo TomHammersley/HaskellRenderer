@@ -7,3 +7,10 @@
 *.hp
 raytracer
 *.DS_store
+*.lkshw
+.gitignore
+*.ps
+*.aux
+haskell-render
+*.hcr
+core.txt
