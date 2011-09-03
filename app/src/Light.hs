@@ -2,7 +2,18 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
 
-module Light (applyLight, surfaceEpsilon, Light(PointLight, AmbientLight, QuadLight), LightingResult, position, colour, range, deltaU, deltaV, addToPhotonMap) where
+module Light (applyLight, 
+              surfaceEpsilon, 
+              Light(PointLight, AmbientLight, QuadLight),
+              CommonLightData(CommonLightData), 
+              LightingResult,
+              position, 
+              colour, 
+              range, 
+              deltaU, 
+              deltaV, 
+              addToPhotonMap, 
+              common) where
 
 import Vector
 import Colour
@@ -13,9 +24,12 @@ import SceneGraph
 import Misc
 import RayTrace (findAnyIntersection)
 
-data Light = PointLight { position :: !Position, colour :: !Colour, range :: !Double, addToPhotonMap :: Bool }
-           | AmbientLight { colour :: !Colour, addToPhotonMap :: Bool }
-           | QuadLight { position :: !Position, deltaU :: !Direction, deltaV :: !Direction, colour :: !Colour, addToPhotonMap :: Bool } deriving (Show)
+data CommonLightData = CommonLightData { colour :: !Colour,
+                                         addToPhotonMap :: !Bool } deriving (Show)
+
+data Light = PointLight { common :: CommonLightData, position :: !Position, range :: !Double }
+           | AmbientLight { common :: CommonLightData }
+           | QuadLight { common :: CommonLightData, position :: !Position, deltaU :: !Direction, deltaV :: !Direction } deriving (Show)
 
 type LightingResult = (Colour, Colour, Colour) -- Ambient, diffuse, specular
 
@@ -31,7 +45,7 @@ lightAttenuation !lightPos !shadePos !lightRange =
 
 -- Apply phong lighting to an object
 phongLighting :: SurfaceLocation -> Light -> Material -> SceneGraph -> Direction -> Colour
-phongLighting (!shadePos, !tanSpace) (PointLight !lightPos !lightColour !lightRange inPhotonMap) objMaterial sceneGraph !viewDirection 
+phongLighting (!shadePos, !tanSpace) (PointLight (CommonLightData !lightColour !inPhotonMap') !lightPos !lightRange) objMaterial sceneGraph !viewDirection 
     | (lightPos `distanceSq` shadePos) < (lightRange * lightRange) && dotProd > 0 = case findAnyIntersection sceneGraph (rayWithPoints intersectionPlusEpsilon lightPos) of
                                                                                       Just _ -> colBlack -- An object is closer to our point of consideration than the light, so occluded
                                                                                       Nothing -> (lightColour * lightingSum) `colourMul` attenuation
@@ -41,7 +55,7 @@ phongLighting (!shadePos, !tanSpace) (PointLight !lightPos !lightColour !lightRa
                                                                                             !specularCorrection = (specularPower objMaterial + 2) / (2 * pi)
                                                                                             !specularLighting = specular objMaterial `colourMul` (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
                                                                                             !reflection = reflect incoming normal
-                                                                                            !diffuseLighting = if inPhotonMap
+                                                                                            !diffuseLighting = if inPhotonMap'
                                                                                                                then colBlack
                                                                                                                else shaderDiffuse * diffuse objMaterial `colourMul` saturate dotProd
                                                                                             !shaderDiffuse = evaluateDiffuse (shader objMaterial) shadePos tanSpace
@@ -51,21 +65,48 @@ phongLighting (!shadePos, !tanSpace) (PointLight !lightPos !lightColour !lightRa
       !incoming = normalise (lightPos - shadePos)
       !dotProd = normal `dot3` incoming
       !normal = thr tanSpace
-phongLighting _ (AmbientLight _ _) _ _ _ = error "phongLighting: Do not know how to handle AmbientLight"
+phongLighting _ (AmbientLight (CommonLightData _ _)) _ _ _ = error "phongLighting: Do not know how to handle AmbientLight"
 -- TODO Implement specular calculations for this light. We assume it is always in the photon map
-phongLighting _ (QuadLight _ _ _ _ _) _ _ _ = colBlack 
+phongLighting (!shadePos, !tanSpace) (QuadLight (CommonLightData !lightColour !inPhotonMap') !lightPos !du !dv) objMaterial sceneGraph !viewDirection 
+    | (lightCentre `distanceSq` shadePos) < (lightRange * lightRange) && dotProd > 0 = case findAnyIntersection sceneGraph (rayWithPoints intersectionPlusEpsilon lightCentre) of
+                                                                                      Just _ -> colBlack -- An object is closer to our point of consideration than the light, so occluded
+                                                                                      Nothing -> (lightColour * lightingSum) `colourMul` attenuation
+                                                                                          where
+                                                                                            !lightingSum = diffuseLighting + specularLighting
+                                                                                            !attenuation = lightAttenuation lightCentre shadePos lightRange
+                                                                                            !specularCorrection = (specularPower objMaterial + 2) / (2 * pi)
+                                                                                            !specularLighting = specular objMaterial `colourMul` (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
+                                                                                            !reflection = reflect incoming normal
+                                                                                            !diffuseLighting = if inPhotonMap'
+                                                                                                               then colBlack
+                                                                                                               else shaderDiffuse * diffuse objMaterial `colourMul` saturate dotProd
+                                                                                            !shaderDiffuse = evaluateDiffuse (shader objMaterial) shadePos tanSpace
+    | otherwise = colBlack
+    where 
+      !lightCentre = lightPos + du Vector.<*> 0.5 + dv Vector.<*> 0.5
+      !intersectionPlusEpsilon = shadePos + (normal Vector.<*> surfaceEpsilon)
+      !incoming = normalise (lightCentre - shadePos)
+      !dotProd = normal `dot3` incoming
+      !normal = thr tanSpace
+      !lightRange = 600 -- TODO - Replace with a real radius
 
 -- For a given surface point, work out the lighting, including occlusion
 applyLight :: SceneGraph -> SurfaceLocation -> Material -> Direction -> Light -> Colour
-applyLight sceneGraph !intersectionPointNormal !objMaterial !viewDirection (PointLight !lightPos !lightColour !lightRange !inPhotonMap) 
+applyLight sceneGraph !intersectionPointNormal !objMaterial !viewDirection light@(PointLight (CommonLightData _ _) _ _)
     = phongLighting 
       intersectionPointNormal 
-      (PointLight lightPos lightColour lightRange inPhotonMap) 
+      light
       objMaterial 
       sceneGraph
       viewDirection
-applyLight _ (!intersectionPoint, !intersectionTanSpace) !objMaterial _ (AmbientLight !ambientColour _) = 
+applyLight _ (!intersectionPoint, !intersectionTanSpace) !objMaterial _ (AmbientLight (CommonLightData !ambientColour _)) = 
     let shaderAmbient = evaluateAmbient (shader objMaterial) intersectionPoint intersectionTanSpace
         materialAmbient = ambient objMaterial
     in ambientColour * shaderAmbient * materialAmbient
-applyLight _ (_, _) _ _ (QuadLight _ _ _ _ _) = colBlack
+applyLight sceneGraph !intersectionPointNormal !objMaterial !viewDirection light@(QuadLight (CommonLightData _ _) _ _ _)
+    = phongLighting 
+      intersectionPointNormal 
+      light
+      objMaterial 
+      sceneGraph
+      viewDirection

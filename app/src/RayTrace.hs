@@ -111,16 +111,17 @@ irrCacheSampleRadius = 5
 
 -- Look up or calculate global illumination at a point in space
 -- TODO - Refactor this into some kind of abstraction of the GI calculations so we can sub in path tracing instead if desired
-calculateGlobalIllumination :: SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> PhotonMap -> (Colour, IrradianceCache)
-calculateGlobalIllumination !surfaceLocation irrCache obj renderContext photonMap = case renderMode renderContext of
-                                                                                    PhotonMapper -> query irrCache surfaceLocation irradiance'
-                                                                                    _ -> (colBlack, irrCache)
+calculateGlobalIllumination :: SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> Maybe PhotonMap -> (Colour, IrradianceCache)
+calculateGlobalIllumination !surfaceLocation irrCache obj renderContext (Just photonMap) = case renderMode renderContext of
+                                                                                             PhotonMapper -> query irrCache surfaceLocation irradiance'
+                                                                                             _ -> (colBlack, irrCache)
     where
       irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, irrCacheSampleRadius)
+calculateGlobalIllumination _ irrCache _ _ _ = (colBlack, irrCache)
 
 -- Perform a full trace of a ray
 type RayTraceState = State IrradianceCache Colour
-traceRay :: RenderContext -> PhotonMap -> Ray -> Int -> Direction -> Double -> Double -> RayTraceState
+traceRay :: RenderContext -> Maybe PhotonMap -> Ray -> Int -> Direction -> Double -> Double -> RayTraceState
 
 -- Special case for lowest level of recursion (theoretically this should not get hit)
 traceRay _ _ _ 0 _ _ _ = error "Should not hit this codepath"
@@ -201,7 +202,7 @@ makeRayDirection !renderWidth !renderHeight !camera (x, y) =
     in normalise $ transformVector (worldToCamera camera) rayDir
 
 -- Trace a list of distributed samples with tail recursion
-traceDistributedSample :: RenderContext -> Colour -> [Position] -> PhotonMap -> (Position, Direction) -> Double -> RayTraceState
+traceDistributedSample :: RenderContext -> Colour -> [Position] -> Maybe PhotonMap -> (Position, Direction) -> Double -> RayTraceState
 traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWeighting = 
     do
       irrCache <- get
@@ -218,7 +219,7 @@ traceDistributedSample _ !acc [] _ _ _ = return acc
 
 -- Need to remove hard coded constants of 8 here
 -- This traces for a given pixel (x, y)
-tracePixel :: RenderContext -> Position -> PhotonMap -> Direction -> RayTraceState
+tracePixel :: RenderContext -> Position -> Maybe PhotonMap -> Direction -> RayTraceState
 tracePixel renderContext !eye photonMap !viewDirection = do
   irrCache <- get
   let !distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext)
@@ -227,7 +228,7 @@ tracePixel renderContext !eye photonMap !viewDirection = do
   return (invGammaCorrect pixelColour)
 
 -- Generate a list of colours which contains a raytraced image. In parallel
-rayTraceImage :: RenderContext -> Camera -> Int -> Int -> PhotonMap -> [Colour]
+rayTraceImage :: RenderContext -> Camera -> Int -> Int -> Maybe PhotonMap -> [Colour]
 rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePixelPassingState rayDirections irrCache `using` parListChunk 256 rseq
     where !rayDirections = [makeRayDirection renderWidth renderHeight camera (x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
           !eyePosition = Camera.position camera

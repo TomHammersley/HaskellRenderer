@@ -1,7 +1,7 @@
 -- Main module of raytracer
 
 import Data.Bits
-import Data.ByteString
+import Data.ByteString hiding (map)
 import System.Console.GetOpt
 import System.Environment
 import RayTrace
@@ -13,6 +13,7 @@ import GHC.Conc (numCapabilities)
 import Codec.BMP
 import PhotonMap
 import RenderContext
+import Light
 
 data Option
     = ShowIntermediate -- -i
@@ -40,13 +41,13 @@ renderHeight mipLevel = 720 `shiftR` mipLevel
 --renderSettings :: RenderContext
 
 -- This returns a list of colours of pixels
-raytracedImage :: Int -> RenderContext -> PhotonMap -> [Colour]
+raytracedImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
 raytracedImage mipLevel renderSettings = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel)
 
 -- In the interest of rapid developer feedback, this functions writes a progressively-increasing image
 -- So, we get quick feedback on the intermediate results, but will still ultimately get the final image
 -- Note this does no re-use, so it'll be slower overall
-writeRaytracedImage :: [Int] -> PhotonMap -> RenderContext -> IO ()
+writeRaytracedImage :: [Int] -> Maybe PhotonMap -> RenderContext -> IO ()
 writeRaytracedImage [] photonMap renderSettings = do
   let imageData = raytracedImage 0 renderSettings photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
@@ -60,6 +61,12 @@ writeRaytracedImage (mipLevel:mipLevels) photonMap renderSettings = do
   Prelude.putStrLn filename
   writeBMP filename bmp
   writeRaytracedImage mipLevels photonMap renderSettings
+
+-- Strip off the photon map flag from a light
+notInPhotonMap :: Light -> Light
+notInPhotonMap (PointLight (CommonLightData colour' _) position' range') = PointLight (CommonLightData colour' False) position' range'
+notInPhotonMap (AmbientLight (CommonLightData colour' _)) = AmbientLight (CommonLightData colour' False)
+notInPhotonMap (QuadLight (CommonLightData colour' _) position' deltaU' deltaV') = QuadLight (CommonLightData colour' False) position' deltaU' deltaV'
 
 -- Main function
 main :: IO ()
@@ -98,8 +105,10 @@ main = do
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
   let thousand = 1000
   let numPhotons = 100 * thousand
-  let (photonMap, lights') = buildPhotonMap (sceneGraph renderSettings) cornellBoxLights numPhotons
-  let renderSettings' = changeLights renderSettings lights'
+  let (photonMap, lights')
+          | PhotonMap `Prelude.elem` opts = (\(a, b) -> (Just a, b)) $ buildPhotonMap (sceneGraph renderSettings) cornellBoxLights numPhotons
+          | otherwise = (Nothing, map notInPhotonMap (lights renderSettings))
+  let renderSettings' = renderSettings { lights = lights' }
   let maxMipLevel = 8
   let intermediateMipLevels = if ShowIntermediate `Prelude.elem` opts
                               then Prelude.reverse [1..maxMipLevel]

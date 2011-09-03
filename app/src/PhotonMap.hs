@@ -44,10 +44,10 @@ data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
 -- Helps parallelisation...
 emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
-emitPhotons (PointLight !pos !lightPower _ True) !numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
+emitPhotons (PointLight (CommonLightData !lightPower True) !pos _) !numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
     where
       flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
-emitPhotons (QuadLight !corner !du !dv !lightPower True) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
+emitPhotons (QuadLight (CommonLightData !lightPower True) !corner !du !dv) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
       randomPoints = generatePointsOnQuad corner du dv numPhotons
       randomDirs = generatePointsOnSphere numPhotons 1
@@ -152,7 +152,7 @@ tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rn
 buildPhotonMap :: SceneGraph -> [Light] -> Int -> (PhotonMap, [Light])
 buildPhotonMap sceneGraph lights numPhotonsPerLight = (PhotonMap photons (buildKDTree photons), lightsNotForPhotonMap)
     where
-      (lightsForPhotonMap, lightsNotForPhotonMap) = partition addToPhotonMap lights
+      (lightsForPhotonMap, lightsNotForPhotonMap) = partition (addToPhotonMap . common) lights
       photons = foldr ((++) . tracePhotonsForLight numPhotonsPerLight sceneGraph) [] lightsForPhotonMap
 
 -- Make a bounding box of a list of photons

@@ -1,13 +1,27 @@
-module Light (applyLight, surfaceEpsilon, Light(PointLight, AmbientLight, QuadLight), LightingResult, position, colour, range, deltaU, deltaV, addToPhotonMap) where
+module Light (applyLight, 
+       	      surfaceEpsilon, 
+	      Light(PointLight, AmbientLight, QuadLight), 
+	      CommonLightData(CommonLightData), 
+	      LightingResult, 
+	      position, 
+	      colour, 
+	      range, 
+	      deltaU, 
+	      deltaV, 
+	      addToPhotonMap, 
+	      common) where
 
 import Vector
 import Colour
 import Material
 import SceneGraph
 
-data Light = PointLight { position :: !Position, colour :: !Colour, range :: !Double, addToPhotonMap :: Bool }
-           | AmbientLight { colour :: !Colour, addToPhotonMap :: Bool }
-           | QuadLight { position :: !Position, deltaU :: !Direction, deltaV :: !Direction, colour :: !Colour, addToPhotonMap :: Bool }
+data CommonLightData = CommonLightData { colour :: !Colour,
+                                         addToPhotonMap :: !Bool } 
+
+data Light = PointLight { common :: CommonLightData, position :: !Position, range :: !Double }
+           | AmbientLight { common :: CommonLightData }
+           | QuadLight { common :: CommonLightData, position :: !Position, deltaU :: !Direction, deltaV :: !Direction } 
 
 type LightingResult = (Colour, Colour, Colour) -- Ambient, diffuse, specular
 
