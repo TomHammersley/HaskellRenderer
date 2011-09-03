@@ -14,3 +14,4 @@ raytracer
 haskell-render
 *.hcr
 core.txt
+*.s
