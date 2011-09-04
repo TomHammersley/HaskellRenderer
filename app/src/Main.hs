@@ -14,6 +14,7 @@ import Codec.BMP
 import PhotonMap
 import RenderContext
 import Light
+import ToneMap
 
 data Option
     = ShowIntermediate -- -i
@@ -41,20 +42,24 @@ renderHeight mipLevel = 720 `shiftR` mipLevel
 --renderSettings :: RenderContext
 
 -- This returns a list of colours of pixels
-raytracedImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
-raytracedImage mipLevel renderSettings = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel)
+renderImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
+renderImage mipLevel renderSettings photonMap = finalImage
+    where
+      rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
+      toneMappedImage = toneMapImage toneMapIdentity rawImageOutput
+      finalImage = map clamp toneMappedImage
 
 -- In the interest of rapid developer feedback, this functions writes a progressively-increasing image
 -- So, we get quick feedback on the intermediate results, but will still ultimately get the final image
 -- Note this does no re-use, so it'll be slower overall
 writeRaytracedImage :: [Int] -> Maybe PhotonMap -> RenderContext -> IO ()
 writeRaytracedImage [] photonMap renderSettings = do
-  let imageData = raytracedImage 0 renderSettings photonMap
+  let imageData = renderImage 0 renderSettings photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
   let bmp = packRGBA32ToBMP (renderWidth 0) (renderHeight 0) rgba
   writeBMP "test.bmp" bmp
 writeRaytracedImage (mipLevel:mipLevels) photonMap renderSettings = do
-  let imageData = raytracedImage mipLevel renderSettings photonMap
+  let imageData = renderImage mipLevel renderSettings photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
   let bmp = packRGBA32ToBMP (renderWidth mipLevel) (renderHeight mipLevel) rgba
   let filename = "test-intermediate-" ++ show mipLevel ++ ".bmp"

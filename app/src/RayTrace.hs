@@ -234,7 +234,7 @@ rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePix
           !eyePosition = Camera.position camera
           irrCache = initialiseCache (sceneGraph renderContext)
           -- This function is the equivalent to map, but it passes the ending state of one invocation to the next invocation
-          tracePixelPassingState (x:xs) st = seq (result, st') $ clamp result : tracePixelPassingState xs st'
+          tracePixelPassingState (x:xs) st = seq (result, st') $ result : tracePixelPassingState xs st'
               where
-                (result, st') = runState (tracePixel renderContext eyePosition photonMap x) st
+                (!result, !st') = runState (tracePixel renderContext eyePosition photonMap x) st
           tracePixelPassingState [] _ = []
