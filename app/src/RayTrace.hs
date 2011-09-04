@@ -109,15 +109,21 @@ lightSurface [] !acc _ _ _ _ = acc
 irrCacheSampleRadius :: Double
 irrCacheSampleRadius = 5
 
--- Look up or calculate global illumination at a point in space
--- TODO - Refactor this into some kind of abstraction of the GI calculations so we can sub in path tracing instead if desired
-calculateGlobalIllumination :: SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> Maybe PhotonMap -> (Colour, IrradianceCache)
-calculateGlobalIllumination !surfaceLocation irrCache obj renderContext (Just photonMap) = case renderMode renderContext of
+-- Abstraction to permit different GI calculations
+type GlobalIlluminationFunc = (SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache))
+
+-- Photon map specific GI calculator
+photonMapGlobalIllumination :: Maybe PhotonMap -> SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache)
+photonMapGlobalIllumination (Just photonMap) !surfaceLocation irrCache obj renderContext = case renderMode renderContext of
                                                                                              PhotonMapper -> query irrCache surfaceLocation irradiance'
-                                                                                             _ -> (colBlack, irrCache)
+                                                                                             _ -> (colBlack, irrCache) -- Shouldn't really hit this path...
     where
       irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, irrCacheSampleRadius)
-calculateGlobalIllumination _ irrCache _ _ _ = (colBlack, irrCache)
+photonMapGlobalIllumination _ _ irrCache _ _ = (colBlack, irrCache)
+
+-- Look up or calculate global illumination at a point in space
+calculateGlobalIllumination :: GlobalIlluminationFunc -> SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache)
+calculateGlobalIllumination f surfaceLocation irrCache obj renderContext = f surfaceLocation irrCache obj renderContext
 
 -- Perform a full trace of a ray
 type RayTraceState = State IrradianceCache Colour
@@ -134,7 +140,7 @@ traceRay renderContext photonMap !ray 1 !viewDir _ _ =
           irrCache <- get
           let !intersectionPoint = pointAlongRay ray intersectionDistance
           let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
-          let (!surfaceIrradiance, newIrrCache) = calculateGlobalIllumination (intersectionPoint, tanSpace) irrCache obj renderContext photonMap
+          let (!surfaceIrradiance, newIrrCache) = calculateGlobalIllumination (photonMapGlobalIllumination photonMap) (intersectionPoint, tanSpace) irrCache obj renderContext
           -- TODO - Need to plug irradiance values into surface shading more correctly
           let resultColour = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
           put newIrrCache
@@ -154,7 +160,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
 
           -- Evaluate result from irradiance cache
           irrCache <- get
-          let (!surfaceIrradiance, irrCache') = calculateGlobalIllumination (intersectionPoint, tanSpace) irrCache obj renderContext photonMap
+          let (!surfaceIrradiance, irrCache') = calculateGlobalIllumination (photonMapGlobalIllumination photonMap) (intersectionPoint, tanSpace) irrCache obj renderContext
           put irrCache'
 
           let !surfaceShading = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
@@ -225,7 +231,7 @@ tracePixel renderContext !eye photonMap !viewDirection = do
   let !distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext)
   let (!pixelColour, irrCache') = runState (traceDistributedSample renderContext colBlack distributedPositions photonMap (eye, viewDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) irrCache
   put irrCache'
-  return (invGammaCorrect pixelColour)
+  return pixelColour
 
 -- Generate a list of colours which contains a raytraced image. In parallel
 rayTraceImage :: RenderContext -> Camera -> Int -> Int -> Maybe PhotonMap -> [Colour]
