@@ -43,6 +43,13 @@ instance Num Vector where
         where
           !x' = fromInteger x
 
+instance Fractional Vector where
+    {-# SPECIALIZE INLINE (/) :: Vector -> Vector -> Vector #-}
+    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) / (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = Vector (D# $ x /## x') (D# $ y /## y') (D# $ z /## z') (D# $ w /## w')
+    fromRational x = Vector x' x' x' x'
+        where
+          !x' = fromRational x
+
 instance Show Vector where
     show (Vector !x !y !z !w) = "(" ++ show x ++ ", " ++ show y ++ ", " ++ show z ++ ", " ++ show w ++ ")"
 

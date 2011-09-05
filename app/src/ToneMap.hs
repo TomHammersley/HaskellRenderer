@@ -1,21 +1,25 @@
 -- Tone map an image
+{-# LANGUAGE BangPatterns #-}
 
 module ToneMap(toneMapImage, 
                toneMapIdentity, 
                toneMapAverageLuminance, 
                toneMapReinhard, 
-               toneMapHejlBurgessDawson) where
+               toneMapHejlBurgessDawson,
+               exposeImage,
+               imageAverageLogLuminance,
+               imageAverageLuminance) where
 
 import Colour
 
 -- x = x
 toneMapIdentity :: [Colour] -> [Colour]
-toneMapIdentity = map (\x -> x)
+toneMapIdentity = map id
 
 -- TODO - Calculate averages and whatnot with a proper tail recursive method
 -- x = x / avg xs
 toneMapAverageLuminance :: [Colour] -> [Colour]
-toneMapAverageLuminance xs = map (\x -> x * invAverageBrightness) xs
+toneMapAverageLuminance xs = map (* invAverageBrightness) xs
     where
       colourSum = foldr (+) colBlack xs
       numColours = (fromIntegral . length) xs
@@ -36,4 +40,26 @@ toneMapHejlBurgessDawson = map f
 
 -- Apply a tone map operator
 toneMapImage :: ([Colour] -> [Colour]) -> [Colour] -> [Colour]
-toneMapImage f xs = f xs
+toneMapImage f = f
+
+-- Normal averaging
+imageAverageLuminance :: [Colour] -> Double
+imageAverageLuminance = imageAverageLuminance' 0 0
+    where
+      imageAverageLuminance' accLum accCount (x:xs) = imageAverageLuminance' (accLum + luminance x) (accCount + 1) xs
+      imageAverageLuminance' accLum 0 [] = accLum
+      imageAverageLuminance' accLum accCount [] = accLum / accCount
+
+-- Get the average luminance of a scene, using Reinhard style log-lum averaging to damp down the effect of outlier pixels
+imageAverageLogLuminance :: [Colour] -> Double
+imageAverageLogLuminance = imageAverageLogLuminance' 0 0
+    where
+      imageAverageLogLuminance' accLum accCount (x:xs) = imageAverageLogLuminance' (accLum + logLuminance x) (accCount + 1) xs
+      imageAverageLogLuminance' accLum 0 [] = accLum
+      imageAverageLogLuminance' accLum accCount [] = exp (accLum / accCount)
+
+-- Adjust the exposure of an image
+exposeImage :: ([Colour] -> Double) -> [Colour] -> [Colour]
+exposeImage f xs = map (</> (exposure * 2)) xs
+    where
+      exposure = f xs

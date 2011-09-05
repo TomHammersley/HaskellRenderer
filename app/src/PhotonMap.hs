@@ -169,8 +169,8 @@ buildKDTree (x:xs) = let !photons = x:xs
                          !numPhotons = fromIntegral (length photons)
                          !photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> numPhotons
                          !value = component photonsMedian axis
-                         photonsGT = Prelude.filter (\p -> (component ((fst . posDir) p) axis) > value) photons
-                         photonsLE = Prelude.filter (\p -> (component ((fst . posDir) p) axis) <= value) photons
+                         photonsGT = Prelude.filter (\p -> component ((fst . posDir) p) axis > value) photons
+                         photonsLE = Prelude.filter (\p -> component ((fst . posDir) p) axis <= value) photons
                      in if length photonsGT > 0 && length photonsLE > 0
                         then PhotonMapNode axis value (buildKDTree photonsGT) (buildKDTree photonsLE)
                         else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')

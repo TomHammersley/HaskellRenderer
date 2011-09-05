@@ -46,16 +46,16 @@ errorWeight (!pos', !dir') (!pos, CacheSample (!dir, _, !r)) = 1 / ((pos `distan
 -- This slightly convoluted version is written to be tail recursive. I effectively have to maintain a software stack of the
 -- nodes remaining to be traversed
 findSamplesTR :: (Position, Direction) -> [IrradianceCache] -> [(Vector, CacheSample, Double)] -> [(Vector, CacheSample, Double)]
-findSamplesTR posDir@(!pos, _) ((OctTreeNode !box nodeChildren) : xs) !acc
+findSamplesTR posDir@(!pos, _) (OctTreeNode !box nodeChildren : xs) !acc
     | box `contains` pos = findSamplesTR posDir (nodeChildren ++ xs) acc
     | otherwise = findSamplesTR posDir xs acc
-findSamplesTR posDir@(!pos, _) ((OctTreeLeaf _ (!samplePos, sample)) : xs) !acc
+findSamplesTR posDir@(!pos, _) (OctTreeLeaf _ (!samplePos, sample) : xs) !acc
     | (pos `distanceSq` samplePos) <= sampleR * sampleR && weight > 0 = findSamplesTR posDir xs ((samplePos, sample, weight) : acc)
     | otherwise = findSamplesTR posDir xs acc
     where
       !weight = errorWeight posDir (samplePos, sample)
       (CacheSample (_, _, !sampleR)) = sample
-findSamplesTR posDir ((OctTreeDummy _) : xs) !acc = findSamplesTR posDir xs acc
+findSamplesTR posDir (OctTreeDummy _ : xs) !acc = findSamplesTR posDir xs acc
 findSamplesTR _ [] !acc = acc
 
 -- Sum together a list of samples and error weights

@@ -123,7 +123,7 @@ photonMapGlobalIllumination _ _ irrCache _ _ = (colBlack, irrCache)
 
 -- Look up or calculate global illumination at a point in space
 calculateGlobalIllumination :: GlobalIlluminationFunc -> SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache)
-calculateGlobalIllumination f surfaceLocation irrCache obj renderContext = f surfaceLocation irrCache obj renderContext
+calculateGlobalIllumination f = f
 
 -- Perform a full trace of a ray
 type RayTraceState = State IrradianceCache Colour

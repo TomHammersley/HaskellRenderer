@@ -104,3 +104,9 @@ toListRGBA (Colour r g b a) = [r, g, b, a]
 
 toListRGB :: Colour -> [Double]
 toListRGB (Colour r g b _) = [r, g, b]
+
+luminance :: Colour -> Double
+luminance (Colour !r !g !b _) = r * 0.3 + g * 0.6 + b * 0.1
+
+logLuminance :: Colour -> Double
+logLuminance (Colour !r !g !b _) = log (max (r * 0.3) 1e-6) + log (max (g * 0.6) 1e-6) + log (max (b * 0.1) 1e-6)

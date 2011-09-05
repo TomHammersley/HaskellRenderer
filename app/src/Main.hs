@@ -15,6 +15,7 @@ import PhotonMap
 import RenderContext
 import Light
 import ToneMap
+import Control.Arrow
 
 data Option
     = ShowIntermediate -- -i
@@ -46,7 +47,9 @@ renderImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
 renderImage mipLevel renderSettings photonMap = finalImage
     where
       rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
-      toneMappedImage = toneMapImage {-toneMapReinhard-}toneMapHejlBurgessDawson rawImageOutput
+      -- TODO - Consider some fusion here?
+      exposedImage = exposeImage imageAverageLogLuminance rawImageOutput
+      toneMappedImage = toneMapImage toneMapReinhard{-toneMapHejlBurgessDawson-} exposedImage
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
 
 -- In the interest of rapid developer feedback, this functions writes a progressively-increasing image
@@ -107,15 +110,25 @@ main = do
              | PhotonMap `Prelude.elem` opts = PhotonMapper
              | otherwise = RayTrace
 
+  -- Display hardware capabilities
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
+
+  -- Create a photon map, if necessary
+  let doPhotonMapping = PhotonMap `Prelude.elem` opts
+  let photonMapMessage = if doPhotonMapping then "Creating photon map..." else "Photon mapping disabled"
+  Prelude.putStrLn photonMapMessage
   let thousand = 1000
   let numPhotons = 100 * thousand
   let (photonMap, lights')
-          | PhotonMap `Prelude.elem` opts = (\(a, b) -> (Just a, b)) $ buildPhotonMap (sceneGraph renderSettings) cornellBoxLights numPhotons
+          | doPhotonMapping = Control.Arrow.first Just $ 
+                              buildPhotonMap (sceneGraph renderSettings) cornellBoxLights numPhotons
           | otherwise = (Nothing, map notInPhotonMap (lights renderSettings))
+
+  -- Render the image
   let renderSettings' = renderSettings { lights = lights' }
   let maxMipLevel = 8
   let intermediateMipLevels = if ShowIntermediate `Prelude.elem` opts
                               then Prelude.reverse [1..maxMipLevel]
                               else []
+  Prelude.putStrLn "Rendering image..."
   writeRaytracedImage intermediateMipLevels photonMap renderSettings'
