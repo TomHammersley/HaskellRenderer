@@ -23,9 +23,10 @@ instance Num Colour where
     signum (Colour r g b a) = Colour (signum r) (signum g) (signum b) (signum a)
     fromInteger x = Colour (fromInteger x) (fromInteger x) (fromInteger x) (fromInteger x)
 
--- Multiply a colour by a scalar
-colourMul :: Colour -> Double -> Colour
-(Colour !r !g !b !a) `colourMul` m = Colour (r * m) (g * m) (b * m) (a * m)
+instance Fractional Colour where
+    {-# SPECIALIZE INLINE (/) :: Colour -> Colour -> Colour #-}
+    (Colour !r1 !g1 !b1 !a1) / (Colour !r2 !g2 !b2 !a2) = Colour (r1 / r2) (g1 / g2) (b1 / b2) (a1 / a2)
+    fromRational x = Colour (fromRational x) (fromRational x) (fromRational x) (fromRational x)
 
 (<*>) :: Colour -> Double -> Colour
 (Colour !r !g !b !a) <*> k = Colour (r * k) (g * k) (b * k) (a * k)
@@ -33,8 +34,17 @@ colourMul :: Colour -> Double -> Colour
 (</>) :: Colour -> Double -> Colour
 (Colour !r !g !b !a) </> k = Colour (r / k) (g / k) (b / k) (a / k)
 
+(<+>) :: Colour -> Double -> Colour
+(Colour !r !g !b !a) <+> k = Colour (r + k) (g + k) (b + k) (a + k)
+
+(<->) :: Colour -> Double -> Colour
+(Colour !r !g !b !a) <-> k = Colour (r - k) (g - k) (b - k) (a - k)
+
 clamp :: Colour -> Colour
 clamp (Colour !r !g !b !a) = Colour (max 0 (min r 1)) (max 0 (min g 1)) (max 0 (min b 1)) (max 0 (min a 1))
+
+fold :: (Double -> Double -> Double) -> Colour -> Double -> Colour
+fold f (Colour !r !g !b !a) k = Colour (f r k) (f g k) (f b k) (f a k)
 
 -- Basic colours
 colRed :: Colour

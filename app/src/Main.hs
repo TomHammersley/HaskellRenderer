@@ -46,7 +46,7 @@ renderImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
 renderImage mipLevel renderSettings photonMap = finalImage
     where
       rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
-      toneMappedImage = toneMapImage toneMapReinhard rawImageOutput
+      toneMappedImage = toneMapImage {-toneMapReinhard-}toneMapHejlBurgessDawson rawImageOutput
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
 
 -- In the interest of rapid developer feedback, this functions writes a progressively-increasing image

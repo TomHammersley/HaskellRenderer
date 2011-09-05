@@ -48,16 +48,16 @@ phongLighting :: SurfaceLocation -> Light -> Material -> SceneGraph -> Direction
 phongLighting (!shadePos, !tanSpace) (PointLight (CommonLightData !lightColour !inPhotonMap') !lightPos !lightRange) objMaterial sceneGraph !viewDirection 
     | (lightPos `distanceSq` shadePos) < (lightRange * lightRange) && dotProd > 0 = case findAnyIntersection sceneGraph (rayWithPoints intersectionPlusEpsilon lightPos) of
                                                                                       Just _ -> colBlack -- An object is closer to our point of consideration than the light, so occluded
-                                                                                      Nothing -> (lightColour * lightingSum) `colourMul` attenuation
+                                                                                      Nothing -> (lightColour * lightingSum) Colour.<*> attenuation
                                                                                           where
                                                                                             !lightingSum = diffuseLighting + specularLighting
                                                                                             !attenuation = lightAttenuation lightPos shadePos lightRange
                                                                                             !specularCorrection = (specularPower objMaterial + 2) / (2 * pi)
-                                                                                            !specularLighting = specular objMaterial `colourMul` (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
+                                                                                            !specularLighting = specular objMaterial Colour.<*> (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
                                                                                             !reflection = reflect incoming normal
                                                                                             !diffuseLighting = if inPhotonMap'
                                                                                                                then colBlack
-                                                                                                               else shaderDiffuse * diffuse objMaterial `colourMul` saturate dotProd
+                                                                                                               else shaderDiffuse * diffuse objMaterial Colour.<*> saturate dotProd
                                                                                             !shaderDiffuse = evaluateDiffuse (shader objMaterial) shadePos tanSpace
     | otherwise = colBlack
     where 
@@ -70,16 +70,16 @@ phongLighting _ (AmbientLight (CommonLightData _ _)) _ _ _ = error "phongLightin
 phongLighting (!shadePos, !tanSpace) (QuadLight (CommonLightData !lightColour !inPhotonMap') !lightPos !du !dv) objMaterial sceneGraph !viewDirection 
     | (lightCentre `distanceSq` shadePos) < (lightRange * lightRange) && dotProd > 0 = case findAnyIntersection sceneGraph (rayWithPoints intersectionPlusEpsilon lightCentre) of
                                                                                       Just _ -> colBlack -- An object is closer to our point of consideration than the light, so occluded
-                                                                                      Nothing -> (lightColour * lightingSum) `colourMul` attenuation
+                                                                                      Nothing -> (lightColour * lightingSum) Colour.<*> attenuation
                                                                                           where
                                                                                             !lightingSum = diffuseLighting + specularLighting
                                                                                             !attenuation = lightAttenuation lightCentre shadePos lightRange
                                                                                             !specularCorrection = (specularPower objMaterial + 2) / (2 * pi)
-                                                                                            !specularLighting = specular objMaterial `colourMul` (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
+                                                                                            !specularLighting = specular objMaterial Colour.<*> (specularCorrection * saturate (reflection `dot3` Vector.negate viewDirection) ** specularPower objMaterial)
                                                                                             !reflection = reflect incoming normal
                                                                                             !diffuseLighting = if inPhotonMap'
                                                                                                                then colBlack
-                                                                                                               else shaderDiffuse * diffuse objMaterial `colourMul` saturate dotProd
+                                                                                                               else shaderDiffuse * diffuse objMaterial Colour.<*> saturate dotProd
                                                                                             !shaderDiffuse = evaluateDiffuse (shader objMaterial) shadePos tanSpace
     | otherwise = colBlack
     where 

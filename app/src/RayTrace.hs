@@ -189,7 +189,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
           put irrCache'''
 
           -- Final colour combine
-          return (surfaceShading + (reflection `colourMul` shine) + (refraction `colourMul` transmittance))
+          return (surfaceShading + (reflection Colour.<*> shine) + (refraction Colour.<*> transmittance))
               where
                 enteringObject !incoming !normal = incoming `dot3` normal > 0
 
@@ -216,7 +216,7 @@ traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWe
       let jitteredRayPosition jitter = fst eyeViewDir + jitter
       let jitteredRayDirection jitter = normalise $ madd jitter (snd eyeViewDir) dofFocalDistance
       let (sampleColour, irrCache') = runState (traceRay renderContext photonMap (rayWithDirection (jitteredRayPosition x) (jitteredRayDirection x) 100000.0) (maximumRayDepth renderContext) (snd eyeViewDir) 1 1) irrCache
-      let result = (sampleColour `colourMul` sampleWeighting) + acc
+      let result = (sampleColour Colour.<*> sampleWeighting) + acc
       put irrCache'
       let (col, irrCache'') = runState (traceDistributedSample renderContext result xs photonMap eyeViewDir sampleWeighting) irrCache'
       put irrCache''
