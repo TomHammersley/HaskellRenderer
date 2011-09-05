@@ -1,2 +1,2 @@
 #!/bin/sh
-ghc -fglasgow-exts -tmpdir tmp -hidir hi -odir obj --make -O2 -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields Main.hs -o ../haskell-render -funfolding-keeness-factor=10 -fwarn-missing-signatures -Wall -feager-blackholing -prof -auto-all -caf-all -rtsopts $1 $2 $3 $4 $5 $6 $7 $8 $9
+ghc -tmpdir tmp -hidir hi -odir obj --make -O2 -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields Main.hs -o ../haskell-render -funfolding-keeness-factor=10 -fwarn-missing-signatures -Wall -feager-blackholing -prof -auto-all -caf-all -rtsopts $1 $2 $3 $4 $5 $6 $7 $8 $9

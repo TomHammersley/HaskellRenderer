@@ -1,18 +1,120 @@
-Primitive.hs:170:7: Warning: Reduce duplication
+IrradianceCache.hs:49:33: Warning: Redundant bracket
 Found:
-  !discriminant = b ** 2 - 4 * c
-  !root1 = ((-b) - sqrt discriminant) / 2
-  !root2 = ((-b) + sqrt discriminant) / 2
+  (OctTreeNode !box nodeChildren) : xs
 Why not:
-  Combine with Primitive.hs:288:7
+  OctTreeNode !box nodeChildren : xs
 
-Shader.hs:21:9: Warning: Reduce duplication
+IrradianceCache.hs:52:33: Warning: Redundant bracket
+Found:
+  (OctTreeLeaf _ (!samplePos, sample)) : xs
+Why not:
+  OctTreeLeaf _ (!samplePos, sample) : xs
+
+IrradianceCache.hs:58:23: Warning: Redundant bracket
+Found:
+  (OctTreeDummy _) : xs
+Why not:
+  OctTreeDummy _ : xs
+
+Light.hs:55:93: Error: Reduce duplication
+Found:
+  !specularCorrection = (specularPower objMaterial + 2) / (2 * pi)
+  !specularLighting
+    = specular objMaterial Colour.<*>
+        (specularCorrection *
+           saturate (reflection `dot3` Vector.negate viewDirection) **
+             specularPower objMaterial)
+  !reflection = reflect incoming normal
+  !diffuseLighting
+    = if inPhotonMap' then colBlack else
+        shaderDiffuse * diffuse objMaterial Colour.<*> saturate dotProd
+  !shaderDiffuse
+    = evaluateDiffuse (shader objMaterial) shadePos tanSpace
+Why not:
+  Combine with Light.hs:77:93
+
+Main.hs:26:12: Warning: Use string literal
+Found:
+  ['i']
+Why not:
+  "i"
+
+Main.hs:27:12: Warning: Use string literal
+Found:
+  ['p']
+Why not:
+  "p"
+
+Main.hs:114:46: Warning: Use first
+Found:
+  \ (a, b) -> (Just a, b)
+Why not:
+  Control.Arrow.first Just
+
+Misc.hs:23:12: Parse error
+Error message:
+  Parse error: ::
+Code:
+    saturate x = Prelude.max 0 (Prelude.min x 1)
+    
+  > saturate## :: Double# -> Double#
+    saturate## !x = value
+        where
+
+PhotonMap.hs:172:60: Warning: Redundant bracket
+Found:
+  (component ((fst . posDir) p) axis) > value
+Why not:
+  component ((fst . posDir) p) axis > value
+
+PhotonMap.hs:173:60: Warning: Redundant bracket
+Found:
+  (component ((fst . posDir) p) axis) <= value
+Why not:
+  component ((fst . posDir) p) axis <= value
+
+Primitive.hs:126:99: Parse error
+Error message:
+  Parse error: False
+Code:
+    intersectRayTriangle :: Ray -> Object -> Triangle -> Bool -> (# Bool, Double, Triangle #)
+    intersectRayTriangle !ray !obj !triangle !doubleSided
+  >     | not doubleSided && direction ray `dot3` (thr . planeTangentSpace . plane) triangle > 0 = (# False, 0, triangle #)
+        | otherwise = case primitiveClosestIntersect (plane triangle) ray obj of
+                        Nothing -> (# False, 0, triangle #)
+
+RayTrace.hs:126:1: Error: Eta reduce
+Found:
+  calculateGlobalIllumination f surfaceLocation irrCache obj
+    renderContext = f surfaceLocation irrCache obj renderContext
+Why not:
+  calculateGlobalIllumination f = f
+
+Shader.hs:22:9: Warning: Reduce duplication
 Found:
   scaledPosition = checkScale * position
   scaledX = round (vecX scaledPosition) :: Int
   scaledY = round (vecY scaledPosition) :: Int
   scaledZ = round (vecZ scaledPosition) :: Int
 Why not:
-  Combine with Shader.hs:40:7
+  Combine with Shader.hs:41:7
 
-2 suggestions
+ToneMap.hs:13:24: Error: Use id
+Found:
+  \ x -> x
+Why not:
+  id
+
+ToneMap.hs:18:35: Warning: Avoid lambda
+Found:
+  \ x -> x * invAverageBrightness
+Why not:
+  (* invAverageBrightness)
+
+ToneMap.hs:39:1: Error: Eta reduce
+Found:
+  toneMapImage f xs = f xs
+Why not:
+  toneMapImage f = f
+
+16 suggestions

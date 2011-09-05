@@ -12,6 +12,9 @@ Fully recursive raytracer with reflection and refraction
 * Parallelised ray tracing
 * Distributed ray tracing giving depth of field and anti-aliasing
 * Photon mapping
+* Irradiance caching
+* Gamma correction
+* Tone mappingxs
 
 Disclaimer:
 
@@ -35,19 +38,22 @@ Dependencies:
 
 The bmp Haskell package
 
+Options:
+
+-i outputs intermediate renderings for fast debug feedback
+-p enables the photon mapping pass
+
 Bugs:
 
-The Photon Mapping is largely functional though it currently has some strange 'bokeh' type artefacts. Whilst these are pretty, work is ongoing to fix them.
+The Photon Mapping is largely functional though it currently has some strange artefacts. Work is ongoing to fix them.
 There are numerous TODO issues noted in the code.
 
 Future planned work:
 
 * Specular lighting for quad light sources
 * Caustic photon mapping
-* Irradiance caching
 * Parsing of scene data files
 * Parallelisation of photon gathering
-* Cabal compatability
 * Optimisation! Particularly of photon mapping
 * Extended shader model
 
