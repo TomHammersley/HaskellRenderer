@@ -34,7 +34,7 @@ toneMapReinhard = map (\(Colour !r !g !b _) -> Colour (r / (r + 1)) (g / (g + 1)
 toneMapHejlBurgessDawson :: [Colour] -> [Colour]
 toneMapHejlBurgessDawson = map f
     where
-      f colour = (x * ((x <*> 6.2) <+> 0.5)) / (x * ((x <*> 6.2) <+> 1.7) <+> 0.06)
+      f colour = (x * ((x <*> 6.2) <+> 0.5)) / ((x * ((x <*> 6.2) <+> 1.7)) <+> 0.06)
           where
             x = (\x' -> fold max x' 0) (colour <-> 0.004)
 
@@ -55,11 +55,11 @@ imageAverageLogLuminance :: [Colour] -> Double
 imageAverageLogLuminance = imageAverageLogLuminance' 0 0
     where
       imageAverageLogLuminance' accLum accCount (x:xs) = imageAverageLogLuminance' (accLum + logLuminance x) (accCount + 1) xs
-      imageAverageLogLuminance' accLum 0 [] = accLum
+      imageAverageLogLuminance' accLum 0 [] = exp accLum
       imageAverageLogLuminance' accLum accCount [] = exp (accLum / accCount)
 
 -- Adjust the exposure of an image
-exposeImage :: ([Colour] -> Double) -> [Colour] -> [Colour]
-exposeImage f xs = map (</> (exposure * 2)) xs
+exposeImage :: ([Colour] -> Double) -> [Colour] -> Double -> [Colour]
+exposeImage f xs exposureScale = map (</> (exposure * exposureScale)) xs
     where
       exposure = f xs

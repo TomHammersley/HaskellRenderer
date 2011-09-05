@@ -48,8 +48,8 @@ renderImage mipLevel renderSettings photonMap = finalImage
     where
       rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
       -- TODO - Consider some fusion here?
-      exposedImage = exposeImage imageAverageLogLuminance rawImageOutput
-      toneMappedImage = toneMapImage toneMapReinhard{-toneMapHejlBurgessDawson-} exposedImage
+      exposedImage = exposeImage imageAverageLogLuminance rawImageOutput 4
+      toneMappedImage = toneMapImage {-toneMapReinhard-}toneMapHejlBurgessDawson exposedImage
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
 
 -- In the interest of rapid developer feedback, this functions writes a progressively-increasing image
