@@ -1,8 +1,5 @@
 module Tests.VectorTest where
 
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
-
 import Vector
 import Test.HUnit
 

@@ -1,8 +1,5 @@
 module Tests.BoundingBoxTest where
 
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
-
 import Test.HUnit
 import Vector
 import BoundingBox
