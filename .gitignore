@@ -16,3 +16,5 @@ haskell-render
 core.txt
 *.s
 crocodile
+dist/*
+

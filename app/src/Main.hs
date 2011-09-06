@@ -100,7 +100,7 @@ main = do
          reflectionDistance = 1000
          refractionDistance = 1000
          -- Photon constants
-         photonGatherDistance = 100
+         photonGatherDistance = 50
          maxGatherPhotons = 200
          coneFilterConstant = 2
          -- Depth of field constants

@@ -45,19 +45,14 @@ Build-type:          Simple
 -- Constraint on the version of Cabal needed to build this package.
 Cabal-version:       >=1.2
 
+Executable crocodile
+  -- Packages needed in order to build this package.
+  Build-depends: base, HUnit, heap, bmp, mtl, mersenne-random-pure64
 
-Executable HaskellRenderer
   -- .hs or .lhs file containing the Main module.
   Main-is: app/src/Main.hs
   
-  -- Packages needed in order to build this package.
-  Build-depends: heap, bmp, mtl, hunit, mersenne-random-pure
-
+  Hs-Source-Dirs: app/src
+  
   ghc-options: -tmpdir tmp -hidir hi -odir obj -O2 -fext-core -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields -funfolding-keeness-factor=10 -threaded -rtsopts -fwarn-missing-signatures -Wall -feager-blackholing
-  
-  -- Modules not exported by this package.
-  -- Other-modules:       
-  
-  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
-  -- Build-tools:         
-  
+
