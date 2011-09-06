@@ -73,7 +73,7 @@ choosePhotonFate !(diffuseP, specularP) = do
              | p < (diffuseP + specularP) = SpecularReflect
              | otherwise = Absorb
   put generator'
-  return result
+  return $! result
 
 -- Compute new power for a photon
 computeNewPhotonPower :: PhotonChoice -> (Double, Double) -> Colour -> Material -> Colour
@@ -88,7 +88,7 @@ generateUV = do generator <- get
                 let (u, generator') = randomDouble generator
                 let (v, generator'') = randomDouble generator'
                 put generator''
-                return (u, v)
+                return $! (u, v)
 
 -- Find a diffuse reflection direction in the hemisphere of the normal
 -- Realistic Image Synthesis Using Photon Mapping - Eq 2.24

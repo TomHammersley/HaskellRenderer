@@ -135,7 +135,7 @@ traceRay _ _ _ 0 _ _ _ = error "Should not hit this codepath"
 -- Special case for penultimate level - we're not allowed to spawn rays here
 traceRay renderContext photonMap !ray 1 !viewDir _ _ = 
     case findNearestIntersection (sceneGraph renderContext) ray of
-        Nothing -> return $ defaultColour (direction ray)
+        Nothing -> return $! defaultColour (direction ray)
         Just (obj, intersectionDistance, hitId) -> do
           irrCache <- get
           let !intersectionPoint = pointAlongRay ray intersectionDistance
@@ -144,12 +144,12 @@ traceRay renderContext photonMap !ray 1 !viewDir _ _ =
           -- TODO - Need to plug irradiance values into surface shading more correctly
           let resultColour = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
           put newIrrCache
-          return resultColour
+          return $! resultColour
 
 -- General case
 traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedReflectivity = 
     case findNearestIntersection (sceneGraph renderContext) ray of
-        Nothing -> return $ defaultColour (direction ray)
+        Nothing -> return $! defaultColour (direction ray)
         Just (obj, intersectionDistance, hitId) -> do
           -- Evaluate surface-location specific things such as shader results
           let !intersectionPoint = pointAlongRay ray intersectionDistance
@@ -189,7 +189,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
           put irrCache'''
 
           -- Final colour combine
-          return (surfaceShading + (reflection Colour.<*> shine) + (refraction Colour.<*> transmittance))
+          return $! (surfaceShading + (reflection Colour.<*> shine) + (refraction Colour.<*> transmittance))
               where
                 enteringObject !incoming !normal = incoming `dot3` normal > 0
 
@@ -220,8 +220,8 @@ traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWe
       put irrCache'
       let (col, irrCache'') = runState (traceDistributedSample renderContext result xs photonMap eyeViewDir sampleWeighting) irrCache'
       put irrCache''
-      return col
-traceDistributedSample _ !acc [] _ _ _ = return acc
+      return $! col
+traceDistributedSample _ !acc [] _ _ _ = return $! acc
 
 -- Need to remove hard coded constants of 8 here
 -- This traces for a given pixel (x, y)
@@ -231,7 +231,7 @@ tracePixel renderContext !eye photonMap !viewDirection = do
   let !distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext)
   let (!pixelColour, irrCache') = runState (traceDistributedSample renderContext colBlack distributedPositions photonMap (eye, viewDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) irrCache
   put irrCache'
-  return pixelColour
+  return $! pixelColour
 
 -- Generate a list of colours which contains a raytraced image. In parallel
 rayTraceImage :: RenderContext -> Camera -> Int -> Int -> Maybe PhotonMap -> [Colour]
