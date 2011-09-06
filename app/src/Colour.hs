@@ -28,6 +28,11 @@ instance Fractional Colour where
     (Colour !r1 !g1 !b1 !a1) / (Colour !r2 !g2 !b2 !a2) = Colour (r1 / r2) (g1 / g2) (b1 / b2) (a1 / a2)
     fromRational x = Colour (fromRational x) (fromRational x) (fromRational x) (fromRational x)
 
+infixl 7 <*>
+infixl 7 </>
+infixl 6 <+>
+infixl 6 <->
+
 (<*>) :: Colour -> Double -> Colour
 (Colour !r !g !b !a) <*> k = Colour (r * k) (g * k) (b * k) (a * k)
 

@@ -106,6 +106,11 @@ vectorScalarMul :: Vector -> Double -> Vector
 {-# SPECIALIZE INLINE vectorScalarMul :: Vector -> Double -> Vector #-}
 (Vector !x !y !z !w) `vectorScalarMul` k = Vector (x * k) (y * k) (z * k) (w * k)
 
+infixl 7 <*>
+infixl 7 </>
+--infixl 6 <+>
+--infixl 6 <->
+
 (</>) :: Vector -> Double -> Vector
 {-# SPECIALIZE INLINE (</>) :: Vector -> Double -> Vector #-}
 a </> b = a `vectorScalarMul` (1 / b)
@@ -220,5 +225,5 @@ component (Vector _ _ _ !w) 3 = w
 component _ _ = error "Invalid component index"
 
 transformDir :: Direction -> TangentSpace -> Direction
-{-# SPECIALIZE INLINE transformDir :: Direction -> TangentSpace -> Direction #-}
+{-# SPECIALIZE INLINE transformDirvecto :: Direction -> TangentSpace -> Direction #-}
 transformDir !dir !(tangent, binormal, normal) = Vector (dir `dot3` tangent) (dir `dot3` binormal) (dir `dot3` normal) 0
