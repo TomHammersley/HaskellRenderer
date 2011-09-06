@@ -225,5 +225,5 @@ component (Vector _ _ _ !w) 3 = w
 component _ _ = error "Invalid component index"
 
 transformDir :: Direction -> TangentSpace -> Direction
-{-# SPECIALIZE INLINE transformDirvecto :: Direction -> TangentSpace -> Direction #-}
+{-# SPECIALIZE INLINE transformDir :: Direction -> TangentSpace -> Direction #-}
 transformDir !dir !(tangent, binormal, normal) = Vector (dir `dot3` tangent) (dir `dot3` binormal) (dir `dot3` normal) 0
