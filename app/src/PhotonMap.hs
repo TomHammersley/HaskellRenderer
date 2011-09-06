@@ -33,7 +33,7 @@ data PhotonMapContext = PhotonMapContext {
 data Photon = Photon { power :: {-# UNPACK #-} !Colour, posDir :: {-# UNPACK #-} !(Position, Direction) } deriving (Show, Eq, Ord)
 
 data PhotonMapTree = PhotonMapNode {-# UNPACK #-} !Int {-# UNPACK #-} !Double PhotonMapTree PhotonMapTree
-                   | PhotonMapLeaf !Photon deriving (Show, Eq)
+                   | PhotonMapLeaf {-# UNPACK #-} !Photon deriving (Show, Eq)
 
 data PhotonMap = PhotonMap { photonList :: [Photon],
                              photonMapTree :: PhotonMapTree } deriving(Show, Eq)

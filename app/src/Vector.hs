@@ -107,9 +107,11 @@ vectorScalarMul :: Vector -> Double -> Vector
 (Vector !x !y !z !w) `vectorScalarMul` k = Vector (x * k) (y * k) (z * k) (w * k)
 
 (</>) :: Vector -> Double -> Vector
+{-# SPECIALIZE INLINE (</>) :: Vector -> Double -> Vector #-}
 a </> b = a `vectorScalarMul` (1 / b)
 
 (<*>) :: Vector -> Double -> Vector
+{-# SPECIALIZE INLINE (<*>) :: Vector -> Double -> Vector #-}
 a <*> b = a `vectorScalarMul` b
 
 dot3 :: Vector -> Vector -> Double
@@ -145,19 +147,19 @@ magnitudeSq :: Vector -> Double
 magnitudeSq (Vector !(D# x#) !(D# y#) !(D# z#) _) = D# ((x# *## x#) +## (y# *## y#) +## (z# *## z#))
 
 normalise :: Direction -> Direction
-{-# SPECIALIZE INLINE normalise :: Vector -> Vector #-}
+{-# SPECIALIZE INLINE normalise :: Direction -> Direction #-}
 normalise !a = setWTo0 (a `vectorScalarMul` (1 / magnitude a))
 
 distance :: Position -> Position -> Double
-{-# SPECIALIZE INLINE distance :: Vector -> Vector -> Double #-}
+{-# SPECIALIZE INLINE distance :: Position -> Position -> Double #-}
 distance !a !b = magnitude (a - b)
 
 distanceSq :: Position -> Position -> Double
-{-# SPECIALIZE INLINE distanceSq :: Vector -> Vector -> Double #-}
+{-# SPECIALIZE INLINE distanceSq :: Position -> Position -> Double #-}
 distanceSq !a !b = magnitudeSq (a - b)
 
 reflect :: Direction -> Direction -> Direction
-{-# SPECIALIZE INLINE reflect :: Vector -> Vector -> Vector #-}
+{-# SPECIALIZE INLINE reflect :: Direction -> Direction -> Direction #-}
 reflect !incoming !normal = restoreOriginalW incoming $ (normal `vectorScalarMul` (2 * (normal `dot3` incoming))) - incoming
 
 refract :: Direction -> Direction -> Double -> Direction
@@ -183,6 +185,7 @@ nthLargestAxis (Vector !x !y !z _) order
     | otherwise = error "nthLargestAXis: Undefined case"
 
 min :: Vector -> Vector -> Vector
+{-# SPECIALIZE INLINE Vector.min :: Vector -> Vector -> Vector #-}
 min (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector x y z w
     where
       !x = Prelude.min x1 x2
@@ -191,6 +194,7 @@ min (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector x y z w
       !w = Prelude.min w1 w2
 
 max :: Vector -> Vector -> Vector
+{-# SPECIALIZE INLINE Vector.max :: Vector -> Vector -> Vector #-}
 max (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector x y z w
     where
       !x = Prelude.max x1 x2
@@ -209,11 +213,12 @@ sphericalToDirection (D# !theta) (D# !phi) = Vector (D# $ sinDouble# theta *## c
 
 component :: Vector -> Int -> Double
 {-# SPECIALIZE INLINE component :: Vector -> Int -> Double #-}
-component (Vector x _ _ _) 0 = x
-component (Vector _ y _ _) 1 = y
-component (Vector _ _ z _) 2 = z
-component (Vector _ _ _ w) 3 = w
+component (Vector !x _ _ _) 0 = x
+component (Vector _ !y _ _) 1 = y
+component (Vector _ _ !z _) 2 = z
+component (Vector _ _ _ !w) 3 = w
 component _ _ = error "Invalid component index"
 
 transformDir :: Direction -> TangentSpace -> Direction
+{-# SPECIALIZE INLINE transformDir :: Direction -> TangentSpace -> Direction #-}
 transformDir !dir !(tangent, binormal, normal) = Vector (dir `dot3` tangent) (dir `dot3` binormal) (dir `dot3` normal) 0
