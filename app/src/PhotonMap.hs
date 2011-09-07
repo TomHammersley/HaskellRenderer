@@ -19,6 +19,7 @@ import KDTree
 import Debug.Trace
 import Misc
 import Control.Parallel.Strategies
+import Control.DeepSeq
 import Data.Heap hiding (partition)
 import System.Random.Mersenne.Pure64
 import Data.List (partition)
