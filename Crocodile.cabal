@@ -47,10 +47,10 @@ Cabal-version:       >=1.2
 
 Executable crocodile
   -- Packages needed in order to build this package.
-  Build-depends: base, HUnit, heap, bmp, mtl, mersenne-random-pure64
+  Build-depends: base, HUnit, heap, bmp, mtl, mersenne-random-pure64, ghc-prim, parallel, bytestring
 
   -- .hs or .lhs file containing the Main module.
-  Main-is: app/src/Main.hs
+  Main-is: Main.hs
   
   Hs-Source-Dirs: app/src
   
