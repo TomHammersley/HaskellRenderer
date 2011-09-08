@@ -1,6 +1,5 @@
 -- Photon mapping
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 
 module PhotonMap(buildPhotonMap, PhotonMap(photonList), irradiance, PhotonMapContext(PhotonMapContext)) where
 
@@ -12,7 +11,6 @@ import Colour
 import SceneGraph
 import RayTrace
 import Ray hiding (direction)
-import Primitive
 import Control.Monad.State
 import BoundingBox
 import KDTree
@@ -23,6 +21,7 @@ import Control.DeepSeq
 import Data.Heap hiding (partition)
 import System.Random.Mersenne.Pure64
 import Data.List (partition)
+import Primitive
 
 type GeneratorState = State PureMT
 
@@ -40,6 +39,9 @@ data PhotonMap = PhotonMap { photonList :: [Photon],
                              photonMapTree :: PhotonMapTree } deriving(Show, Eq)
 
 data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
+
+instance NFData Photon where
+    rnf (Photon power' posDir') = rnf power' `seq` rnf posDir'
 
 -- Generate a list of photon position and direction tuples to emit
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
@@ -190,6 +192,9 @@ instance Ord GatheredPhoton where
 instance Eq GatheredPhoton where
     (GatheredPhoton dist1 _) == (GatheredPhoton dist2 _) = dist1 == dist2
 
+instance NFData GatheredPhoton where
+    rnf (GatheredPhoton dist photon) = rnf dist `seq` rnf photon
+
 -- Return the minimum squared search radius from that specified, versus the furthest photon in the heap
 -- We don't want to locate any photons further away than our current furthest - we're looking for the closest ones, after all
 minimalSearchRadius :: Double -> PhotonHeap -> Double
@@ -235,15 +240,20 @@ photonContribution !kr !(pos, (_, _, normal)) !photon = power photon Colour.<*> 
 -- Find the overall contribution of a list of photons
 -- Radiance estimate algorithm from Realistic Image Synthesis Using Photon Mapping p81
 sumPhotonContribution :: Double -> Double -> SurfaceLocation -> [Photon] -> Colour
-sumPhotonContribution !r !k !posTanSpace !photons = foldr ((+) .photonContribution (k * r) posTanSpace) colBlack photons Colour.<*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
+sumPhotonContribution r k posTanSpace photons = foldr ((+) .photonContribution (k * r) posTanSpace) colBlack photons Colour.<*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
+
+--instance NFData (HeapT (Prio MaxPolicy GatheredPhoton) ())
+
+--instance NFData Heap where
+--    rnf Empty = ()
 
 -- Look up the resulting irradiance from the photon map at a given point
 -- Realistic Image Synthesis Using Photon Mapping, e7.6
 irradiance :: PhotonMap -> PhotonMapContext -> Material -> SurfaceLocation -> Colour
 irradiance photonMap !photonMapContext !mat !posTanSpace = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
     where
-      !r = photonGatherDistance photonMapContext
-      !maxPhotons = maxGatherPhotons photonMapContext
-      !k = coneFilterK photonMapContext
-      !photonHeap = gatherPhotons (photonMapTree photonMap) (fst posTanSpace) (r * r) Data.Heap.empty maxPhotons
-      !gatheredPhotons = map (\(GatheredPhoton _ photon) -> photon) (Data.Heap.take maxPhotons photonHeap)
+      r = photonGatherDistance photonMapContext
+      maxPhotons = maxGatherPhotons photonMapContext
+      k = coneFilterK photonMapContext
+      photonHeap = gatherPhotons (photonMapTree photonMap) (fst posTanSpace) (r * r) Data.Heap.empty maxPhotons
+      gatheredPhotons = {-photonHeap `deepseq`-} (map (\(GatheredPhoton _ photon) -> photon) (Data.Heap.take maxPhotons photonHeap))

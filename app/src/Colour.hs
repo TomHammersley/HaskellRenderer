@@ -5,6 +5,7 @@ module Colour where
 import Vector hiding (min, max)
 import Misc
 import Data.Word
+import Control.DeepSeq
 
 -- Normalised RGBA colour
 data Colour = Colour { red :: {-# UNPACK #-} !Double, 
@@ -27,6 +28,9 @@ instance Fractional Colour where
     {-# SPECIALIZE INLINE (/) :: Colour -> Colour -> Colour #-}
     (Colour !r1 !g1 !b1 !a1) / (Colour !r2 !g2 !b2 !a2) = Colour (r1 / r2) (g1 / g2) (b1 / b2) (a1 / a2)
     fromRational x = Colour (fromRational x) (fromRational x) (fromRational x) (fromRational x)
+
+instance NFData Colour where
+    rnf (Colour r g b a) = rnf r `seq` rnf g `seq` rnf b `seq` rnf a
 
 infixl 7 <*>
 infixl 7 </>

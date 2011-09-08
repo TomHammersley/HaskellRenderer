@@ -8,6 +8,7 @@ import Data.List
 import Misc
 import GHC.Prim
 import GHC.Types
+import Control.DeepSeq
 
 data Vector = Vector { vecX :: {-# UNPACK #-} !Double,
                        vecY :: {-# UNPACK #-} !Double,
@@ -52,6 +53,9 @@ instance Fractional Vector where
 
 instance Show Vector where
     show (Vector !x !y !z !w) = "(" ++ show x ++ ", " ++ show y ++ ", " ++ show z ++ ", " ++ show w ++ ")"
+
+instance NFData Vector where
+    rnf (Vector x y z w) = rnf x `seq` rnf y `seq` rnf z `seq` rnf w
 
 tsTangent :: TangentSpace -> Normal
 tsTangent (t, _, _) = t

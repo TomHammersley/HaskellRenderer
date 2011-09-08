@@ -28,7 +28,8 @@ module Primitive (primitiveBoundingRadius,
                   infinite, 
                   boundingBoxValid, 
                   sphereIntersect,
-                  TangentSpace) where
+                  TangentSpace,
+                  Vertex) where
 
 import Ray
 import Vector
@@ -92,11 +93,10 @@ makeQuad _ = error "makeQuad: List was invalid size"
 -- Turn a list of quad vertices into a triangle list
 quadsToTriangles :: [Position] -> [Triangle]
 quadsToTriangles positions = quadsToTriangles' positions []
-
-quadsToTriangles' :: [Position] -> [Triangle] -> [Triangle]
-quadsToTriangles' verts currentList 
-    | length verts >= 4 = quadsToTriangles' (drop 4 verts) (currentList ++ makeQuad (take 4 verts))
-    | otherwise = currentList
+    where
+      quadsToTriangles' verts currentList 
+          | length verts >= 4 = quadsToTriangles' (drop 4 verts) (currentList ++ makeQuad (take 4 verts))
+          | otherwise = currentList
 
 -- Area of a triangle
 triangleArea :: Position -> Position -> Position -> Double
