@@ -235,7 +235,7 @@ tracePixel renderContext !eye photonMap !viewDirection = do
 
 -- Generate a list of colours which contains a raytraced image. In parallel
 rayTraceImage :: RenderContext -> Camera -> Int -> Int -> Maybe PhotonMap -> [Colour]
-rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePixelPassingState rayDirections irrCache `using` parListChunk 256 rseq
+rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePixelPassingState rayDirections irrCache `using` parListChunk 256 rdeepseq
     where !rayDirections = [makeRayDirection renderWidth renderHeight camera (x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
           !eyePosition = Camera.position camera
           irrCache = initialiseCache (sceneGraph renderContext)

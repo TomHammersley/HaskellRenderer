@@ -99,8 +99,8 @@ diffuseReflectionDirection :: PureMT -> TangentSpace -> (Direction, PureMT)
 diffuseReflectionDirection !stdGen !tanSpace = (transformDir dir tanSpace, stdGen')
     where
       ((u, v), stdGen') = runState generateUV stdGen
-      !theta = acos (sqrt u)
-      !phi = 2 * pi * v
+      theta = acos (sqrt u)
+      phi = 2 * pi * v
       dir = sphericalToDirection theta phi
 
 -- Main working photon tracing function
@@ -145,7 +145,7 @@ tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndS
 
 -- Build a list of photons for a light source
 tracePhotonsForLight :: Int -> SceneGraph -> Light -> [Photon]
-tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rndState, flux) -> tracePhoton [] (Photon flux (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirGens `using` parListChunk photonsPerChunk rseq)
+tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rndState, flux) -> tracePhoton [] (Photon flux (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirGens `using` parListChunk photonsPerChunk rdeepseq)
     where
       posDirGens = emitPhotons light numPhotons -- Positions, directions, random number generators
       maxBounces = 50
