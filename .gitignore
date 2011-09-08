@@ -17,4 +17,4 @@ core.txt
 *.s
 crocodile
 dist/*
-
+dist/setup-config
