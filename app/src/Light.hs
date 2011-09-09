@@ -29,7 +29,7 @@ data CommonLightData = CommonLightData { colour :: !Colour,
 
 data Light = PointLight { common :: CommonLightData, position :: !Position, range :: !Double }
            | AmbientLight { common :: CommonLightData }
-           | QuadLight { common :: CommonLightData, position :: !Position, deltaU :: !Direction, deltaV :: !Direction } deriving (Show)
+           | QuadLight { common :: CommonLightData, position :: !Position, range :: !Double, deltaU :: !Direction, deltaV :: !Direction } deriving (Show)
 
 type LightingResult = (Colour, Colour, Colour) -- Ambient, diffuse, specular
 
@@ -66,8 +66,7 @@ phongLighting (!shadePos, !tanSpace) (PointLight (CommonLightData !lightColour !
       !dotProd = normal `dot3` incoming
       !normal = thr tanSpace
 phongLighting _ (AmbientLight (CommonLightData _ _)) _ _ _ = error "phongLighting: Do not know how to handle AmbientLight"
--- TODO Implement specular calculations for this light. We assume it is always in the photon map
-phongLighting (!shadePos, !tanSpace) (QuadLight (CommonLightData !lightColour !inPhotonMap') !lightPos !du !dv) objMaterial sceneGraph !viewDirection 
+phongLighting (!shadePos, !tanSpace) (QuadLight (CommonLightData !lightColour !inPhotonMap') !lightPos !lightRange !du !dv) objMaterial sceneGraph !viewDirection 
     | (lightCentre `distanceSq` shadePos) < (lightRange * lightRange) && dotProd > 0 = case findAnyIntersection sceneGraph (rayWithPoints intersectionPlusEpsilon lightCentre) of
                                                                                       Just _ -> colBlack -- An object is closer to our point of consideration than the light, so occluded
                                                                                       Nothing -> (lightColour * lightingSum) Colour.<*> attenuation
@@ -88,7 +87,6 @@ phongLighting (!shadePos, !tanSpace) (QuadLight (CommonLightData !lightColour !i
       !incoming = normalise (lightCentre - shadePos)
       !dotProd = normal `dot3` incoming
       !normal = thr tanSpace
-      !lightRange = 600 -- TODO - Replace with a real radius
 
 -- For a given surface point, work out the lighting, including occlusion
 applyLight :: SceneGraph -> SurfaceLocation -> Material -> Direction -> Light -> Colour
@@ -103,7 +101,7 @@ applyLight _ (!intersectionPoint, !intersectionTanSpace) !objMaterial _ (Ambient
     let shaderAmbient = evaluateAmbient (shader objMaterial) intersectionPoint intersectionTanSpace
         materialAmbient = ambient objMaterial
     in ambientColour * shaderAmbient * materialAmbient
-applyLight sceneGraph !intersectionPointNormal !objMaterial !viewDirection light@(QuadLight (CommonLightData _ _) _ _ _)
+applyLight sceneGraph !intersectionPointNormal !objMaterial !viewDirection light@(QuadLight (CommonLightData _ _) _ _ _ _)
     = phongLighting 
       intersectionPointNormal 
       light

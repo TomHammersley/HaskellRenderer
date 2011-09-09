@@ -21,7 +21,7 @@ data CommonLightData = CommonLightData { colour :: !Colour,
 
 data Light = PointLight { common :: CommonLightData, position :: !Position, range :: !Double }
            | AmbientLight { common :: CommonLightData }
-           | QuadLight { common :: CommonLightData, position :: !Position, deltaU :: !Direction, deltaV :: !Direction } 
+           | QuadLight { common :: CommonLightData, position :: !Position, range :: !Double, deltaU :: !Direction, deltaV :: !Direction } 
 
 type LightingResult = (Colour, Colour, Colour) -- Ambient, diffuse, specular
 

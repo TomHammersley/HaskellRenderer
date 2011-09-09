@@ -74,7 +74,7 @@ writeRaytracedImage (mipLevel:mipLevels) photonMap renderSettings = do
 notInPhotonMap :: Light -> Light
 notInPhotonMap (PointLight (CommonLightData colour' _) position' range') = PointLight (CommonLightData colour' False) position' range'
 notInPhotonMap (AmbientLight (CommonLightData colour' _)) = AmbientLight (CommonLightData colour' False)
-notInPhotonMap (QuadLight (CommonLightData colour' _) position' deltaU' deltaV') = QuadLight (CommonLightData colour' False) position' deltaU' deltaV'
+notInPhotonMap (QuadLight (CommonLightData colour' _) position' range' deltaU' deltaV') = QuadLight (CommonLightData colour' False) position' range' deltaU' deltaV'
 
 -- Main function
 main :: IO ()

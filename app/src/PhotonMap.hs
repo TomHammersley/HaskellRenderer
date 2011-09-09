@@ -50,7 +50,7 @@ emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
 emitPhotons (PointLight (CommonLightData !lightPower True) !pos _) !numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
     where
       flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
-emitPhotons (QuadLight (CommonLightData !lightPower True) !corner !du !dv) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
+emitPhotons (QuadLight (CommonLightData !lightPower True) !corner _ !du !dv) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
       randomPoints = generatePointsOnQuad corner du dv numPhotons
       randomDirs = generatePointsOnSphere numPhotons 1
