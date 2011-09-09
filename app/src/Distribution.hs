@@ -23,10 +23,10 @@ generateRandomUVs :: Int -> GeneratorState [(Double, Double)]
 generateRandomUVs n = replicateM n randomUV
 
 -- Generate a list of random points on a unit sphere
-generatePointsOnSphere :: Int -> Double -> [Position]
-generatePointsOnSphere numPoints r = map uvToPosition randomUVs
+generatePointsOnSphere :: Int -> Double -> Int -> [Position]
+generatePointsOnSphere numPoints r seed = map uvToPosition randomUVs
     where
-      randomUVs = evalState (generateRandomUVs numPoints) (pureMT 12345)
+      randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
       uvToPosition (!u, !v) = Vector (r * x) (r * y) (r * z) 1
           where
             !z = 2 * u - 1
@@ -35,8 +35,8 @@ generatePointsOnSphere numPoints r = map uvToPosition randomUVs
             !x = w * cos t
             !y = w * sin t
 
-generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> [Position]
-generatePointsOnQuad pos deltaU deltaV numPoints = map uvToPosition randomUVs
+generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> Int -> [Position]
+generatePointsOnQuad pos deltaU deltaV numPoints seed = map uvToPosition randomUVs
     where
-      randomUVs = evalState (generateRandomUVs numPoints) (pureMT 12345)
+      randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
       uvToPosition (u, v) = pos + (deltaU <*> u) + (deltaV <*> v)

@@ -46,21 +46,22 @@ instance NFData Photon where
 -- Generate a list of photon position and direction tuples to emit
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
 -- Helps parallelisation...
+-- TODO Eliminate magic number seeds from here
 emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
-emitPhotons (PointLight (CommonLightData !lightPower True) !pos _) !numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1) [1..numPhotons]
+emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1 12345) [1..numPhotons]
     where
       flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
-emitPhotons (QuadLight (CommonLightData !lightPower True) !corner _ !du !dv) !numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
+emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
-      randomPoints = generatePointsOnQuad corner du dv numPhotons
-      randomDirs = generatePointsOnSphere numPhotons 1
-      !area =  Vector.magnitude (du `cross` dv)
+      randomPoints = generatePointsOnQuad corner du dv numPhotons 12345
+      randomDirs = generatePointsOnSphere numPhotons 1 12345
+      area =  Vector.magnitude (du `cross` dv)
       flux = lightPower Colour.<*> (area / fromIntegral numPhotons)
 emitPhotons _ _ = []
 
 -- Compute russian roulette coefficients
 russianRouletteCoefficients :: Material -> (Double, Double)
-russianRouletteCoefficients !mat = (diffuseP, specularP)
+russianRouletteCoefficients mat = (diffuseP, specularP)
     where
       (Colour diffuseR diffuseG diffuseB _) = Material.diffuse mat
       (Colour specularR specularG specularB _) = Material.specular mat
@@ -69,7 +70,7 @@ russianRouletteCoefficients !mat = (diffuseP, specularP)
 
 -- Decide what to do with a photon
 choosePhotonFate :: (Double, Double) -> GeneratorState PhotonChoice
-choosePhotonFate !(diffuseP, specularP) = do
+choosePhotonFate (diffuseP, specularP) = do
   generator <- get
   let (p, generator') = randomDouble generator
   let result | p < diffuseP = DiffuseReflect
@@ -80,10 +81,10 @@ choosePhotonFate !(diffuseP, specularP) = do
 
 -- Compute new power for a photon
 computeNewPhotonPower :: PhotonChoice -> (Double, Double) -> Colour -> Material -> Colour
-computeNewPhotonPower !fate !(diffuseP, specularP) photonPower !mat = case fate of
-                                                                        DiffuseReflect -> photonPower * diffuse mat Colour.</> diffuseP
-                                                                        SpecularReflect -> photonPower * specular mat Colour.</> specularP
-                                                                        Absorb -> colBlack
+computeNewPhotonPower fate (diffuseP, specularP) photonPower mat = case fate of
+                                                                     DiffuseReflect -> photonPower * diffuse mat Colour.</> diffuseP
+                                                                     SpecularReflect -> photonPower * specular mat Colour.</> specularP
+                                                                     Absorb -> colBlack
 
 -- Compute a new diffuse reflection in spherical co-ordinates
 generateUV :: GeneratorState (Double, Double)
@@ -96,7 +97,7 @@ generateUV = do generator <- get
 -- Find a diffuse reflection direction in the hemisphere of the normal
 -- Realistic Image Synthesis Using Photon Mapping - Eq 2.24
 diffuseReflectionDirection :: PureMT -> TangentSpace -> (Direction, PureMT)
-diffuseReflectionDirection !stdGen !tanSpace = (transformDir dir tanSpace, stdGen')
+diffuseReflectionDirection stdGen tanSpace = (transformDir dir tanSpace, stdGen')
     where
       ((u, v), stdGen') = runState generateUV stdGen
       theta = acos (sqrt u)
@@ -106,8 +107,8 @@ diffuseReflectionDirection !stdGen !tanSpace = (transformDir dir tanSpace, stdGe
 -- Main working photon tracing function
 -- Realistic Image Synthesis Using Photon Mapping p60
 tracePhoton :: [Photon] -> Photon -> SceneGraph -> PureMT -> (Int, Int) -> [Photon]
-tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndState !(bounce, maxBounces) = 
-    -- See if the photon intersects any surfaces
+tracePhoton currentPhotons (Photon photonPower photonPosDir) sceneGraph rndState (bounce, maxBounces) = 
+    -- See if the photon intersects a surfaces
     case findNearestIntersection sceneGraph ray of
       Nothing -> currentPhotons
       Just (obj, t, subId) -> case photonFate of
@@ -116,8 +117,8 @@ tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndS
                                                   then tracePhoton (storedPhoton : currentPhotons) reflectedPhoton sceneGraph rndState'' (bounce + 1, maxBounces)
                                                   else storedPhoton : currentPhotons
                                     where
-                                      !reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
-                                      !(reflectedDir, rndState'') = diffuseReflectionDirection rndState' tanSpace
+                                      reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
+                                      (reflectedDir, rndState'') = diffuseReflectionDirection rndState' tanSpace
 
                                 -- Specular reflection. Here, we reflect the photon in the fashion that the surface would reflect towards the viewer and
                                 -- aim to absorb it somewhere else in the photon map
@@ -125,59 +126,61 @@ tracePhoton !currentPhotons (Photon !photonPower !photonPosDir) sceneGraph !rndS
                                                    then tracePhoton currentPhotons reflectedPhoton sceneGraph rndState' (bounce + 1, maxBounces)
                                                    else currentPhotons
                                     where
-                                      !reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
-                                      !reflectedDir = Vector.negate (snd photonPosDir) `reflect` normal
+                                      reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
+                                      reflectedDir = Vector.negate (snd photonPosDir) `reflect` normal
 
                                 -- Absorb. The photon simply gets absorbed into the map
                                 Absorb -> storedPhoton : currentPhotons
           where
-            !(photonFate, rndState') = runState (choosePhotonFate coefficients) rndState
-            !coefficients = russianRouletteCoefficients (material obj)
-            !newPhotonPower = computeNewPhotonPower photonFate coefficients photonPower (material obj)
-            !tanSpace = primitiveTangentSpace (primitive obj) subId hitPosition obj
-            !normal = thr tanSpace
-            !hitPosition = pointAlongRay ray t
-            !surfacePos = hitPosition + (normal Vector.<*> surfaceEpsilon)
-            !brightnessEpsilon = 0.1
-            !storedPhoton = Photon photonPower (surfacePos, snd photonPosDir)
+            (photonFate, rndState') = runState (choosePhotonFate coefficients) rndState
+            coefficients = russianRouletteCoefficients (material obj)
+            newPhotonPower = computeNewPhotonPower photonFate coefficients photonPower (material obj)
+            tanSpace = primitiveTangentSpace (primitive obj) subId hitPosition obj
+            normal = thr tanSpace
+            hitPosition = pointAlongRay ray t
+            surfacePos = hitPosition + (normal Vector.<*> surfaceEpsilon)
+            brightnessEpsilon = 0.1
+            storedPhoton = Photon photonPower (surfacePos, snd photonPosDir)
     where
-      !ray = rayWithPosDir photonPosDir 10000
+      ray = rayWithPosDir photonPosDir 10000
 
 -- Build a list of photons for a light source
 tracePhotonsForLight :: Int -> SceneGraph -> Light -> [Photon]
-tracePhotonsForLight !numPhotons sceneGraph !light = concat (map (\(pos, dir, rndState, flux) -> tracePhoton [] (Photon flux (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirGens `using` parListChunk photonsPerChunk rdeepseq)
+tracePhotonsForLight numPhotons sceneGraph light = concat (map (\(pos, dir, rndState, flux) -> tracePhoton [] (Photon flux (pos, dir)) sceneGraph rndState (0, maxBounces)) posDirGens `using` parListChunk photonsPerChunk rdeepseq)
     where
       posDirGens = emitPhotons light numPhotons -- Positions, directions, random number generators
-      maxBounces = 50
+      maxBounces = 500
       photonsPerChunk = 256
 
 -- High-level function to build a photon map
 buildPhotonMap :: SceneGraph -> [Light] -> Int -> (PhotonMap, [Light])
-buildPhotonMap sceneGraph lights numPhotonsPerLight = (PhotonMap photons (buildKDTree photons), lightsNotForPhotonMap)
+buildPhotonMap sceneGraph lights numPhotonsPerLight = photons `seq` kdTree `seq` (PhotonMap photons kdTree, lightsNotForPhotonMap)
     where
       (lightsForPhotonMap, lightsNotForPhotonMap) = partition (addToPhotonMap . common) lights
       photons = foldr ((++) . tracePhotonsForLight numPhotonsPerLight sceneGraph) [] lightsForPhotonMap
+      kdTree = buildKDTree photons
 
 -- Make a bounding box of a list of photons
 photonsBoundingBox :: [Photon] -> AABB
-photonsBoundingBox = foldr (enlargeBoundingBox .fst . posDir) initialInvalidBox
+photonsBoundingBox = foldr (enlargeBoundingBox . fst . posDir) initialInvalidBox
 
 -- Construct a balanced kd tree of photons
 -- Realistic Image Synthesis Using Photon Mapping p72
 buildKDTree :: [Photon] -> PhotonMapTree
 buildKDTree (x:[]) = PhotonMapLeaf x
-buildKDTree (x:xs) = let !photons = x:xs
-                         !(boxMin, boxMax) = photonsBoundingBox photons
-                         !axis = largestAxis (boxMax - boxMin)
-                         !numPhotons = fromIntegral (length photons)
-                         !photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> numPhotons
-                         !value = component photonsMedian axis
-                         photonsGT = Prelude.filter (\p -> component ((fst . posDir) p) axis > value) photons
-                         photonsLE = Prelude.filter (\p -> component ((fst . posDir) p) axis <= value) photons
-                     in if length photonsGT > 0 && length photonsLE > 0
-                        then PhotonMapNode axis value (buildKDTree photonsGT) (buildKDTree photonsLE)
-                        else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')
 buildKDTree [] = undefined
+buildKDTree photons = let (boxMin, boxMax) = photonsBoundingBox photons
+                          axis = largestAxis (boxMax - boxMin)
+                          numPhotons = fromIntegral (length photons)
+                          photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> numPhotons
+                          value = component photonsMedian axis
+                          photonsGT = Prelude.filter (\p -> component ((fst . posDir) p) axis > value) photons
+                          photonsLE = Prelude.filter (\p -> component ((fst . posDir) p) axis <= value) photons
+                      in if length photonsGT > 0 && length photonsLE > 0
+                         then let gtTree = buildKDTree photonsGT
+                                  leTree = buildKDTree photonsLE
+                              in gtTree `seq` leTree `seq` (PhotonMapNode axis value gtTree leTree)
+                         else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')
 
 -- Use a max heap to make it easy to eliminate distant photons
 data GatheredPhoton = GatheredPhoton Double Photon deriving (Show)
@@ -198,20 +201,20 @@ instance NFData GatheredPhoton where
 -- Return the minimum squared search radius from that specified, versus the furthest photon in the heap
 -- We don't want to locate any photons further away than our current furthest - we're looking for the closest ones, after all
 minimalSearchRadius :: Double -> PhotonHeap -> Double
-minimalSearchRadius !rSq !photonHeap = case viewHead photonHeap of
-                                         Nothing -> rSq
-                                         Just (GatheredPhoton dSq _) -> Prelude.min rSq dSq
+minimalSearchRadius rSq photonHeap = case viewHead photonHeap of
+                                       Nothing -> rSq
+                                       Just (GatheredPhoton dSq _) -> Prelude.min rSq dSq
 
 -- Gather photons for irradiance computations
 -- Algorithm adapted from Realistic Image Synthesis Using Photon Mapping p73
 gatherPhotons :: PhotonMapTree -> Position -> Double -> PhotonHeap -> Int -> PhotonHeap
-gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !rSq !photonHeap !maxPhotons
+gatherPhotons (PhotonMapNode axis value gtChild leChild) pos rSq photonHeap maxPhotons
     -- In this case, the split plane bisects the search sphere - search both halves of tree
-    | (value - posComponent) ** 2 <= rSq = let !heap1 = gatherPhotons gtChild pos rSq' photonHeap maxPhotons
-                                               !rSq'' = minimalSearchRadius rSq' heap1
-                                               !heap2 = gatherPhotons leChild pos rSq'' photonHeap maxPhotons
-                                               !newHeap = union heap1 heap2
-                                           in Data.Heap.drop (size newHeap - maxPhotons) newHeap
+    | (value - posComponent) ** 2 <= rSq = let heap1 = gatherPhotons gtChild pos rSq' photonHeap maxPhotons
+                                               rSq'' = minimalSearchRadius rSq' heap1
+                                               heap2 = gatherPhotons leChild pos rSq'' photonHeap maxPhotons
+                                               newHeap = union heap1 heap2
+                                           in heap1 `seq` heap2 `seq` newHeap `seq` (Data.Heap.drop (size newHeap - maxPhotons) newHeap)
 
     -- One side of the tree...
     | posComponent > value = gatherPhotons gtChild pos rSq' photonHeap maxPhotons
@@ -222,20 +225,20 @@ gatherPhotons (PhotonMapNode !axis !value gtChild leChild) !pos !rSq !photonHeap
     -- Prolapse
     | otherwise = error "gatherPhotons: unexplained/unexpected case here"
     where
-      !posComponent = component pos axis
-      !rSq' = minimalSearchRadius rSq photonHeap -- Refine search radius as we go down tree to search no further than closest allowed photon
-gatherPhotons (PhotonMapLeaf !p) !pos !rSq !photonHeap !maxPhotons
+      posComponent = component pos axis
+      rSq' = minimalSearchRadius rSq photonHeap -- Refine search radius as we go down tree to search no further than closest allowed photon
+gatherPhotons (PhotonMapLeaf p) pos rSq photonHeap maxPhotons
     | distSq < rSq = let newHeap = insert (GatheredPhoton distSq p) photonHeap
                      in Data.Heap.drop (size newHeap - maxPhotons) newHeap -- Discard any excess photons - we get rid of the furthest ones
     | otherwise = photonHeap
-    where !distSq = pos `distanceSq` (fst . posDir) p
+    where distSq = pos `distanceSq` (fst . posDir) p
 
 -- Return the contribution of a given photon, including a simple cos term to emulate BRDF plus the cone filter
 -- Cone filter is from Realistic Image Synthesis Using Photon Mapping p81
 photonContribution :: Double -> SurfaceLocation -> Photon -> Colour
-photonContribution !kr !(pos, (_, _, normal)) !photon = power photon Colour.<*> ((Vector.negate normal `sdot3` (snd . posDir) photon) * weight)
+photonContribution kr (pos, (_, _, normal)) photon = power photon Colour.<*> ((Vector.negate normal `sdot3` (snd . posDir) photon) * weight)
     where
-      !weight = 1 - (pos `distance` (fst . posDir) photon) / (kr + 0.000000001) -- Add on an epsilon to prevent div0 in cone filter
+      weight = 1 - (pos `distance` (fst . posDir) photon) / (kr + 0.000000001) -- Add on an epsilon to prevent div0 in cone filter
 
 -- Find the overall contribution of a list of photons
 -- Radiance estimate algorithm from Realistic Image Synthesis Using Photon Mapping p81
@@ -250,7 +253,7 @@ sumPhotonContribution r k posTanSpace photons = foldr ((+) .photonContribution (
 -- Look up the resulting irradiance from the photon map at a given point
 -- Realistic Image Synthesis Using Photon Mapping, e7.6
 irradiance :: PhotonMap -> PhotonMapContext -> Material -> SurfaceLocation -> Colour
-irradiance photonMap !photonMapContext !mat !posTanSpace = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
+irradiance photonMap photonMapContext mat posTanSpace = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
     where
       r = photonGatherDistance photonMapContext
       maxPhotons = maxGatherPhotons photonMapContext

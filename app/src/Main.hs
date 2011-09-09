@@ -101,7 +101,7 @@ main = do
          refractionDistance = 1000
          -- Photon constants
          photonGatherDistance = 50
-         maxGatherPhotons = 200
+         maxGatherPhotons = 100
          coneFilterConstant = 2
          -- Depth of field constants
          rayOriginDistribution' = 0.5
@@ -118,7 +118,7 @@ main = do
   let photonMapMessage = if doPhotonMapping then "Creating photon map..." else "Photon mapping disabled"
   Prelude.putStrLn photonMapMessage
   let thousand = 1000
-  let numPhotons = 100 * thousand
+  let numPhotons = 200 * thousand
   let (photonMap, lights')
           | doPhotonMapping = Control.Arrow.first Just $ 
                               buildPhotonMap (sceneGraph renderSettings) cornellBoxLights numPhotons

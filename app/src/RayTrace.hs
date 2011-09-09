@@ -228,7 +228,7 @@ traceDistributedSample _ !acc [] _ _ _ = return $! acc
 tracePixel :: RenderContext -> Position -> Maybe PhotonMap -> Direction -> RayTraceState
 tracePixel renderContext !eye photonMap !viewDirection = do
   irrCache <- get
-  let !distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext)
+  let !distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) 12345
   let (!pixelColour, irrCache') = runState (traceDistributedSample renderContext colBlack distributedPositions photonMap (eye, viewDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) irrCache
   put irrCache'
   return $! pixelColour
@@ -240,7 +240,7 @@ rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePix
           !eyePosition = Camera.position camera
           irrCache = initialiseCache (sceneGraph renderContext)
           -- This function is the equivalent to map, but it passes the ending state of one invocation to the next invocation
-          tracePixelPassingState (x:xs) st = seq (result, st') $ result : tracePixelPassingState xs st'
+          tracePixelPassingState (x:xs) st = result : tracePixelPassingState xs st'
               where
                 (!result, !st') = runState (tracePixel renderContext eyePosition photonMap x) st
           tracePixelPassingState [] _ = []

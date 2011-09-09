@@ -231,3 +231,8 @@ component _ _ = error "Invalid component index"
 transformDir :: Direction -> TangentSpace -> Direction
 {-# SPECIALIZE INLINE transformDir :: Direction -> TangentSpace -> Direction #-}
 transformDir !dir !(tangent, binormal, normal) = Vector (dir `dot3` tangent) (dir `dot3` binormal) (dir `dot3` normal) 0
+
+data TestVector = TestVector !Double !Double !Double !Double
+
+sumVec :: TestVector -> TestVector -> TestVector
+sumVec (TestVector x1 y1 z1 w1) (TestVector x2 y2 z2 w2) = TestVector (x1 + x2) (y1 + y2) (z1 + z2) (w1 + w2)
