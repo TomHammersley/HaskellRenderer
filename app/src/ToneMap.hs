@@ -16,15 +16,11 @@ import Colour
 toneMapIdentity :: [Colour] -> [Colour]
 toneMapIdentity = map id
 
--- TODO - Calculate averages and whatnot with a proper tail recursive method
 -- x = x / avg xs
 toneMapAverageLuminance :: [Colour] -> [Colour]
-toneMapAverageLuminance xs = map (* invAverageBrightness) xs
+toneMapAverageLuminance xs = map (<*> invAverageBrightness) xs
     where
-      colourSum = foldr (+) colBlack xs
-      numColours = (fromIntegral . length) xs
-      (Colour avgR avgG avgB _) = colourSum </> numColours
-      invAverageBrightness = Colour (1 / avgR) (1 / avgG) (1 / avgB) 1
+      invAverageBrightness = 1 / imageAverageLuminance xs
 
 -- Reinhard tone map operator http://filmicgames.com/archives/75
 toneMapReinhard :: [Colour] -> [Colour]

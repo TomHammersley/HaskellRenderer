@@ -45,5 +45,4 @@ buildSphereTree _ [] = error "Should not hit this pattern for buildSphereTree"
 buildSceneGraph :: [Object] -> ([Object] -> [[Object]]) -> SceneGraph
 buildSceneGraph objs buildFunction = SceneGraph (buildSphereTree buildFunction nonInfiniteObjs) infiniteObjs (objectListBoundingBox nonInfiniteObjs)
     where
-      -- TODO - surely there is some list partition function I could use here instead?
       (infiniteObjs, nonInfiniteObjs) = partition (infinite . primitive) objs
