@@ -118,4 +118,4 @@ luminance :: Colour -> Double
 luminance (Colour !r !g !b _) = r * 0.3 + g * 0.6 + b * 0.1
 
 logLuminance :: Colour -> Double
-logLuminance = log . (max 1e-5) . luminance
+logLuminance = log . max 1e-5 . luminance

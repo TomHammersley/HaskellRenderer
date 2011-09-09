@@ -18,3 +18,4 @@ core.txt
 crocodile
 dist/*
 dist/setup-config
+hlint-output.txt
