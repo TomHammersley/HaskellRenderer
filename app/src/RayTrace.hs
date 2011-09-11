@@ -2,7 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
 
-module RayTrace (rayTraceImage, findNearestIntersection, findAnyIntersection) where
+module RayTrace (rayTraceImage, findNearestIntersection, findAnyIntersection, GlobalIlluminationFunc) where
 
 import Vector
 import {-# SOURCE #-} Light
@@ -121,10 +121,6 @@ photonMapGlobalIllumination (Just photonMap) !surfaceLocation irrCache obj rende
       irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, irrCacheSampleRadius)
 photonMapGlobalIllumination _ _ irrCache _ _ = (colBlack, irrCache)
 
--- Look up or calculate global illumination at a point in space
-calculateGlobalIllumination :: GlobalIlluminationFunc -> SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache)
-calculateGlobalIllumination f = f
-
 -- Perform a full trace of a ray
 type RayTraceState = State IrradianceCache Colour
 traceRay :: RenderContext -> Maybe PhotonMap -> Ray -> Int -> Direction -> Double -> Double -> RayTraceState
@@ -140,7 +136,7 @@ traceRay renderContext photonMap !ray 1 !viewDir _ _ =
           irrCache <- get
           let !intersectionPoint = pointAlongRay ray intersectionDistance
           let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
-          let (!surfaceIrradiance, newIrrCache) = calculateGlobalIllumination (photonMapGlobalIllumination photonMap) (intersectionPoint, tanSpace) irrCache obj renderContext
+          let !(!surfaceIrradiance, !newIrrCache) = (photonMapGlobalIllumination photonMap) (intersectionPoint, tanSpace) irrCache obj renderContext
           -- TODO - Need to plug irradiance values into surface shading more correctly
           let resultColour = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
           put newIrrCache
@@ -160,7 +156,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
 
           -- Evaluate result from irradiance cache
           irrCache <- get
-          let (!surfaceIrradiance, irrCache') = calculateGlobalIllumination (photonMapGlobalIllumination photonMap) (intersectionPoint, tanSpace) irrCache obj renderContext
+          let !(!surfaceIrradiance, !irrCache') = (photonMapGlobalIllumination photonMap) (intersectionPoint, tanSpace) irrCache obj renderContext
           put irrCache'
 
           let !surfaceShading = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir

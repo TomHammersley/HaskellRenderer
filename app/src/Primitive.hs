@@ -38,6 +38,7 @@ import Matrix
 import BoundingBox
 import Misc
 import Data.Maybe
+import Data.List
 
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 
@@ -216,7 +217,7 @@ triangleListRadius :: Double -> [Triangle] -> Vector -> Double
 triangleListRadius maximumRadius (tri:tris) centre = triangleListRadius (Prelude.max maximumRadius triangleRadius) tris centre
     where
       radii = map (\v -> centre `distance` (vertPosition v)) (vertices tri)
-      triangleRadius = foldr Prelude.max 0 radii
+      triangleRadius = foldl' Prelude.max 0 radii
 triangleListRadius maximumRadius [] _ = maximumRadius
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -237,7 +238,7 @@ triangleListBoundingBox currentBox transformMatrix (tri:tris) = triangleListBoun
     where
       worldSpaceVertices = map (transformVector transformMatrix . vertPosition) (vertices tri)
       (invalidMin, invalidMax) = initialInvalidBox
-      thisTriangleBox = (foldr Vector.min invalidMin worldSpaceVertices, foldr Vector.max invalidMax worldSpaceVertices)
+      thisTriangleBox = (foldl' Vector.min invalidMin worldSpaceVertices, foldl' Vector.max invalidMax worldSpaceVertices)
 triangleListBoundingBox currentBox _ [] = currentBox
 
 objectListBoundingBox :: [Object] -> AABB

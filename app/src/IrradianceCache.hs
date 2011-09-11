@@ -9,6 +9,7 @@ import Colour
 import BoundingBox
 import Octree
 import SceneGraph
+import Data.List
 
 data CacheSample = CacheSample !(Direction, Colour, Double)
 
@@ -30,19 +31,6 @@ errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Double
 {-# SPECIALIZE INLINE errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Double #-}
 errorWeight (!pos', !dir') (!pos, CacheSample (!dir, _, !r)) = 1 / ((pos `distance` pos') / r + sqrt (1 + (dir `dot3` dir')))
 
--- Find samples that make a useful contribution
--- findSamples :: (Position, Direction) -> IrradianceCache -> [(Vector, CacheSample, Double)]
--- findSamples posDir@(!pos, _) (OctTreeNode !box nodeChildren) = if box `contains` pos
---                                                                then concatMap (findSamples posDir) nodeChildren
---                                                                else {- trace ("Box " ++ show box ++ " does not contains pos " ++ show pos ++ "\n") $ -} []
--- findSamples posDir@(!pos, _) (OctTreeLeaf _ (!samplePos, sample))
---     | pos `distanceSq` samplePos <= sampleR * sampleR && weight > 0 = [(samplePos, sample, weight)]
---     | otherwise = []
---     where
---       !weight = errorWeight posDir (samplePos, sample)
---       (CacheSample (_, _, !sampleR)) = sample
--- findSamples _ (OctTreeDummy _) = []
-
 -- This slightly convoluted version is written to be tail recursive. I effectively have to maintain a software stack of the
 -- nodes remaining to be traversed
 findSamplesTR :: (Position, Direction) -> [IrradianceCache] -> [(Vector, CacheSample, Double)] -> [(Vector, CacheSample, Double)]
@@ -59,17 +47,18 @@ findSamplesTR posDir (OctTreeDummy _ : xs) !acc = findSamplesTR posDir xs acc
 findSamplesTR _ [] !acc = acc
 
 -- Sum together a list of samples and error weights
+-- TODO Perhaps directly implemented a tail-recursive version?
 sumSamples :: [(Vector, CacheSample, Double)] -> Colour
 sumSamples !samples = colourSum Colour.</> weightSum
     where
-      !colourSum = foldr (\(_, CacheSample (_, !col, _), !weight) !b -> b + col Colour.<*> weight) colBlack samples
-      !weightSum = foldr (\(_, CacheSample (_, _, _), !weight) !b -> b + weight) 0 samples
+      !colourSum = foldl' (\ !b (_, CacheSample (_, !col, _), !weight) -> b + col Colour.<*> weight) colBlack samples
+      !weightSum = foldl' (\ !b (_, CacheSample (_, _, _), !weight) -> b + weight) 0 samples
 
 -- Query the irradiance given a point
 -- Supplied function supplies the irradiance colour at a surface location along with the radius it is valid for
 query :: IrradianceCache -> SurfaceLocation -> (SurfaceLocation -> (Colour, Double)) -> (Colour, IrradianceCache)
 query irrCache !posTanSpace f = case findSamplesTR (position, normal) [irrCache] [] of
-                                  [] -> {-trace ("Adding new sample to cache:\nPosition: " ++ show (fst posTanSpace) ++ "\n" ++ show sample) $-} (colour, insert (fst posTanSpace) sample irrCache)
+                                  [] -> {-trace ("Adding new sample to cache:\nPosition: " ++ show (fst posTanSpace) ++ "\n" ++ show sample) $-} (colour, Octree.insert (fst posTanSpace) sample irrCache)
                                       where
                                         (!colour, !r) = f posTanSpace
                                         !sample = CacheSample (normal, colour, r)

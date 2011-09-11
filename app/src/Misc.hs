@@ -5,6 +5,7 @@
 module Misc where
 import GHC.Prim
 import GHC.Types
+import Data.List
 
 degreesToRadians :: Double -> Double
 degreesToRadians x = x * pi / 180
@@ -26,5 +27,5 @@ saturate## !x = value
       !(D# !value) = Prelude.max 0 (Prelude.min (D# x) 1)
 
 harmonicMean :: (Num t, Fractional t) => [t] -> t
-harmonicMean (x:xs) = fromIntegral (length (x:xs)) / foldr (\a b -> b + 1 / a) 0 (x:xs)
+harmonicMean (x:xs) = fromIntegral (length (x:xs)) / foldl' (\a b -> b + 1 / a) 0 (x:xs)
 harmonicMean [] = 0

@@ -20,7 +20,7 @@ import Control.Parallel.Strategies
 import Control.DeepSeq
 import Data.Heap hiding (partition)
 import System.Random.Mersenne.Pure64
-import Data.List (partition)
+import Data.List hiding (union, insert)
 import Primitive
 
 type GeneratorState = State PureMT
@@ -157,22 +157,22 @@ buildPhotonMap :: SceneGraph -> [Light] -> Int -> (PhotonMap, [Light])
 buildPhotonMap sceneGraph lights numPhotonsPerLight = photons `seq` kdTree `seq` (PhotonMap photons kdTree, lightsNotForPhotonMap)
     where
       (lightsForPhotonMap, lightsNotForPhotonMap) = partition (addToPhotonMap . common) lights
-      photons = foldr ((++) . tracePhotonsForLight numPhotonsPerLight sceneGraph) [] lightsForPhotonMap
+      photons = concatMap (tracePhotonsForLight numPhotonsPerLight sceneGraph) lightsForPhotonMap
       kdTree = buildKDTree photons
 
 -- Make a bounding box of a list of photons
 photonsBoundingBox :: [Photon] -> AABB
-photonsBoundingBox = foldr (enlargeBoundingBox . fst . posDir) initialInvalidBox
+photonsBoundingBox = foldl' (\box photon -> enlargeBoundingBox (fst . posDir $ photon) box) initialInvalidBox
 
 -- Construct a balanced kd tree of photons
 -- Realistic Image Synthesis Using Photon Mapping p72
 buildKDTree :: [Photon] -> PhotonMapTree
 buildKDTree (x:[]) = PhotonMapLeaf x
-buildKDTree [] = undefined
+buildKDTree [] = error "buildKDTree [] should never get called"
 buildKDTree photons = let (boxMin, boxMax) = photonsBoundingBox photons
                           axis = largestAxis (boxMax - boxMin)
                           numPhotons = fromIntegral (length photons)
-                          photonsMedian = foldr ((+) . fst . posDir) zeroVector photons Vector.</> numPhotons
+                          photonsMedian = foldl' (\box photon -> box + (fst . posDir $ photon)) zeroVector photons Vector.</> numPhotons
                           value = component photonsMedian axis
                           photonsGT = Prelude.filter (\p -> component ((fst . posDir) p) axis > value) photons
                           photonsLE = Prelude.filter (\p -> component ((fst . posDir) p) axis <= value) photons
@@ -187,10 +187,7 @@ data GatheredPhoton = GatheredPhoton Double Photon deriving (Show)
 type PhotonHeap = MaxHeap GatheredPhoton
 
 instance Ord GatheredPhoton where
-    compare (GatheredPhoton dist1 _) (GatheredPhoton dist2 _)
-        | dist1 == dist2 = EQ
-        | dist1 <= dist2 = LT
-        | otherwise = GT
+    compare (GatheredPhoton dist1 _) (GatheredPhoton dist2 _) = dist1 `compare` dist2
 
 instance Eq GatheredPhoton where
     (GatheredPhoton dist1 _) == (GatheredPhoton dist2 _) = dist1 == dist2
@@ -201,9 +198,9 @@ instance NFData GatheredPhoton where
 -- Return the minimum squared search radius from that specified, versus the furthest photon in the heap
 -- We don't want to locate any photons further away than our current furthest - we're looking for the closest ones, after all
 minimalSearchRadius :: Double -> PhotonHeap -> Double
-minimalSearchRadius rSq photonHeap = case viewHead photonHeap of
+minimalSearchRadius !rSq photonHeap = case viewHead photonHeap of
                                        Nothing -> rSq
-                                       Just (GatheredPhoton dSq _) -> Prelude.min rSq dSq
+                                       Just (GatheredPhoton !dSq _) -> Prelude.min rSq dSq
 
 -- Gather photons for irradiance computations
 -- Algorithm adapted from Realistic Image Synthesis Using Photon Mapping p73
@@ -243,12 +240,7 @@ photonContribution kr (pos, (_, _, normal)) photon = power photon Colour.<*> ((V
 -- Find the overall contribution of a list of photons
 -- Radiance estimate algorithm from Realistic Image Synthesis Using Photon Mapping p81
 sumPhotonContribution :: Double -> Double -> SurfaceLocation -> [Photon] -> Colour
-sumPhotonContribution r k posTanSpace photons = foldr ((+) .photonContribution (k * r) posTanSpace) colBlack photons Colour.<*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
-
---instance NFData (HeapT (Prio MaxPolicy GatheredPhoton) ())
-
---instance NFData Heap where
---    rnf Empty = ()
+sumPhotonContribution r k posTanSpace photons = foldl' (\y x -> y + photonContribution (k * r) posTanSpace x) colBlack photons Colour.<*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
 
 -- Look up the resulting irradiance from the photon map at a given point
 -- Realistic Image Synthesis Using Photon Mapping, e7.6
@@ -259,4 +251,4 @@ irradiance photonMap photonMapContext mat posTanSpace = sumPhotonContribution r 
       maxPhotons = maxGatherPhotons photonMapContext
       k = coneFilterK photonMapContext
       photonHeap = gatherPhotons (photonMapTree photonMap) (fst posTanSpace) (r * r) Data.Heap.empty maxPhotons
-      gatheredPhotons = {-photonHeap `deepseq`-} (map (\(GatheredPhoton _ photon) -> photon) (Data.Heap.take maxPhotons photonHeap))
+      gatheredPhotons = map (\(GatheredPhoton _ photon) -> photon) (Data.Heap.take maxPhotons photonHeap)

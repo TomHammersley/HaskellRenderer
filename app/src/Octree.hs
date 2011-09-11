@@ -2,12 +2,13 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
 
-module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList, OctTree(OctTreeNode, OctTreeLeaf, OctTreeDummy), create, insert, gather) where
+module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList, OctTree(OctTreeNode, OctTreeLeaf, OctTreeDummy), create, Octree.insert, gather) where
 
 import Vector
 import Primitive
 import BoundingBox
 import Control.Parallel.Strategies
+import Data.List
 
 data OctTree a = OctTreeDummy AABB
                | OctTreeNode AABB [OctTree a]
