@@ -27,9 +27,10 @@ initialiseCache sceneGraph = OctTreeNode slightlyEnlargedBox $ map OctTreeDummy 
       slightlyEnlargedBox = growBoundingBox (finiteBox sceneGraph) 10
 
 -- Quantify the error if we use a given sample to shade a point
+-- The bigger the number, the better the estimate
 errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Double
 {-# SPECIALIZE INLINE errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Double #-}
-errorWeight (!pos', !dir') (!pos, CacheSample (!dir, _, !r)) = 1 / ((pos `distance` pos') / r + sqrt (1 + (dir `dot3` dir')))
+errorWeight (pos', dir') (pos, CacheSample (dir, _, r)) = 1 / ((pos `distance` pos') / r + sqrt (1 + (dir `sdot3` dir')))
 
 -- This slightly convoluted version is written to be tail recursive. I effectively have to maintain a software stack of the
 -- nodes remaining to be traversed
@@ -38,11 +39,12 @@ findSamplesTR posDir@(!pos, _) (OctTreeNode !box nodeChildren : xs) !acc
     | box `contains` pos = findSamplesTR posDir (nodeChildren ++ xs) acc
     | otherwise = findSamplesTR posDir xs acc
 findSamplesTR posDir@(!pos, _) (OctTreeLeaf _ (!samplePos, sample) : xs) !acc
-    | (pos `distanceSq` samplePos) <= sampleR * sampleR && weight > 0 = findSamplesTR posDir xs ((samplePos, sample, weight) : acc)
+    | (pos `distanceSq` samplePos) <= sampleR * sampleR && weight > minimumWeight = findSamplesTR posDir xs ((samplePos, sample, weight) : acc)
     | otherwise = findSamplesTR posDir xs acc
     where
       !weight = errorWeight posDir (samplePos, sample)
       (CacheSample (_, _, !sampleR)) = sample
+      minimumWeight = 0.1
 findSamplesTR posDir (OctTreeDummy _ : xs) !acc = findSamplesTR posDir xs acc
 findSamplesTR _ [] !acc = acc
 
