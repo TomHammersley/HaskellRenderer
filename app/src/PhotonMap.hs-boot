@@ -11,7 +11,8 @@ import {-# SOURCE #-} Light
 data PhotonMapContext = PhotonMapContext {
       photonGatherDistance :: Double,
       maxGatherPhotons :: Int,
-      coneFilterK :: Double }
+      coneFilterK :: Double,
+      directVisualisation :: Bool }
 
 data Photon = Photon { power :: !Colour,
                        position :: !Position,

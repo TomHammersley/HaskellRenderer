@@ -20,12 +20,14 @@ import Control.Arrow
 data Option
     = ShowIntermediate -- -i
     | PhotonMap -- -p
+    | DirectPhotonMapVisualisation -- -v
       deriving (Eq, Ord, Enum, Show, Bounded)
 
 options :: [OptDescr Option]
 options = [
     Option ['i'] [] (NoArg ShowIntermediate) "Show intermediates",
-    Option ['p'] [] (NoArg PhotonMap) "Photon map"
+    Option ['p'] [] (NoArg PhotonMap) "Photon map",
+    Option ['v'] [] (NoArg DirectPhotonMapVisualisation) "Direct photon map visualisation"
     ]
 
 parsedOptions :: [String] -> [Option]
@@ -89,7 +91,7 @@ main = do
                        maxRayDepth 
                        reflectionDistance 
                        refractionDistance 
-                       (PhotonMapContext photonGatherDistance maxGatherPhotons coneFilterConstant) 
+                       (PhotonMapContext photonGatherDistance maxGatherPhotons coneFilterConstant directPhotonMapVisualisation) 
                        rayOriginDistribution'
                        depthOfFieldFocalDistance'
                        renderMode'
@@ -109,13 +111,18 @@ main = do
          renderMode'
              | PhotonMap `Prelude.elem` opts = PhotonMapper
              | otherwise = RayTrace
+         directPhotonMapVisualisation = DirectPhotonMapVisualisation `Prelude.elem` opts
 
   -- Display hardware capabilities
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
 
   -- Create a photon map, if necessary
   let doPhotonMapping = PhotonMap `Prelude.elem` opts
-  let photonMapMessage = if doPhotonMapping then "Creating photon map..." else "Photon mapping disabled"
+  let photonMapMessage = if doPhotonMapping 
+                         then if DirectPhotonMapVisualisation `Prelude.elem` opts
+                              then "Directly visualising photon map"
+                              else "Creating photon map..." 
+                         else "Photon mapping disabled"
   Prelude.putStrLn photonMapMessage
   let thousand = 1000
   let numPhotons = 200 * thousand

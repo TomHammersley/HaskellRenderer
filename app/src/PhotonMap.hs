@@ -28,7 +28,8 @@ type GeneratorState = State PureMT
 data PhotonMapContext = PhotonMapContext {
       photonGatherDistance :: Double,
       maxGatherPhotons :: Int,
-      coneFilterK :: Double }
+      coneFilterK :: Double,
+      directVisualisation :: Bool }
 
 data Photon = Photon { power :: {-# UNPACK #-} !Colour, posDir :: {-# UNPACK #-} !(Position, Direction) } deriving (Show, Eq, Ord)
 
@@ -251,7 +252,9 @@ irradiance :: PhotonMap -> PhotonMapContext -> Material -> SurfaceLocation -> Co
 irradiance photonMap photonMapContext mat posTanSpace = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
     where
       r = photonGatherDistance photonMapContext
-      maxPhotons = maxGatherPhotons photonMapContext
+      maxPhotons
+          | directVisualisation photonMapContext = 1
+          | otherwise = maxGatherPhotons photonMapContext
       k = coneFilterK photonMapContext
       photonHeap = gatherPhotons (photonMapTree photonMap) (fst posTanSpace) (r * r) Data.Heap.empty maxPhotons
       gatheredPhotons = map (\(GatheredPhoton _ photon) -> photon) (Data.Heap.take maxPhotons photonHeap)
