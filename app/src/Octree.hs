@@ -10,9 +10,9 @@ import BoundingBox
 import Control.Parallel.Strategies
 import Data.List
 
-data OctTree a = OctTreeDummy AABB
-               | OctTreeNode AABB [OctTree a]
-               | OctTreeLeaf AABB (Vector, a) deriving (Eq)
+data OctTree a = OctTreeDummy !AABB
+               | OctTreeNode !AABB [OctTree a]
+               | OctTreeLeaf !AABB (Vector, a) deriving (Eq)
 
 instance Show a => Show (OctTree a) where
     show = display 0
