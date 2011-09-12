@@ -40,37 +40,37 @@ mapS' _ [] !state !acc = (acc, state)
 
 -- Insert into an octree
 insert :: Vector -> a -> OctTree a -> OctTree a
-insert !pos a oct = fst $ insert' pos oct (Just a)
+insert pos a oct = fst $ insert' pos oct (Just a)
 
 insert' :: Vector -> OctTree a -> Maybe a -> (OctTree a, Maybe a)
-insert' !pos oct@(OctTreeDummy !box) !state = case state of
-                                                -- If we have been passed some state then attempt to consume it
-                                                Just !value -> if box `contains` pos
-                                                               then (OctTreeLeaf box (pos, value), Nothing)
-                                                               else (oct, state)
-                                                _ -> (oct, state)
+insert' pos oct@(OctTreeDummy box) state = case state of
+                                             -- If we have been passed some state then attempt to consume it
+                                             Just !value -> if box `contains` pos
+                                                            then (OctTreeLeaf box (pos, value), Nothing)
+                                                            else (oct, state)
+                                             _ -> (oct, state)
 
-insert' !pos oct@(OctTreeNode !box !nodeChildren) !state = if box `contains` pos
-                                                           then let (nodeChildren', state') = mapS (insert' pos) nodeChildren state 
-                                                                in (OctTreeNode box nodeChildren', state')
-                                                           else (oct, state)
+insert' pos oct@(OctTreeNode box nodeChildren) !state = if box `contains` pos
+                                                        then let (nodeChildren', state') = mapS (insert' pos) nodeChildren state 
+                                                             in (OctTreeNode box nodeChildren', state')
+                                                        else (oct, state)
 
-insert' !pos oct@(OctTreeLeaf !box (!pos', !a')) !state = if box `contains` pos 
-                                                          then 
-                                                              -- First up, we turn this leaf into a node with 8 children
-                                                              -- Discard result of mapS - we assume it returns Nothing
-                                                              -- Then, re-insert the original value into our nascent octree
-                                                              let (!newChildren, _) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state
-                                                                  (!octTree', !state') = insert' pos' (OctTreeNode box newChildren) (Just a')
-                                                              in (octTree', state')
-                                                          else (oct, state)
+insert' pos oct@(OctTreeLeaf box (pos', a')) state = if box `contains` pos 
+                                                     then 
+                                                         -- First up, we turn this leaf into a node with 8 children
+                                                         -- Discard result of mapS - we assume it returns Nothing
+                                                         -- Then, re-insert the original value into our nascent octree
+                                                         let (!newChildren, _) = mapS (insert' pos) (map OctTreeDummy (generateOctreeBoxList box)) state
+                                                             (!octTree', !state') = insert' pos' (OctTreeNode box newChildren) (Just a')
+                                                         in (octTree', state')
+                                                     else (oct, state)
 
 -- Gather data within a sphere from an octree
 gather :: Position -> Double -> OctTree a -> [(a, Double)]
-gather !pos !r (OctTreeNode box nodeChildren) = if overlapsSphere box pos r
-                                                then foldr ((++) . gather pos r) [] nodeChildren
-                                                else []
-gather !pos !r (OctTreeLeaf _ (!pos', a))
+gather pos r (OctTreeNode box nodeChildren) = if overlapsSphere box pos r
+                                              then foldr ((++) . gather pos r) [] nodeChildren
+                                              else []
+gather pos r (OctTreeLeaf _ (pos', a))
     | dSq <= r * r = [(a, dSq)]
     | otherwise = []
     where !dSq = pos `distanceSq` pos'
@@ -78,7 +78,7 @@ gather _ _ (OctTreeDummy _) = []
 
 -- Generate a scene graph using an octree. Refactor this to just be an octree later
 generateOctreeBoxList :: AABB -> [AABB]
-generateOctreeBoxList (Vector !xmin !ymin !zmin _, Vector !xmax !ymax !zmax _) =
+generateOctreeBoxList (Vector xmin ymin zmin _, Vector xmax ymax zmax _) =
     [
      (Vector xmin ymin zmin 1, Vector centreX centreY centreZ 1),
      (Vector centreX ymin zmin 1, Vector xmax centreY centreZ 1),
