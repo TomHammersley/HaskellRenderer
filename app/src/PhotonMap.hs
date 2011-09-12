@@ -43,18 +43,21 @@ data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
 instance NFData Photon where
     rnf (Photon power' posDir') = rnf power' `seq` rnf posDir'
 
+seedToRefactor :: Int
+seedToRefactor = 12345
+
 -- Generate a list of photon position and direction tuples to emit
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
 -- Helps parallelisation...
 -- TODO Eliminate magic number seeds from here
 emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
-emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1 12345) [1..numPhotons]
+emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1 seedToRefactor) [1..numPhotons]
     where
       flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
 emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, dir, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
-      randomPoints = generatePointsOnQuad corner du dv numPhotons 12345
-      randomDirs = generatePointsOnSphere numPhotons 1 12345
+      randomPoints = generatePointsOnQuad corner du dv numPhotons seedToRefactor
+      randomDirs = generatePointsOnSphere numPhotons 1 (seedToRefactor * 10)
       area =  Vector.magnitude (du `cross` dv)
       flux = lightPower Colour.<*> (area / fromIntegral numPhotons)
 emitPhotons _ _ = []
