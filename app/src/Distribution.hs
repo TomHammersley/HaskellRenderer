@@ -2,7 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
 
-module Distribution (generatePointsOnSphere, generatePointsOnQuad) where
+module Distribution (generatePointsOnSphere, generatePointsOnQuad, generatePointsOnHemisphere) where
 
 import Vector
 import System.Random.Mersenne.Pure64
@@ -22,7 +22,7 @@ randomUV = do generator <- get
 generateRandomUVs :: Int -> GeneratorState [(Double, Double)]
 generateRandomUVs n = replicateM n randomUV
 
--- Generate a list of random points on a unit sphere
+-- Generate a list of random points on a sphere
 generatePointsOnSphere :: Int -> Double -> Int -> [Position]
 generatePointsOnSphere numPoints r seed = map uvToPosition randomUVs
     where
@@ -34,6 +34,19 @@ generatePointsOnSphere numPoints r seed = map uvToPosition randomUVs
             !w = sqrt (1 - z * z)
             !x = w * cos t
             !y = w * sin t
+
+-- Generate a list of random points on a hemisphere (z > 0)
+generatePointsOnHemisphere :: Int -> Double -> Int -> [Position]
+generatePointsOnHemisphere numPoints r seed = map uvToPosition randomUVs
+    where
+      randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
+      uvToPosition (!u, !v) = Vector (r * x) (r * y) (r * z) 1
+          where
+            !y = 2 * u - 1
+            !t = pi * v
+            !w = sqrt (1 - y * y)
+            !x = w * cos t
+            !z = w * sin t
 
 generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> Int -> [Position]
 generatePointsOnQuad pos deltaU deltaV numPoints seed = map uvToPosition randomUVs
