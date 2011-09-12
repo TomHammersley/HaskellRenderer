@@ -56,15 +56,23 @@ sumSamples !samples = colourSum Colour.</> weightSum
       !colourSum = foldl' (\ !b (_, CacheSample (_, !col, _), !weight) -> b + col Colour.<*> weight) colBlack samples
       !weightSum = foldl' (\ !b (_, CacheSample (_, _, _), !weight) -> b + weight) 0 samples
 
+-- Handy little debug function to easily short-circuit the irradiance cache
+enableIrradianceCache :: Bool
+enableIrradianceCache = True
+
 -- Query the irradiance given a point
 -- Supplied function supplies the irradiance colour at a surface location along with the radius it is valid for
 query :: IrradianceCache -> SurfaceLocation -> (SurfaceLocation -> (Colour, Double)) -> (Colour, IrradianceCache)
-query irrCache !posTanSpace f = case findSamplesTR (position, normal) [irrCache] [] of
-                                  [] -> {-trace ("Adding new sample to cache:\nPosition: " ++ show (fst posTanSpace) ++ "\n" ++ show sample) $-} (colour, Octree.insert (fst posTanSpace) sample irrCache)
-                                      where
-                                        (!colour, !r) = f posTanSpace
-                                        !sample = CacheSample (normal, colour, r)
-                                  list -> {-trace "Using existing cache samples" $-} (sumSamples list, irrCache)
+query irrCache !posTanSpace f = if enableIrradianceCache
+                                then case findSamplesTR (position, normal) [irrCache] [] of
+                                       -- Insert a new cach sample
+                                       [] -> let (!colour, !r) = f posTanSpace 
+                                                 !sample = CacheSample (normal, colour, r)
+                                             in (colour, Octree.insert (fst posTanSpace) sample irrCache)
+                                       -- Re-use existing cache samples
+                                       list -> (sumSamples list, irrCache)
+                                else let (!colour, _) = f posTanSpace 
+                                     in (colour, irrCache)
     where
       !position = fst posTanSpace
       !tanSpace = snd posTanSpace
