@@ -26,11 +26,11 @@ Usage:
 
 Currently there is a default hard-coded scene of the Cornell Box. I build the program with:
 
-./build
+scripts/build
 
 and execute it with:
 
-time ./raytracer +RTS -N -RTS
+time ./crocodile -p +RTS -N -RTS
 
 Cabal also works, of course
 
@@ -38,8 +38,9 @@ This will output a file called test.bmp containing the resulting image. Dependin
 
 Options:
 
--i outputs intermediate renderings for fast debug feedback
+-i outputs intermediate renderings for fast debug feedback (recommended)
 -p enables the photon mapping pass
+-v directly visualises the photon map
 
 Bugs:
 
@@ -48,12 +49,12 @@ There are numerous TODO issues noted in the code.
 
 Future planned work:
 
-* Specular lighting for quad light sources
 * Caustic photon mapping
 * Parsing of scene data files
 * Parallelisation of photon gathering
 * Optimisation! Particularly of photon mapping
 * Extended shader model
+* Alternative GI code paths - e.g. path tracing
 
 Tom Hammersley 12/5/2011
 tomhammersley@gmail.com
