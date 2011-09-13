@@ -55,23 +55,16 @@ sumSamples !samples = colourSum Colour.</> weightSum
       sumSamples' !(!colAcc, !weightAcc) [] = (colAcc, weightAcc)
       !(!colourSum, !weightSum) = sumSamples' (colBlack, 0) samples
 
--- Handy little debug function to easily short-circuit the irradiance cache
-enableIrradianceCache :: Bool
-enableIrradianceCache = True
-
 -- Query the irradiance given a point
 -- Supplied function supplies the irradiance colour at a surface location along with the radius it is valid for
 query :: IrradianceCache -> SurfaceLocation -> (SurfaceLocation -> (Colour, Double)) -> (Colour, IrradianceCache)
-query irrCache !posTanSpace f = if enableIrradianceCache
-                                then case findSamples (position, normal) [irrCache] [] of
-                                       -- Insert a new cache sample
-                                       [] -> let (!colour, !r) = f posTanSpace 
-                                                 !sample = CacheSample (normal, colour, r)
-                                             in (colour, Octree.insert (fst posTanSpace) sample irrCache)
-                                       -- Re-use existing cache samples
-                                       list -> (sumSamples list, irrCache)
-                                else let (!colour, _) = f posTanSpace 
-                                     in (colour, irrCache)
+query irrCache !posTanSpace f = case findSamples (position, normal) [irrCache] [] of
+                                  -- Insert a new cache sample
+                                  [] -> let (!colour, !r) = f posTanSpace 
+                                            !sample = CacheSample (normal, colour, r)
+                                        in (colour, Octree.insert (fst posTanSpace) sample irrCache)
+                                  -- Re-use existing cache samples
+                                  list -> (sumSamples list, irrCache)
     where
       !position = fst posTanSpace
       !tanSpace = snd posTanSpace

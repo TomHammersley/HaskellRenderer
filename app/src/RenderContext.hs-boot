@@ -16,4 +16,5 @@ data RenderContext = RenderContext {
       photonMapContext :: PhotonMapContext,
       rayOriginDistribution :: Double,
       depthOfFieldFocalDistance :: Double,
-      renderMode :: RenderMode }
+      renderMode :: RenderMode,
+      useIrradianceCache :: Bool }

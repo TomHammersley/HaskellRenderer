@@ -23,6 +23,7 @@ data Option
     | PhotonMap -- -p
     | DirectPhotonMapVisualisation -- -v
     | DistributedRayTracing -- d
+    | IrradianceCaching -- c
       deriving (Eq, Ord, Enum, Show, Bounded)
 
 options :: [OptDescr Option]
@@ -30,7 +31,8 @@ options = [
     Option ['i'] [] (NoArg ShowIntermediate) "Show intermediates",
     Option ['p'] [] (NoArg PhotonMap) "Photon map",
     Option ['v'] [] (NoArg DirectPhotonMapVisualisation) "Direct photon map visualisation",
-    Option ['d'] [] (NoArg DistributedRayTracing) "Distributed ray tracing"
+    Option ['d'] [] (NoArg DistributedRayTracing) "Distributed ray tracing",
+    Option ['c'] [] (NoArg IrradianceCaching) "Irradiance caching"
     ]
 
 parsedOptions :: [String] -> [Option]
@@ -96,6 +98,7 @@ main = do
                        rayOriginDistribution'
                        depthOfFieldFocalDistance'
                        renderMode'
+                       enableIrradianceCache
        where
          -- Ray trace constants
          numDistributedSamples = if DistributedRayTracing `Prelude.elem` opts 
@@ -115,6 +118,7 @@ main = do
              | PhotonMap `Prelude.elem` opts = PhotonMapper
              | otherwise = RayTrace
          directPhotonMapVisualisation = DirectPhotonMapVisualisation `Prelude.elem` opts
+         enableIrradianceCache = IrradianceCaching `Prelude.elem` opts
 
   -- Display hardware capabilities
   Prelude.putStrLn $ "Running on " ++ show numCapabilities ++ " cores"
