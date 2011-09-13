@@ -10,7 +10,7 @@ import BoundingBox
 import Octree
 import SceneGraph
 
-data CacheSample = CacheSample !(Direction, Colour, Double)
+data CacheSample = CacheSample {-# UNPACK #-} !(Direction, Colour, Double)
 
 type IrradianceCache = OctTree CacheSample
 

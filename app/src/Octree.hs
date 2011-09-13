@@ -11,7 +11,7 @@ import Control.Parallel.Strategies
 
 data OctTree a = OctTreeDummy !AABB
                | OctTreeNode !AABB [OctTree a]
-               | OctTreeLeaf !AABB (Vector, a) deriving (Eq)
+               | OctTreeLeaf !AABB !(Vector, a) deriving (Eq)
 
 instance Show a => Show (OctTree a) where
     show = display 0
