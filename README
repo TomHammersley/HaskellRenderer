@@ -37,7 +37,7 @@ scripts/build
 
 and execute it with:
 
-time ./crocodile -p -i +RTS -N -RTS
+time ./crocodile -p -i -c +RTS -N -RTS
 
 Cabal also works, of course
 
@@ -49,6 +49,7 @@ Options
 -i outputs intermediate renderings for fast debug feedback (recommended)
 -p enables the photon mapping pass
 -v directly visualises the photon map
+-c enable the irradiance cache
 
 Bugs
 ----
@@ -59,6 +60,7 @@ There are numerous TODO issues noted in the code.
 Future planned work
 -------------------
 
+* Gradients for the irradiance cache
 * Parsing of scene data files
 * Optimisation! Particularly of photon mapping
 * Parallelisation of photon gathering
