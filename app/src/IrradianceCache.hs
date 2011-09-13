@@ -10,7 +10,11 @@ import BoundingBox
 import Octree
 import SceneGraph
 
-data CacheSample = CacheSample {-# UNPACK #-} !(Direction, Colour, Double)
+-- Irradiance gradient using a central-differencing approach
+data IrradianceGradient = CentralDifferenceGradient {-# UNPACK #-} !(Colour, Colour, Colour)
+
+-- Direction of normal, colour, radius
+data CacheSample = CacheSample {-# UNPACK #-} !(Normal, Colour, Double)
 
 type IrradianceCache = OctTree CacheSample
 
