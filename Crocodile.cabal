@@ -55,4 +55,4 @@ Executable crocodile
   
   Hs-Source-Dirs: app/src
   
-  ghc-options: -tmpdir tmp -hidir hi -odir obj -O2 -fext-core -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields -funfolding-keeness-factor=10 -threaded -rtsopts -fwarn-missing-signatures -Wall -feager-blackholing
+  ghc-options: -O2 -fext-core -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields -funfolding-keeness-factor=10 -threaded -rtsopts -fwarn-missing-signatures -Wall -feager-blackholing
