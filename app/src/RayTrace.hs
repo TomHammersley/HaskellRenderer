@@ -121,14 +121,15 @@ photonMapGlobalIllumination (Just photonMap) !surfaceLocation irrCache obj rende
       irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, irrCacheSampleRadius)
 photonMapGlobalIllumination _ _ irrCache _ _ = (colBlack, irrCache)
 
+-- Null GI
 nullGI :: SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache)
 nullGI _ irrCache _ _ = (colBlack, irrCache)
 
--- Retrieve the appropriate GI function
-selectGIFunction :: RenderContext -> Maybe PhotonMap -> GlobalIlluminationFunc
-selectGIFunction renderContext photonMap = case renderMode renderContext of
-                                   PhotonMapper -> photonMapGlobalIllumination photonMap
-                                   _ -> nullGI
+-- Retrieve the appropriate GI function and calculate the GI at a point
+calculateGI :: RenderContext -> Maybe PhotonMap -> GlobalIlluminationFunc
+calculateGI renderContext photonMap = case renderMode renderContext of
+                                        PhotonMapper -> photonMapGlobalIllumination photonMap
+                                        _ -> nullGI
 
 -- Perform a full trace of a ray
 type RayTraceState = State IrradianceCache Colour
@@ -145,7 +146,7 @@ traceRay renderContext photonMap !ray 1 !viewDir _ _ =
           irrCache <- get
           let !intersectionPoint = pointAlongRay ray intersectionDistance
           let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
-          let !(!surfaceIrradiance, !newIrrCache) = selectGIFunction renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
+          let !(!surfaceIrradiance, !newIrrCache) = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           -- TODO - Need to plug irradiance values into surface shading more correctly
           let resultColour = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
           put newIrrCache
@@ -165,7 +166,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
 
           -- Evaluate result from irradiance cache
           irrCache <- get
-          let !(!surfaceIrradiance, !irrCache') = selectGIFunction renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
+          let !(!surfaceIrradiance, !irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           put irrCache'
 
           let !surfaceShading = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
