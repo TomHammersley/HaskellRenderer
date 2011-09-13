@@ -21,13 +21,15 @@ data Option
     = ShowIntermediate -- -i
     | PhotonMap -- -p
     | DirectPhotonMapVisualisation -- -v
+    | DistributedRayTracing -- d
       deriving (Eq, Ord, Enum, Show, Bounded)
 
 options :: [OptDescr Option]
 options = [
     Option ['i'] [] (NoArg ShowIntermediate) "Show intermediates",
     Option ['p'] [] (NoArg PhotonMap) "Photon map",
-    Option ['v'] [] (NoArg DirectPhotonMapVisualisation) "Direct photon map visualisation"
+    Option ['v'] [] (NoArg DirectPhotonMapVisualisation) "Direct photon map visualisation",
+    Option ['d'] [] (NoArg DistributedRayTracing) "Distributed ray tracing"
     ]
 
 parsedOptions :: [String] -> [Option]
@@ -97,7 +99,9 @@ main = do
                        renderMode'
        where
          -- Ray trace constants
-         numDistributedSamples = 64
+         numDistributedSamples = if DistributedRayTracing `Prelude.elem` opts 
+                                 then 64 
+                                 else 1
          maxRayDepth = 5
          reflectionDistance = 1000
          refractionDistance = 1000
