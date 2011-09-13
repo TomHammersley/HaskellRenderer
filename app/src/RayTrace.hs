@@ -106,8 +106,9 @@ lightSurface (x:xs) !acc renderContext !posTanSpace !objMaterial !viewDirection
       in seq result (lightSurface xs result renderContext posTanSpace objMaterial viewDirection)
 lightSurface [] !acc _ _ _ _ = acc
 
+-- Magic number for the usable radius of an irradaiance cache sample
 irrCacheSampleRadius :: Double
-irrCacheSampleRadius = 5
+irrCacheSampleRadius = 10
 
 -- Abstraction to permit different GI calculations
 type GlobalIlluminationFunc = (SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache))
