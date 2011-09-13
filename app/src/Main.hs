@@ -17,6 +17,7 @@ import Light
 import ToneMap
 import Control.Arrow
 
+-- Command line option support
 data Option
     = ShowIntermediate -- -i
     | PhotonMap -- -p
@@ -44,16 +45,13 @@ renderWidth mipLevel = 1280 `shiftR` mipLevel
 renderHeight :: Int -> Int
 renderHeight mipLevel = 720 `shiftR` mipLevel
 
---renderSettings :: RenderContext
-
 -- This returns a list of colours of pixels
 renderImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
 renderImage mipLevel renderSettings photonMap = finalImage
     where
       rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
-      -- TODO - Consider some fusion here?
       exposedImage = exposeImage imageAverageLogLuminance rawImageOutput 4
-      toneMappedImage = toneMapImage {-toneMapReinhard-}toneMapHejlBurgessDawson exposedImage
+      toneMappedImage = toneMapImage toneMapHejlBurgessDawson exposedImage
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
 
 -- In the interest of rapid developer feedback, this functions writes a progressively-increasing image
@@ -64,6 +62,7 @@ writeRaytracedImage [] photonMap renderSettings = do
   let imageData = renderImage 0 renderSettings photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
   let bmp = packRGBA32ToBMP (renderWidth 0) (renderHeight 0) rgba
+  Prelude.putStrLn "Performing final render"
   writeBMP "test.bmp" bmp
 writeRaytracedImage (mipLevel:mipLevels) photonMap renderSettings = do
   let imageData = renderImage mipLevel renderSettings photonMap
