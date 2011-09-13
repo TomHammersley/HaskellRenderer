@@ -1,7 +1,7 @@
 Haskell Ray Tracer and Photon Mapper v0.0
 -----------------------------------------
 
-This is a parallel ray tracer and (not quite yet parallel) photon mapper written in Haskell. 
+This is a parallel ray tracer and partially parallel photon mapper written in Haskell. 
 
 Features:
 
@@ -16,13 +16,20 @@ Fully recursive raytracer with reflection and refraction
 * Gamma correction
 * Tone mapping
 
-Disclaimer:
+Disclaimer
+----------
 
 I am a novice Haskell programmer. This code is not intended to be representative of best-practice Haskell programming.
 
 If you see code that could be improved in terms of style, correctness, clarity, flexibility or efficiency, please, let me know! I'm eager to learn and I'd love to hear the opinion of those far more capable than me.
 
-Usage:
+Why call it "crocodile"?
+------------------------
+
+My two-year old son currently has quite a penchant for crocodiles.
+
+Usage
+-----
 
 Currently there is a default hard-coded scene of the Cornell Box. I build the program with:
 
@@ -30,31 +37,34 @@ scripts/build
 
 and execute it with:
 
-time ./crocodile -p +RTS -N -RTS
+time ./crocodile -p -i +RTS -N -RTS
 
 Cabal also works, of course
 
-This will output a file called test.bmp containing the resulting image. Depending on the number of photons emitted, the photon gathering radius and the maximum number of photons gathered, this could take quite some time. Tune the parameters in Main.hs.
+This will output a file called test.bmp containing the resulting image. Depending on the number of photons emitted, the photon gathering radius and the maximum number of photons gathered, this could take quite some time. You can tune the parameters in Main.hs.
 
-Options:
+Options
+-------
 
 -i outputs intermediate renderings for fast debug feedback (recommended)
 -p enables the photon mapping pass
 -v directly visualises the photon map
 
-Bugs:
+Bugs
+----
 
-The Photon Mapping is largely functional though it currently has some artefacts. Work is ongoing to fix them.
+The Photon Mapping is largely functional though it currently has some minor artefacts. Work is ongoing to fix them.
 There are numerous TODO issues noted in the code.
 
-Future planned work:
+Future planned work
+-------------------
 
-* Caustic photon mapping
 * Parsing of scene data files
-* Parallelisation of photon gathering
 * Optimisation! Particularly of photon mapping
+* Parallelisation of photon gathering
 * Extended shader model
 * Alternative GI code paths - e.g. path tracing
+* Caustic photon mapping
 
 Tom Hammersley 12/5/2011
 tomhammersley@gmail.com
