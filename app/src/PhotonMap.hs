@@ -184,7 +184,7 @@ buildKDTree photons = let (boxMin, boxMax) = photonsBoundingBox photons
                       in if length photonsGT > 0 && length photonsLE > 0
                          then let gtTree = buildKDTree photonsGT
                                   leTree = buildKDTree photonsLE
-                              in gtTree `seq` leTree `seq` (PhotonMapNode axis value gtTree leTree)
+                              in gtTree `seq` leTree `seq` PhotonMapNode axis value gtTree leTree
                          else let (photons0', photons1') = trace "Using degenerate case" $ degenerateSplitList photons in PhotonMapNode axis value (buildKDTree photons0') (buildKDTree photons1')
 
 -- Use a max heap to make it easy to eliminate distant photons
@@ -216,7 +216,7 @@ gatherPhotons (PhotonMapNode axis value gtChild leChild) pos rSq photonHeap maxP
                                                rSq'' = minimalSearchRadius rSq' heap1
                                                heap2 = gatherPhotons leChild pos rSq'' photonHeap maxPhotons
                                                newHeap = union heap1 heap2
-                                           in heap1 `seq` heap2 `seq` newHeap `seq` (Data.Heap.drop (size newHeap - maxPhotons) newHeap)
+                                           in heap1 `seq` heap2 `seq` newHeap `seq` Data.Heap.drop (size newHeap - maxPhotons) newHeap
 
     -- One side of the tree...
     | posComponent > value = gatherPhotons gtChild pos rSq' photonHeap maxPhotons

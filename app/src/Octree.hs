@@ -8,7 +8,6 @@ import Vector
 import Primitive
 import BoundingBox
 import Control.Parallel.Strategies
-import Data.List
 
 data OctTree a = OctTreeDummy !AABB
                | OctTreeNode !AABB [OctTree a]
@@ -68,7 +67,7 @@ insert' pos oct@(OctTreeLeaf box (pos', a')) state = if box `contains` pos
 -- Gather data within a sphere from an octree
 gather :: Position -> Double -> OctTree a -> [(a, Double)]
 gather pos r (OctTreeNode box nodeChildren) = if overlapsSphere box pos r
-                                              then foldr ((++) . gather pos r) [] nodeChildren
+                                              then concatMap (gather pos r) nodeChildren
                                               else []
 gather pos r (OctTreeLeaf _ (pos', a))
     | dSq <= r * r = [(a, dSq)]
