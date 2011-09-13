@@ -9,7 +9,6 @@ import Colour
 import BoundingBox
 import Octree
 import SceneGraph
-import Data.List
 
 data CacheSample = CacheSample !(Direction, Colour, Double)
 
@@ -53,8 +52,9 @@ findSamplesTR _ [] !acc = acc
 sumSamples :: [(Vector, CacheSample, Double)] -> Colour
 sumSamples !samples = colourSum Colour.</> weightSum
     where
-      !colourSum = foldl' (\ !b (_, CacheSample (_, !col, _), !weight) -> b + col Colour.<*> weight) colBlack samples
-      !weightSum = foldl' (\ !b (_, CacheSample (_, _, _), !weight) -> b + weight) 0 samples
+      sumSamples' !(!colAcc, !weightAcc) ((_, CacheSample (_, !col, _), !weight):xs) = sumSamples' (colAcc + col Colour.<*> weight, weightAcc + weight) xs
+      sumSamples' !(!colAcc, !weightAcc) [] = (colAcc, weightAcc)
+      !(!colourSum, !weightSum) = sumSamples' (colBlack, 0) samples
 
 -- Handy little debug function to easily short-circuit the irradiance cache
 enableIrradianceCache :: Bool
