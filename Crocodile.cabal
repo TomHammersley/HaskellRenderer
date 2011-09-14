@@ -10,6 +10,8 @@ Name:                crocodile
 -- standards guiding when and how versions should be incremented.
 Version:             0.1
 
+stability:	     Experimental
+
 -- A short (one-line) description of the package.
 Synopsis:            An offline renderer supporting ray tracing and photon mapping
 
@@ -56,3 +58,7 @@ Executable crocodile
   Hs-Source-Dirs: app/src
   
   ghc-options: -O2 -fext-core -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields -funfolding-keeness-factor=10 -threaded -rtsopts -fwarn-missing-signatures -Wall -feager-blackholing
+
+source-repository head
+  type: git
+  location: git://github.com/TomHammersey/HaskellRenderer.git
