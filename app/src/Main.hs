@@ -138,6 +138,9 @@ main = do
                               buildPhotonMap (sceneGraph renderSettings) cornellBoxLights numPhotons
           | otherwise = (Nothing, map notInPhotonMap (lights renderSettings))
 
+  -- Display message about irradiance cache
+  Prelude.putStrLn (if useIrradianceCache renderSettings then "Irradiance caching enabled" else "Irrradiance caching disabled")
+
   -- Render the image
   let renderSettings' = renderSettings { lights = lights' }
   let maxMipLevel = 8
