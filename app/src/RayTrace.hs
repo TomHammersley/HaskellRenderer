@@ -117,7 +117,9 @@ type GlobalIlluminationFunc = (SurfaceLocation -> IrradianceCache -> Object -> R
 photonMapGlobalIllumination :: Maybe PhotonMap -> SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache)
 photonMapGlobalIllumination (Just photonMap) !surfaceLocation irrCache obj renderContext = 
     case renderMode renderContext of
-      PhotonMapper -> query irrCache surfaceLocation irradiance'
+      PhotonMapper -> if useIrradianceCache renderContext
+                      then query irrCache surfaceLocation irradiance'
+                      else (irradiance photonMap (photonMapContext renderContext) (material obj) surfaceLocation, irrCache)
       _ -> undefined -- Shouldn't hit this path...
     where
       irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, irrCacheSampleRadius)
