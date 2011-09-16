@@ -8,7 +8,7 @@ Name:                crocodile
 -- The package version. See the Haskell package versioning policy
 -- (http://www.haskell.org/haskellwiki/Package_versioning_policy) for
 -- standards guiding when and how versions should be incremented.
-Version:             0.1
+Version:             0.1.1
 
 stability:	     Experimental
 
@@ -57,7 +57,7 @@ Executable crocodile
   
   Hs-Source-Dirs: app/src
   
-  ghc-options: -O2 -fext-core -fexcess-precision -funfolding-use-threshold=16 -funbox-strict-fields -funfolding-keeness-factor=10 -threaded -rtsopts -fwarn-missing-signatures -Wall -feager-blackholing
+  ghc-options: -O2 -fexcess-precision -funbox-strict-fields -threaded -rtsopts -fwarn-missing-signatures -Wall -O2 -fspec-constr -fliberate-case -fstatic-argument-transformation
 
 source-repository head
   type: git
