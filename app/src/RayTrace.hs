@@ -102,13 +102,14 @@ defaultColour _ = colBlue
 -- Accumulate the contributions of the lights
 lightSurface :: [Light] -> Colour -> RenderContext -> SurfaceLocation -> Material -> Vector -> Colour
 lightSurface (x:xs) !acc renderContext !posTanSpace !objMaterial !viewDirection 
-    = let result = acc + applyLight (sceneGraph renderContext) posTanSpace objMaterial viewDirection x
+    = let result = acc + emissive + applyLight (sceneGraph renderContext) posTanSpace objMaterial viewDirection x
+          emissive = emission objMaterial
       in seq result (lightSurface xs result renderContext posTanSpace objMaterial viewDirection)
 lightSurface [] !acc _ _ _ _ = acc
 
 -- Magic number for the usable radius of an irradaiance cache sample
-irrCacheSampleRadius :: Double
-irrCacheSampleRadius = 10
+--irrCacheSampleRadius :: Double
+--irrCacheSampleRadius = 10
 
 -- Abstraction to permit different GI calculations
 type GlobalIlluminationFunc = (SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache))
@@ -119,10 +120,10 @@ photonMapGlobalIllumination (Just photonMap) !surfaceLocation irrCache obj rende
     case renderMode renderContext of
       PhotonMapper -> if useIrradianceCache renderContext
                       then query irrCache surfaceLocation irradiance'
-                      else (irradiance photonMap (photonMapContext renderContext) (material obj) surfaceLocation, irrCache)
+                      else (fst $ irradiance photonMap (photonMapContext renderContext) (material obj) surfaceLocation, irrCache)
       _ -> undefined -- Shouldn't hit this path...
     where
-      irradiance' x = (irradiance photonMap (photonMapContext renderContext) (material obj) x, irrCacheSampleRadius)
+      irradiance' x = irradiance photonMap (photonMapContext renderContext) (material obj) x
 photonMapGlobalIllumination _ _ irrCache _ _ = (colBlack, irrCache)
 
 -- Null GI

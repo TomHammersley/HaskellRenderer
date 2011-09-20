@@ -249,8 +249,8 @@ sumPhotonContribution r k posTanSpace photons = foldl' (\y x -> y + photonContri
 
 -- Look up the resulting irradiance from the photon map at a given point
 -- Realistic Image Synthesis Using Photon Mapping, e7.6
-irradiance :: PhotonMap -> PhotonMapContext -> Material -> SurfaceLocation -> Colour
-irradiance photonMap photonMapContext mat posTanSpace = sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat
+irradiance :: PhotonMap -> PhotonMapContext -> Material -> SurfaceLocation -> (Colour, Double)
+irradiance photonMap photonMapContext mat posTanSpace = (sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat, harmonicMean $ map (\(GatheredPhoton dist _) -> sqrt dist) nearestPhotons)
     where
       r = photonGatherDistance photonMapContext
       maxPhotons
@@ -258,4 +258,5 @@ irradiance photonMap photonMapContext mat posTanSpace = sumPhotonContribution r 
           | otherwise = maxGatherPhotons photonMapContext
       k = coneFilterK photonMapContext
       photonHeap = gatherPhotons (photonMapTree photonMap) (fst posTanSpace) (r * r) Data.Heap.empty maxPhotons
-      gatheredPhotons = map (\(GatheredPhoton _ photon) -> photon) (Data.Heap.take maxPhotons photonHeap)
+      nearestPhotons = Data.Heap.take maxPhotons photonHeap
+      gatheredPhotons = map (\(GatheredPhoton _ photon) -> photon) nearestPhotons

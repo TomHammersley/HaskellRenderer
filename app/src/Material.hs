@@ -8,6 +8,7 @@ import Shader
 data Material = Material { ambient :: {-# UNPACK #-} !Colour, 
                            diffuse :: {-# UNPACK #-} !Colour, 
                            specular :: {-# UNPACK #-} !Colour, 
+                           emission :: {-# UNPACK #-} !Colour, 
                            specularPower :: {-# UNPACK #-} !Double,
                            reflectivity :: {-# UNPACK #-} !Double,
                            transmit :: {-# UNPACK #-} !Double,
