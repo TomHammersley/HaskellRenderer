@@ -71,6 +71,9 @@ colWhite = Colour 1 1 1 1
 colBlack :: Colour
 colBlack = Colour 0 0 0 1
 
+colZero :: Colour
+colZero = Colour 0 0 0 0
+
 colGrey :: Colour
 colGrey = Colour 0.5 0.5 0.5 1
 
