@@ -24,7 +24,9 @@ generateRandomUVs n = replicateM n randomUV
 
 -- Generate a list of random points on a sphere
 generatePointsOnSphere :: Int -> Double -> Int -> [Position]
-generatePointsOnSphere numPoints r seed = map uvToPosition randomUVs
+generatePointsOnSphere numPoints r seed 
+    | numPoints <= 1 = [Vector 0 0 0 1]
+    | otherwise = map uvToPosition randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
       uvToPosition (!u, !v) = Vector (r * x) (r * y) (r * z) 1
@@ -37,7 +39,9 @@ generatePointsOnSphere numPoints r seed = map uvToPosition randomUVs
 
 -- Generate a list of random points on a hemisphere (z > 0)
 generatePointsOnHemisphere :: Int -> Double -> Int -> [Position]
-generatePointsOnHemisphere numPoints r seed = map uvToPosition randomUVs
+generatePointsOnHemisphere numPoints r seed
+    | numPoints <= 1 = [Vector 0 0 0 1]
+    | otherwise = map uvToPosition randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
       uvToPosition (!u, !v) = Vector (r * x) (r * y) (r * z) 1
@@ -49,7 +53,9 @@ generatePointsOnHemisphere numPoints r seed = map uvToPosition randomUVs
             !z = w * sin t
 
 generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> Int -> [Position]
-generatePointsOnQuad pos deltaU deltaV numPoints seed = map uvToPosition randomUVs
+generatePointsOnQuad pos deltaU deltaV numPoints seed 
+    | numPoints <= 1 = [Vector 0 0 0 1]
+    | otherwise = map uvToPosition randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
       uvToPosition (u, v) = pos + (deltaU <*> u) + (deltaV <*> v)
