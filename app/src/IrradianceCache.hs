@@ -33,7 +33,11 @@ initialiseCache sceneGraph = OctTreeNode slightlyEnlargedBox $ map OctTreeDummy 
 -- The bigger the number, the better the estimate
 errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Double
 {-# SPECIALIZE INLINE errorWeight :: (Position, Direction) -> (Position, CacheSample) -> Double #-}
-errorWeight (pos', dir') (pos, CacheSample (dir, _, r)) = 1 / ((pos `distance` pos') / r + sqrt (1 + (dir `sdot3` dir')))
+errorWeight (pos', dir') (pos, CacheSample (dir, _, r)) 
+    | dot <= 0 = 0
+    | otherwise = 1 / ((pos `distance` pos') / r + sqrt (1 + dot))
+    where
+      !dot = dir `dot3` dir'
 
 -- This slightly convoluted version is written to be tail recursive. I effectively have to maintain a software stack of the
 -- nodes remaining to be traversed
@@ -47,7 +51,7 @@ findSamples posDir@(pos, _) (OctTreeLeaf _ (samplePos, sample) : xs) !acc
     where
       !weight = errorWeight posDir (samplePos, sample)
       (CacheSample (_, _, !sampleR)) = sample
-      minimumWeight = 0.4 -- This is approximately the lower bound of the weight at the radius of the sample
+      minimumWeight = 1.5 -- The bigger this weight, the less it will reuse samples and the higher the quality
 findSamples posDir (OctTreeDummy _ : xs) !acc = findSamples posDir xs acc
 findSamples _ [] !acc = acc
 
