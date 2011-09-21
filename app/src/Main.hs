@@ -51,7 +51,8 @@ renderHeight mipLevel = 720 `shiftR` mipLevel
 renderImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
 renderImage mipLevel renderSettings photonMap = finalImage
     where
-      rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
+      rawImageOutput = pathTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel)
+--      rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
       exposedImage = exposeImage imageAverageLogLuminance rawImageOutput 4
       toneMappedImage = toneMapImage toneMapHejlBurgessDawson exposedImage
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
