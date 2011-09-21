@@ -1,8 +1,11 @@
 -- Module for generating sample patterns for distributed ray tracing
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 
-module Distribution (generatePointsOnSphere, generatePointsOnQuad, generatePointsOnHemisphere) where
+module Distribution (generatePointsOnSphere, 
+                     generatePointsOnQuad, 
+                     generatePointsOnHemisphere,
+                     generatePointOnHemisphere,
+                     generateRandomUVs) where
 
 import Vector
 import System.Random.Mersenne.Pure64
@@ -22,40 +25,40 @@ randomUV = do generator <- get
 generateRandomUVs :: Int -> GeneratorState [(Double, Double)]
 generateRandomUVs n = replicateM n randomUV
 
+uvToPosition :: Double -> (Double, Double) -> Position
+uvToPosition r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
+    where
+      !z = 2 * u - 1
+      !t = 2 * pi * v
+      !w = sqrt (1 - z * z)
+      !x = w * cos t
+      !y = w * sin t
+
 -- Generate a list of random points on a sphere
 generatePointsOnSphere :: Int -> Double -> Int -> [Position]
 generatePointsOnSphere numPoints r seed 
     | numPoints <= 1 = [Vector 0 0 0 1]
-    | otherwise = map uvToPosition randomUVs
+    | otherwise = map (uvToPosition r) randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
-      uvToPosition (!u, !v) = Vector (r * x) (r * y) (r * z) 1
-          where
-            !z = 2 * u - 1
-            !t = 2 * pi * v
-            !w = sqrt (1 - z * z)
-            !x = w * cos t
-            !y = w * sin t
 
 -- Generate a list of random points on a hemisphere (z > 0)
 generatePointsOnHemisphere :: Int -> Double -> Int -> [Position]
 generatePointsOnHemisphere numPoints r seed
     | numPoints <= 1 = [Vector 0 0 0 1]
-    | otherwise = map uvToPosition randomUVs
+    | otherwise = map (uvToPosition r) randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
-      uvToPosition (!u, !v) = Vector (r * x) (r * y) (r * z) 1
-          where
-            !y = 2 * u - 1
-            !t = pi * v
-            !w = sqrt (1 - y * y)
-            !x = w * cos t
-            !z = w * sin t
 
 generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> Int -> [Position]
 generatePointsOnQuad pos deltaU deltaV numPoints seed 
     | numPoints <= 1 = [Vector 0 0 0 1]
-    | otherwise = map uvToPosition randomUVs
+    | otherwise = map (\(u, v) -> pos + (deltaU <*> u) + (deltaV <*> v)) randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
-      uvToPosition (u, v) = pos + (deltaU <*> u) + (deltaV <*> v)
+
+-- Generate a single random point on a hemisphere
+generatePointOnHemisphere :: PureMT -> Double -> (Position, PureMT)
+generatePointOnHemisphere rndGen r  = (uvToPosition r uv, rndGen')
+    where
+      (uv, rndGen') = runState randomUV rndGen
