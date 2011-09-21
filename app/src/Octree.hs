@@ -7,7 +7,7 @@ module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList, OctTree(OctT
 import Vector
 import Primitive
 import BoundingBox
-import Control.Parallel.Strategies
+import Misc
 
 data OctTree a = OctTreeDummy !AABB
                | OctTreeNode !AABB [OctTree a]
@@ -26,16 +26,6 @@ display level (OctTreeLeaf box (pos, value)) = take level tabs ++ "[Leaf] box=" 
 
 create :: AABB -> OctTree a
 create box = OctTreeNode box $ map OctTreeDummy (generateOctreeBoxList box)
-
--- This performs a map, and passes through the state of the completed operation to the next recursion
--- Couldn't work out the equivalent using the state monad etc
-mapS :: (a -> s -> (b, s)) -> [a] -> s -> ([b], s)
-mapS f xs state = mapS' f xs state []
-
-mapS' :: (a -> s -> (b, s)) -> [a] -> s -> [b] -> ([b], s)
-mapS' !f !(x:xs) !state !acc = seq (result, state') $ mapS' f xs state' (result : acc)
-    where (!result, !state') = f x state `using` rseq
-mapS' _ [] !state !acc = (acc, state)
 
 -- Insert into an octree
 insert :: Vector -> a -> OctTree a -> OctTree a
