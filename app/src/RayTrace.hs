@@ -2,7 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
 
-module RayTrace (rayTraceImage, findNearestIntersection, findAnyIntersection, GlobalIlluminationFunc) where
+module RayTrace (rayTraceImage, pathTraceImage, findNearestIntersection, findAnyIntersection, GlobalIlluminationFunc) where
 
 import Vector
 import {-# SOURCE #-} Light
@@ -20,6 +20,9 @@ import {-# SOURCE #-} PhotonMap (PhotonMap, irradiance)
 import IrradianceCache
 import Control.Monad.State
 import RenderContext
+import System.Random.Mersenne.Pure64
+import Debug.Trace
+import Data.List
 
 -- Intersect a ray against a sphere tree
 intersectSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Double, Int) -> Maybe (Object, Double, Int)
@@ -106,10 +109,6 @@ lightSurface (x:xs) !acc renderContext !posTanSpace !objMaterial !viewDirection
           emissive = emission objMaterial
       in seq result (lightSurface xs result renderContext posTanSpace objMaterial viewDirection)
 lightSurface [] !acc _ _ _ _ = acc
-
--- Magic number for the usable radius of an irradaiance cache sample
---irrCacheSampleRadius :: Double
---irrCacheSampleRadius = 10
 
 -- Abstraction to permit different GI calculations
 type GlobalIlluminationFunc = (SurfaceLocation -> IrradianceCache -> Object -> RenderContext -> (Colour, IrradianceCache))
@@ -204,26 +203,12 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
               where
                 enteringObject !incoming !normal = incoming `dot3` normal > 0
 
--- This function converts a pixel co-ordinate to a direction of the ray
-makeRayDirection :: Int -> Int -> Camera -> (Int, Int) -> Vector
-makeRayDirection !renderWidth !renderHeight !camera (x, y) =
-    let x' = (fromIntegral x / fromIntegral renderWidth) * 2.0 - 1.0
-        y' = (fromIntegral y / fromIntegral renderHeight) * 2.0 - 1.0
-        fov = 0.5 * fieldOfView camera
-        fovX = tan (degreesToRadians fov)
-        fovY = -tan (degreesToRadians fov)
-        aspectRatio = fromIntegral renderWidth / fromIntegral renderHeight
-        !dirX = fovX * x'
-        !dirY = fovY * (-y') / aspectRatio
-        rayDir = normalise (Vector dirX dirY 1 0)
-    in normalise $ transformVector (worldToCamera camera) rayDir
-
 -- Trace a list of distributed samples with tail recursion
 traceDistributedSample :: RenderContext -> Colour -> [Position] -> Maybe PhotonMap -> (Position, Direction) -> Double -> RayTraceState
 traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWeighting = 
     do
       irrCache <- get
-      let !dofFocalDistance = depthOfFieldFocalDistance renderContext
+      let dofFocalDistance = depthOfFieldFocalDistance renderContext
       let jitteredRayPosition jitter = fst eyeViewDir + jitter
       let jitteredRayDirection jitter = normalise $ madd jitter (snd eyeViewDir) dofFocalDistance
       let (sampleColour, irrCache') = runState (traceRay renderContext photonMap (rayWithDirection (jitteredRayPosition x) (jitteredRayDirection x) 100000.0) (maximumRayDepth renderContext) (snd eyeViewDir) 1 1) irrCache
@@ -237,21 +222,115 @@ traceDistributedSample _ !acc [] _ _ _ = return $! acc
 -- Need to remove hard coded constants of 8 here
 -- This traces for a given pixel (x, y)
 tracePixel :: RenderContext -> Position -> Maybe PhotonMap -> Direction -> RayTraceState
-tracePixel renderContext !eye photonMap !viewDirection = do
+tracePixel renderContext eye photonMap viewDirection = do
   irrCache <- get
-  let !distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) 12345
-  let (!pixelColour, irrCache') = runState (traceDistributedSample renderContext colBlack distributedPositions photonMap (eye, viewDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) irrCache
+  let distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) 12345
+  let (pixelColour, irrCache') = runState (traceDistributedSample renderContext colBlack distributedPositions photonMap (eye, viewDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) irrCache
   put irrCache'
   return $! pixelColour
+
+-- This function converts a pixel co-ordinate to a direction of the ray
+makeRayDirection :: Int -> Int -> Camera -> (Double, Double) -> Vector
+makeRayDirection !renderWidth !renderHeight camera (x, y) =
+    let !x' = (x / fromIntegral renderWidth) * 2.0 - 1.0
+        !y' = (y / fromIntegral renderHeight) * 2.0 - 1.0
+        !fov = 0.5 * fieldOfView camera
+        !fovX = tan (degreesToRadians fov)
+        !fovY = -tan (degreesToRadians fov)
+        !aspectRatio = fromIntegral renderWidth / fromIntegral renderHeight
+        !dirX = fovX * x'
+        !dirY = fovY * (-y') / aspectRatio
+        !rayDir = normalise (Vector dirX dirY 1 0)
+    in normalise $ transformVector (worldToCamera camera) rayDir
 
 -- Generate a list of colours which contains a raytraced image. In parallel
 rayTraceImage :: RenderContext -> Camera -> Int -> Int -> Maybe PhotonMap -> [Colour]
 rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePixelPassingState rayDirections irrCache `using` parListChunk 256 rdeepseq
-    where !rayDirections = [makeRayDirection renderWidth renderHeight camera (x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
-          !eyePosition = Camera.position camera
+    where rayDirections = [makeRayDirection renderWidth renderHeight camera (fromIntegral x, fromIntegral y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
+          eyePosition = Camera.position camera
           irrCache = initialiseCache (sceneGraph renderContext)
           -- This function is the equivalent to map, but it passes the ending state of one invocation to the next invocation
-          tracePixelPassingState (x:xs) st = result : tracePixelPassingState xs st'
+          tracePixelPassingState !(x:xs) !st = result : tracePixelPassingState xs st'
               where
                 (!result, !st') = runState (tracePixel renderContext eyePosition photonMap x) st
+          tracePixelPassingState [] _ = []
+
+type PathTraceState = State PureMT Colour
+pathTrace :: RenderContext -> Ray -> Int -> Direction -> Double -> Colour -> PathTraceState
+
+-- General case
+pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
+    case findNearestIntersection (sceneGraph renderContext) ray of
+        Nothing -> return $! colBlack
+        Just (obj, intersectionDistance, hitId) -> do
+          -- Evaluate surface-location specific things such as shader results
+          let !intersectionPoint = pointAlongRay ray intersectionDistance
+          let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
+          let !normal = thr tanSpace
+          --let !incoming = Vector.negate $ direction ray
+          -- TODO - Need to plug irradiance values into surface shading more correctly
+
+          -- Randomly decide the fate at this intersection
+          gen <- get
+          let (p, gen') = randomDouble gen
+          put gen'
+
+          -- Thunk for emitted light
+          let emittedLight = (emission . material) obj
+
+          -- Thunk for reflected light 
+          let (randomDir, gen'') = generatePointOnHemisphere gen' 1
+          put gen''
+
+          -- Compute radiance at this point
+          let radiance = lightSurface (lights renderContext) colBlack renderContext (intersectionPoint, tanSpace) (material obj) viewDir
+
+          -- Set up expression for reflected light
+          let reflectedDir = transformDir randomDir tanSpace
+          let ray' = rayWithDirection intersectionPoint reflectedDir 10000 -- TODO Fix this magic number
+          let weight' = (diffuse . material) obj * weight Colour.<*> (normal `sdot3` reflectedDir)
+          let (tracedPathColour, gen''') = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
+          let reflectedLight = tracedPathColour * weight
+          put gen'''
+
+          -- Doubling is because we divide by probability, 0.5
+          let maxBounces = 50
+          let result = if (p < 0.5 && depth > 5) || depth >= maxBounces -- Keep it bouncing for a while at least...
+                       then (emittedLight + radiance) Colour.<*> 2
+                       else (emittedLight + radiance + reflectedLight) Colour.<*> 2
+
+          return $! result
+
+-- Path-trace a sub-sample
+pathTracePixelSample :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> PathTraceState
+pathTracePixelSample renderContext camera xy (width, height) uv = pathTrace renderContext ray 0 rayDirection 1 1
+    where
+      jitteredX = (fromIntegral . fst) xy + fst uv
+      jitteredY = (fromIntegral . snd) xy + snd uv
+      rayDirection = makeRayDirection width height camera (jitteredX, jitteredY)
+      ray = rayWithDirection (Camera.position camera) rayDirection (farClip camera)
+
+-- Path-trace a pixel. Do stratified sub-sampling
+pathTracePixel :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> PathTraceState
+pathTracePixel renderContext camera pixelCoords renderTargetSize =
+    do
+      gen <- get
+      let numPathTraceSamples = 10
+      let weight = 1 / fromIntegral numPathTraceSamples
+      let (offsetUVs, gen') = runState (generateRandomUVs numPathTraceSamples) gen
+      let (pixelSamples, gen'') = stateMap offsetUVs gen' (pathTracePixelSample renderContext camera pixelCoords renderTargetSize)
+      put gen''
+      return $! foldl' (\x y -> x Colour.<*> weight + y) colBlack pixelSamples
+
+-- Currently separate codepath... unify later
+pathTraceImage :: RenderContext -> Camera -> Int -> Int -> [Colour]
+pathTraceImage renderContext camera renderWidth renderHeight = tracePixelPassingState pixelCoordinates gen `using` parListChunk 256 rdeepseq
+    where pixelCoordinates = [(x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
+          -- Sort out this 12345 magic number!
+          gen = pureMT 12345
+          -- This function is the equivalent to map, but it passes the ending state of one invocation to the next invocation
+          -- not using the mapState
+          tracePixelPassingState !(x:xs) !st = result : tracePixelPassingState xs st'
+              where
+                (!result, !st') = runState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) st
           tracePixelPassingState [] _ = []

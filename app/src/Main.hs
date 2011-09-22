@@ -53,7 +53,7 @@ renderImage mipLevel renderSettings photonMap = finalImage
     where
       rawImageOutput = pathTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel)
 --      rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
-      exposedImage = exposeImage imageAverageLogLuminance rawImageOutput 4
+      exposedImage = exposeImage imageAverageLuminance rawImageOutput 4
       toneMappedImage = toneMapImage toneMapHejlBurgessDawson exposedImage
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
 

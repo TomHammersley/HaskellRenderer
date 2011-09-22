@@ -25,11 +25,20 @@ randomUV = do generator <- get
 generateRandomUVs :: Int -> GeneratorState [(Double, Double)]
 generateRandomUVs n = replicateM n randomUV
 
-uvToPosition :: Double -> (Double, Double) -> Position
-uvToPosition r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
+uvToSphere :: Double -> (Double, Double) -> Position
+uvToSphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
     where
       !z = 2 * u - 1
       !t = 2 * pi * v
+      !w = sqrt (1 - z * z)
+      !x = w * cos t
+      !y = w * sin t
+
+uvToHemisphere :: Double -> (Double, Double) -> Position
+uvToHemisphere r (!u, !v) = Vector (r * x) (r * z) (r * y) 1
+    where
+      !z = 2 * u - 1
+      !t = pi * v
       !w = sqrt (1 - z * z)
       !x = w * cos t
       !y = w * sin t
@@ -38,7 +47,7 @@ uvToPosition r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
 generatePointsOnSphere :: Int -> Double -> Int -> [Position]
 generatePointsOnSphere numPoints r seed 
     | numPoints <= 1 = [Vector 0 0 0 1]
-    | otherwise = map (uvToPosition r) randomUVs
+    | otherwise = map (uvToSphere r) randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
 
@@ -46,7 +55,7 @@ generatePointsOnSphere numPoints r seed
 generatePointsOnHemisphere :: Int -> Double -> Int -> [Position]
 generatePointsOnHemisphere numPoints r seed
     | numPoints <= 1 = [Vector 0 0 0 1]
-    | otherwise = map (uvToPosition r) randomUVs
+    | otherwise = map (uvToSphere r) randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
 
@@ -59,6 +68,6 @@ generatePointsOnQuad pos deltaU deltaV numPoints seed
 
 -- Generate a single random point on a hemisphere
 generatePointOnHemisphere :: PureMT -> Double -> (Position, PureMT)
-generatePointOnHemisphere rndGen r  = (uvToPosition r uv, rndGen')
+generatePointOnHemisphere rndGen r  = (uvToHemisphere r uv, rndGen')
     where
       (uv, rndGen') = runState randomUV rndGen

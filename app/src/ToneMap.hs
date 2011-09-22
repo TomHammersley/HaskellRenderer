@@ -11,6 +11,7 @@ module ToneMap(toneMapImage,
                imageAverageLuminance) where
 
 import Colour
+import Debug.Trace
 
 -- x = x
 toneMapIdentity :: [Colour] -> [Colour]
