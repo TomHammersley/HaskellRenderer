@@ -24,6 +24,7 @@ data Option
     | DirectPhotonMapVisualisation -- -v
     | DistributedRayTracing -- d
     | IrradianceCaching -- c
+    | PathTrace -- P
       deriving (Eq, Ord, Enum, Show, Bounded)
 
 options :: [OptDescr Option]
@@ -32,7 +33,8 @@ options = [
     Option ['p'] [] (NoArg PhotonMap) "Photon map",
     Option ['v'] [] (NoArg DirectPhotonMapVisualisation) "Direct photon map visualisation",
     Option ['d'] [] (NoArg DistributedRayTracing) "Distributed ray tracing",
-    Option ['c'] [] (NoArg IrradianceCaching) "Irradiance caching"
+    Option ['c'] [] (NoArg IrradianceCaching) "Irradiance caching",
+    Option ['P'] [] (NoArg PathTrace) "Path tracing"
     ]
 
 parsedOptions :: [String] -> [Option]
@@ -51,8 +53,9 @@ renderHeight mipLevel = 720 `shiftR` mipLevel
 renderImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
 renderImage mipLevel renderSettings photonMap = finalImage
     where
-      rawImageOutput = pathTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel)
---      rawImageOutput = rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
+      rawImageOutput = case renderMode renderSettings of
+                         PathTracer -> pathTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel)
+                         _ -> rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
       exposedImage = exposeImage imageAverageLuminance rawImageOutput 4
       toneMappedImage = toneMapImage toneMapHejlBurgessDawson exposedImage
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
@@ -117,6 +120,7 @@ main = do
          depthOfFieldFocalDistance' = 400
          renderMode'
              | PhotonMap `Prelude.elem` opts = PhotonMapper
+             | PathTrace `Prelude.elem` opts = PathTracer
              | otherwise = RayTrace
          directPhotonMapVisualisation = DirectPhotonMapVisualisation `Prelude.elem` opts
          enableIrradianceCache = IrradianceCaching `Prelude.elem` opts
@@ -141,6 +145,9 @@ main = do
 
   -- Display message about irradiance cache
   Prelude.putStrLn (if useIrradianceCache renderSettings then "Irradiance caching enabled" else "Irrradiance caching disabled")
+
+  -- Display message about path tracing
+  Prelude.putStrLn (if PathTrace `Prelude.elem` opts then "Path tracer enabled" else "Path tracer disabled")
 
   -- Render the image
   let renderSettings' = renderSettings { lights = lights' }
