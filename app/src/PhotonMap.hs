@@ -40,8 +40,6 @@ data PhotonMapTree = PhotonMapNode {-# UNPACK #-} !Int {-# UNPACK #-} !Double Ph
 data PhotonMap = PhotonMap { photonList :: [Photon],
                              photonMapTree :: PhotonMapTree } deriving(Show, Eq)
 
-data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
-
 instance NFData Photon where
     rnf (Photon power' posDir') = rnf power' `seq` rnf posDir'
 
@@ -67,7 +65,7 @@ emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhot
 emitPhotons _ _ = []
 
 -- Decide what to do with a photon
-choosePhotonFate :: (Double, Double) -> GeneratorState PhotonChoice
+choosePhotonFate :: (Double, Double) -> GeneratorState RussianRouletteChoice
 choosePhotonFate (diffuseP, specularP) = do
   generator <- get
   let (p, generator') = randomDouble generator
@@ -78,7 +76,7 @@ choosePhotonFate (diffuseP, specularP) = do
   return $! result
 
 -- Compute new power for a photon
-computeNewPhotonPower :: PhotonChoice -> (Double, Double) -> Colour -> Material -> Colour
+computeNewPhotonPower :: RussianRouletteChoice -> (Double, Double) -> Colour -> Material -> Colour
 computeNewPhotonPower fate (diffuseP, specularP) photonPower mat = case fate of
                                                                      DiffuseReflect -> photonPower * diffuse mat Colour.</> diffuseP
                                                                      SpecularReflect -> photonPower * specular mat Colour.</> specularP

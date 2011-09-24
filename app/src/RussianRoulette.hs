@@ -5,6 +5,8 @@ module RussianRoulette where
 import Material
 import Colour
 
+data RussianRouletteChoice = DiffuseReflect | SpecularReflect | Absorb deriving Eq
+
 -- Compute russian roulette coefficients
 russianRouletteCoefficients :: Material -> (Double, Double)
 russianRouletteCoefficients mat = (diffuseP, specularP)

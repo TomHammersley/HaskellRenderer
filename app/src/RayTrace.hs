@@ -21,7 +21,6 @@ import IrradianceCache
 import Control.Monad.State
 import RenderContext
 import System.Random.Mersenne.Pure64
-import Debug.Trace
 import Data.List
 import RussianRoulette
 
@@ -152,7 +151,7 @@ traceRay renderContext photonMap !ray 1 !viewDir _ _ =
           let !intersectionPoint = pointAlongRay ray intersectionDistance
           let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let !(!surfaceIrradiance, !newIrrCache) = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
-          -- TODO - Need to plug irradiance values into surface shading more correctly
+          -- TODO - Need to plug irradiance values into shader model correctly
           let resultColour = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
           put newIrrCache
           return $! resultColour
@@ -167,7 +166,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
           let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let !normal = thr tanSpace
           let !incoming = Vector.negate $ direction ray
-          -- TODO - Need to plug irradiance values into surface shading more correctly
+          -- TODO - Need to plug irradiance values into shader model correctly
 
           -- Evaluate result from irradiance cache
           irrCache <- get
@@ -268,13 +267,18 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
           let !intersectionPoint = pointAlongRay ray intersectionDistance
           let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let !normal = thr tanSpace
-          --let !incoming = Vector.negate $ direction ray
-          -- TODO - Need to plug irradiance values into surface shading more correctly
+          let !incoming = Vector.negate $ direction ray
+
+          -- TODO - Need to evaluate the shader model here!
 
           -- Randomly decide the fate at this intersection
+          let (diffuseP, specularP) = russianRouletteCoefficients (material obj)
           gen <- get
           let (p, gen') = randomDouble gen
           put gen'
+          let interaction | p < diffuseP || depth < 5 = DiffuseReflect
+                          | p < (diffuseP + specularP) = SpecularReflect
+                          | otherwise = Absorb
 
           -- Thunk for emitted light
           let emittedLight = (emission . material) obj
@@ -287,7 +291,9 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
           let radiance = lightSurface (lights renderContext) colBlack renderContext (intersectionPoint, tanSpace) (material obj) viewDir
 
           -- Set up expression for reflected light
-          let reflectedDir = transformDir randomDir tanSpace
+          let reflectedDir 
+                  | interaction == DiffuseReflect = transformDir randomDir tanSpace
+                  | otherwise = incoming `reflect` normal
           let ray' = rayWithDirection intersectionPoint reflectedDir (rayLength ray)
           let weight' = (diffuse . material) obj * weight Colour.<*> (normal `sdot3` reflectedDir)
           let (tracedPathColour, gen''') = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
@@ -295,10 +301,9 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
           put gen'''
 
           -- Have to divide by probability to correctly account for that relative proportion of the domain
-          let (diffuseP, specularP) = russianRouletteCoefficients (material obj)
-          let result | p < diffuseP || depth < 5 = (emittedLight + radiance + reflectedLight) Colour.</> diffuseP
-                     | p < (diffuseP + specularP) = (emittedLight + radiance + reflectedLight) Colour.<*> 2 -- TODO Rewrite this correctly as the specular case
-                     | otherwise = (emittedLight + radiance) Colour.</> (1 - diffuseP - specularP)
+          let result = case interaction of DiffuseReflect -> (emittedLight + radiance + reflectedLight) Colour.</> diffuseP
+                                           SpecularReflect -> (emittedLight + radiance + reflectedLight) Colour.</> (diffuseP + specularP)
+                                           Absorb -> (emittedLight + radiance) Colour.</> (1 - diffuseP - specularP)
 
           return $! result
 
@@ -336,4 +341,4 @@ pathTraceImage renderContext camera renderWidth renderHeight = tracePixelPassing
                 (!result, !st') = runState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) st
           tracePixelPassingState [] _ = []
 
--- TODO Re-unify the path tracer and ray tracer/photon map code paths as much as practical to ease maintenance
+-- TODO Re-unify the path tracer and ray tracer/photon map code paths as much as practical to ease maintenance (?)
