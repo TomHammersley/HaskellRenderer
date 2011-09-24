@@ -22,6 +22,7 @@ import Data.Heap hiding (partition)
 import System.Random.Mersenne.Pure64
 import Data.List hiding (union, insert)
 import Primitive
+import RussianRoulette
 
 type GeneratorState = State PureMT
 
@@ -44,6 +45,7 @@ data PhotonChoice = DiffuseReflect | SpecularReflect | Absorb
 instance NFData Photon where
     rnf (Photon power' posDir') = rnf power' `seq` rnf posDir'
 
+-- TODO - Sort this out!
 seedToRefactor :: Int
 seedToRefactor = 12345
 
@@ -64,15 +66,6 @@ emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhot
       tanSpace = (normalise du, normalise dv, normalise (du `cross` dv))
 emitPhotons _ _ = []
 
--- Compute russian roulette coefficients
-russianRouletteCoefficients :: Material -> (Double, Double)
-russianRouletteCoefficients mat = (diffuseP, specularP)
-    where
-      (Colour diffuseR diffuseG diffuseB _) = Material.diffuse mat
-      (Colour specularR specularG specularB _) = Material.specular mat
-      diffuseP = (diffuseR + diffuseG + diffuseB) / 3
-      specularP = (specularR + specularG + specularB) / 3
-
 -- Decide what to do with a photon
 choosePhotonFate :: (Double, Double) -> GeneratorState PhotonChoice
 choosePhotonFate (diffuseP, specularP) = do
@@ -91,20 +84,12 @@ computeNewPhotonPower fate (diffuseP, specularP) photonPower mat = case fate of
                                                                      SpecularReflect -> photonPower * specular mat Colour.</> specularP
                                                                      Absorb -> colBlack
 
--- Compute a new diffuse reflection in spherical co-ordinates
-generateUV :: GeneratorState (Double, Double)
-generateUV = do generator <- get
-                let (u, generator') = randomDouble generator
-                let (v, generator'') = randomDouble generator'
-                put generator''
-                return $! (u, v)
-
 -- Find a diffuse reflection direction in the hemisphere of the normal
 -- Realistic Image Synthesis Using Photon Mapping - Eq 2.24
 diffuseReflectionDirection :: PureMT -> TangentSpace -> (Direction, PureMT)
 diffuseReflectionDirection stdGen tanSpace = (transformDir dir tanSpace, stdGen')
     where
-      ((u, v), stdGen') = runState generateUV stdGen
+      ((u, v), stdGen') = runState randomUV stdGen
       theta = acos (sqrt u)
       phi = 2 * pi * v
       dir = sphericalToDirection theta phi

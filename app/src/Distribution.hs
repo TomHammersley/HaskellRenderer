@@ -5,7 +5,8 @@ module Distribution (generatePointsOnSphere,
                      generatePointsOnQuad, 
                      generatePointsOnHemisphere,
                      generatePointOnHemisphere,
-                     generateRandomUVs) where
+                     generateRandomUVs,
+                     randomUV) where
 
 import Vector
 import System.Random.Mersenne.Pure64

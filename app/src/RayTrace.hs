@@ -23,6 +23,7 @@ import RenderContext
 import System.Random.Mersenne.Pure64
 import Debug.Trace
 import Data.List
+import RussianRoulette
 
 -- Intersect a ray against a sphere tree
 intersectSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Double, Int) -> Maybe (Object, Double, Int)
@@ -293,11 +294,11 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
           let reflectedLight = tracedPathColour * weight'
           put gen'''
 
-          -- Doubling is because we divide by probability, 0.5
-          let maxBounces = 50
-          let result = if (p < 0.5 && depth > 5) || depth >= maxBounces -- Keep it bouncing for a while at least...
-                       then (emittedLight + radiance) Colour.<*> 2
-                       else (emittedLight + radiance + reflectedLight) Colour.<*> 2
+          -- Have to divide by probability to correctly account for that relative proportion of the domain
+          let (diffuseP, specularP) = russianRouletteCoefficients (material obj)
+          let result | p < diffuseP || depth < 5 = (emittedLight + radiance + reflectedLight) Colour.</> diffuseP
+                     | p < (diffuseP + specularP) = (emittedLight + radiance + reflectedLight) Colour.<*> 2 -- TODO Rewrite this correctly as the specular case
+                     | otherwise = (emittedLight + radiance) Colour.</> (1 - diffuseP - specularP)
 
           return $! result
 
@@ -315,7 +316,7 @@ pathTracePixel :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> PathTra
 pathTracePixel renderContext camera pixelCoords renderTargetSize =
     do
       gen <- get
-      let numPathTraceSamples = 10
+      let numPathTraceSamples = 50
       let weight = 1 / fromIntegral numPathTraceSamples
       let (offsetUVs, gen') = runState (generateRandomUVs numPathTraceSamples) gen
       let (pixelSamples, gen'') = stateMap offsetUVs gen' (pathTracePixelSample renderContext camera pixelCoords renderTargetSize)
