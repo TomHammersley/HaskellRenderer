@@ -287,10 +287,10 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
 
           -- Set up expression for reflected light
           let reflectedDir = transformDir randomDir tanSpace
-          let ray' = rayWithDirection intersectionPoint reflectedDir 10000 -- TODO Fix this magic number
+          let ray' = rayWithDirection intersectionPoint reflectedDir (rayLength ray)
           let weight' = (diffuse . material) obj * weight Colour.<*> (normal `sdot3` reflectedDir)
           let (tracedPathColour, gen''') = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
-          let reflectedLight = tracedPathColour * weight
+          let reflectedLight = tracedPathColour * weight'
           put gen'''
 
           -- Doubling is because we divide by probability, 0.5
@@ -334,6 +334,5 @@ pathTraceImage renderContext camera renderWidth renderHeight = tracePixelPassing
               where
                 (!result, !st') = runState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) st
           tracePixelPassingState [] _ = []
-
 
 -- TODO Re-unify the path tracer and ray tracer/photon map code paths as much as practical to ease maintenance
