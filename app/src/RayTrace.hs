@@ -204,8 +204,8 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
                 enteringObject !incoming !normal = incoming `dot3` normal > 0
 
 -- Trace a list of distributed samples with tail recursion
-traceDistributedSample :: RenderContext -> Colour -> [Position] -> Maybe PhotonMap -> (Position, Direction) -> Double -> RayTraceState
-traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWeighting = 
+rayTracePixelSample :: RenderContext -> Colour -> [Position] -> Maybe PhotonMap -> (Position, Direction) -> Double -> RayTraceState
+rayTracePixelSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWeighting = 
     do
       irrCache <- get
       let dofFocalDistance = depthOfFieldFocalDistance renderContext
@@ -214,18 +214,18 @@ traceDistributedSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWe
       let (sampleColour, irrCache') = runState (traceRay renderContext photonMap (rayWithDirection (jitteredRayPosition x) (jitteredRayDirection x) 100000.0) (maximumRayDepth renderContext) (snd eyeViewDir) 1 1) irrCache
       let result = (sampleColour Colour.<*> sampleWeighting) + acc
       put irrCache'
-      let (col, irrCache'') = runState (traceDistributedSample renderContext result xs photonMap eyeViewDir sampleWeighting) irrCache'
+      let (col, irrCache'') = runState (rayTracePixelSample renderContext result xs photonMap eyeViewDir sampleWeighting) irrCache'
       put irrCache''
       return $! col
-traceDistributedSample _ !acc [] _ _ _ = return $! acc
+rayTracePixelSample _ !acc [] _ _ _ = return $! acc
 
 -- Need to remove hard coded constants of 8 here
 -- This traces for a given pixel (x, y)
-tracePixel :: RenderContext -> Position -> Maybe PhotonMap -> Direction -> RayTraceState
-tracePixel renderContext eye photonMap viewDirection = do
+rayTracePixel :: RenderContext -> Position -> Maybe PhotonMap -> Direction -> RayTraceState
+rayTracePixel renderContext eye photonMap viewDirection = do
   irrCache <- get
   let distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) 12345
-  let (pixelColour, irrCache') = runState (traceDistributedSample renderContext colBlack distributedPositions photonMap (eye, viewDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) irrCache
+  let (pixelColour, irrCache') = runState (rayTracePixelSample renderContext colBlack distributedPositions photonMap (eye, viewDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) irrCache
   put irrCache'
   return $! pixelColour
 
@@ -252,7 +252,7 @@ rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePix
           -- This function is the equivalent to map, but it passes the ending state of one invocation to the next invocation
           tracePixelPassingState !(x:xs) !st = result : tracePixelPassingState xs st'
               where
-                (!result, !st') = runState (tracePixel renderContext eyePosition photonMap x) st
+                (!result, !st') = runState (rayTracePixel renderContext eyePosition photonMap x) st
           tracePixelPassingState [] _ = []
 
 type PathTraceState = State PureMT Colour
@@ -334,3 +334,6 @@ pathTraceImage renderContext camera renderWidth renderHeight = tracePixelPassing
               where
                 (!result, !st') = runState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) st
           tracePixelPassingState [] _ = []
+
+
+-- TODO Re-unify the path tracer and ray tracer/photon map code paths as much as practical to ease maintenance
