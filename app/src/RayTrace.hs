@@ -321,10 +321,10 @@ pathTracePixel :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> PathTra
 pathTracePixel renderContext camera pixelCoords renderTargetSize =
     do
       gen <- get
-      let numPathTraceSamples = 50
+      let numPathTraceSamples = 20
       let weight = 1 / fromIntegral numPathTraceSamples
       let (offsetUVs, gen') = runState (generateRandomUVs numPathTraceSamples) gen
-      let (pixelSamples, gen'') = stateMap offsetUVs gen' (pathTracePixelSample renderContext camera pixelCoords renderTargetSize)
+      let (pixelSamples, gen'') = mapWithState offsetUVs gen' (pathTracePixelSample renderContext camera pixelCoords renderTargetSize)
       put gen''
       return $! foldl' (\x y -> x Colour.<*> weight + y) colBlack pixelSamples
 

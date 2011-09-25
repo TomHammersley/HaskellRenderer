@@ -42,11 +42,22 @@ mapS f z s = mapS' z s []
       mapS' [] !st !acc = (acc, st)
 
 -- Map over a list, passing state from one to the next with the state monad
-stateMap :: [a] -> s -> (a -> State s b) -> ([b], s)
-stateMap arr s f = stateMap' arr s []
+mapWithState :: [a] -> s -> (a -> State s b) -> ([b], s)
+mapWithState arr s f = mapWithState' arr s []
     where
-      stateMap' (x:xs) st acc = stateMap' xs st' (result : acc)
+      mapWithState' (x:xs) st acc = mapWithState' xs st' (result : acc)
           where
             (result, st') = runState (f x) st
-      stateMap' [] st acc = (acc, st)
+      mapWithState' [] st acc = (acc, st)
+
+-- Zip over two lists, passing state from one to the next with the state monad
+zipWithState :: (a -> b -> State s c) -> [a] -> [b] -> s -> ([c], s)
+zipWithState f arr1 arr2 s = mapWithState' arr1 arr2 s []
+    where
+      mapWithState' (x:xs) (y:ys) st acc = mapWithState' xs ys st' (result : acc)
+          where
+            (result, st') = runState (f x y) st
+      mapWithState' (_:_) [] _ _ = error "Lists are of a different size - unhandled case!"
+      mapWithState' [] (_:_) _ _ = error "Lists are of a different size - unhandled case!"
+      mapWithState' [] [] st acc = (acc, st)
 
