@@ -4,6 +4,7 @@
 
 module RayTrace (rayTraceImage, pathTraceImage, findNearestIntersection, findAnyIntersection, GlobalIlluminationFunc) where
 
+import PolymorphicNum
 import Vector
 import {-# SOURCE #-} Light
 import Primitive
@@ -105,7 +106,7 @@ defaultColour _ = colBlue
 -- Accumulate the contributions of the lights
 lightSurface :: [Light] -> Colour -> RenderContext -> SurfaceLocation -> Material -> Vector -> Colour
 lightSurface (x:xs) !acc renderContext !posTanSpace !objMaterial !viewDirection 
-    = let result = acc + emissive + applyLight (sceneGraph renderContext) posTanSpace objMaterial viewDirection x
+    = let result = acc <+> emissive <+> applyLight (sceneGraph renderContext) posTanSpace objMaterial viewDirection x
           emissive = emission objMaterial
       in seq result (lightSurface xs result renderContext posTanSpace objMaterial viewDirection)
 lightSurface [] !acc _ _ _ _ = acc
@@ -199,7 +200,7 @@ traceRay renderContext photonMap !ray !limit !viewDir !currentIOR !accumulatedRe
           put irrCache'''
 
           -- Final colour combine
-          return $! (surfaceShading + (reflection Colour.<*> shine) + (refraction Colour.<*> transmittance))
+          return $! (surfaceShading <+> reflection <*> shine <+> refraction <*> transmittance)
               where
                 enteringObject !incoming !normal = incoming `dot3` normal > 0
 
@@ -209,10 +210,10 @@ rayTracePixelSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWeigh
     do
       irrCache <- get
       let dofFocalDistance = depthOfFieldFocalDistance renderContext
-      let jitteredRayPosition jitter = fst eyeViewDir + jitter
+      let jitteredRayPosition jitter = fst eyeViewDir <+> jitter
       let jitteredRayDirection jitter = normalise $ madd jitter (snd eyeViewDir) dofFocalDistance
       let (sampleColour, irrCache') = runState (traceRay renderContext photonMap (rayWithDirection (jitteredRayPosition x) (jitteredRayDirection x) 100000.0) (maximumRayDepth renderContext) (snd eyeViewDir) 1 1) irrCache
-      let result = (sampleColour Colour.<*> sampleWeighting) + acc
+      let result = sampleColour <*> sampleWeighting <+> acc
       put irrCache'
       let (col, irrCache'') = runState (rayTracePixelSample renderContext result xs photonMap eyeViewDir sampleWeighting) irrCache'
       put irrCache''
@@ -295,21 +296,21 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
                   | interaction == DiffuseReflect = transformDir randomDir tanSpace
                   | otherwise = incoming `reflect` normal
           let ray' = rayWithDirection intersectionPoint reflectedDir (rayLength ray)
-          let weight' = (diffuse . material) obj * weight Colour.<*> (normal `sdot3` reflectedDir)
+          let weight' = (diffuse . material) obj <*> weight <*> (normal `sdot3` reflectedDir)
           let (tracedPathColour, gen''') = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
-          let reflectedLight = tracedPathColour * weight'
+          let reflectedLight = tracedPathColour <*> weight'
           put gen'''
 
           -- Have to divide by probability to correctly account for that relative proportion of the domain
-          let result = case interaction of DiffuseReflect -> (emittedLight + radiance + reflectedLight) Colour.</> diffuseP
-                                           SpecularReflect -> (emittedLight + radiance + reflectedLight) Colour.</> (diffuseP + specularP)
-                                           Absorb -> (emittedLight + radiance) Colour.</> (1 - diffuseP - specularP)
+          let result = case interaction of DiffuseReflect -> (emittedLight <+> radiance <+> reflectedLight) </> diffuseP
+                                           SpecularReflect -> (emittedLight <+> radiance <+> reflectedLight) </> (diffuseP + specularP)
+                                           Absorb -> (emittedLight <+> radiance) </> (1 - diffuseP - specularP)
 
           return $! result
 
 -- Path-trace a sub-sample
 pathTracePixelSample :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> PathTraceState
-pathTracePixelSample renderContext camera xy (width, height) uv = pathTrace renderContext ray 0 rayDirection 1 1
+pathTracePixelSample renderContext camera xy (width, height) uv = pathTrace renderContext ray 0 rayDirection 1 colWhite
     where
       jitteredX = (fromIntegral . fst) xy + fst uv
       jitteredY = (fromIntegral . snd) xy + snd uv
@@ -322,11 +323,11 @@ pathTracePixel renderContext camera pixelCoords renderTargetSize =
     do
       gen <- get
       let numPathTraceSamples = 20
-      let weight = 1 / fromIntegral numPathTraceSamples
+      let weight = (1 / fromIntegral numPathTraceSamples) :: Double
       let (offsetUVs, gen') = runState (generateRandomUVs numPathTraceSamples) gen
       let (pixelSamples, gen'') = mapWithState offsetUVs gen' (pathTracePixelSample renderContext camera pixelCoords renderTargetSize)
       put gen''
-      return $! foldl' (\x y -> x Colour.<*> weight + y) colBlack pixelSamples
+      return $! foldl' (\x y -> x <*> weight <+> y) colBlack pixelSamples
 
 -- Currently separate codepath... unify later
 pathTraceImage :: RenderContext -> Camera -> Int -> Int -> [Colour]

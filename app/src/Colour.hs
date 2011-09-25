@@ -1,11 +1,12 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Colour where
 import Vector hiding (min, max)
 import Misc
 import Data.Word
 import Control.DeepSeq
+import PolymorphicNum
 
 -- Normalised RGBA colour
 data Colour = Colour { red :: {-# UNPACK #-} !Double, 
@@ -13,41 +14,26 @@ data Colour = Colour { red :: {-# UNPACK #-} !Double,
                        blue :: {-# UNPACK #-} !Double, 
                        alpha :: {-# UNPACK #-} !Double } deriving (Show, Read, Ord, Eq)
 
-instance Num Colour where
-    {-# SPECIALIZE INLINE (+) :: Colour -> Colour -> Colour #-}
-    (Colour !r1 !g1 !b1 !a1) + (Colour !r2 !g2 !b2 !a2) = Colour (r1 + r2) (g1 + g2) (b1 + b2) (a1 + a2)
-    {-# SPECIALIZE INLINE (-) :: Colour -> Colour -> Colour #-}
-    (Colour !r1 !g1 !b1 !a1) - (Colour !r2 !g2 !b2 !a2) = Colour (r1 - r2) (g1 - g2) (b1 - b2) (a1 - a2)
-    {-# SPECIALIZE INLINE (*) :: Colour -> Colour -> Colour #-}
-    (Colour !r1 !g1 !b1 !a1) * (Colour !r2 !g2 !b2 !a2) = Colour (r1 * r2) (g1 * g2) (b1 * b2) (a1 * a2)
-    abs (Colour r g b a) = Colour (abs r) (abs g) (abs b) (abs a)
-    signum (Colour r g b a) = Colour (signum r) (signum g) (signum b) (signum a)
-    fromInteger x = Colour (fromInteger x) (fromInteger x) (fromInteger x) (fromInteger x)
-
-instance Fractional Colour where
-    {-# SPECIALIZE INLINE (/) :: Colour -> Colour -> Colour #-}
-    (Colour !r1 !g1 !b1 !a1) / (Colour !r2 !g2 !b2 !a2) = Colour (r1 / r2) (g1 / g2) (b1 / b2) (a1 / a2)
-    fromRational x = Colour (fromRational x) (fromRational x) (fromRational x) (fromRational x)
-
 instance NFData Colour where
     rnf (Colour r g b a) = rnf r `seq` rnf g `seq` rnf b `seq` rnf a
 
-infixl 7 <*>
-infixl 7 </>
-infixl 6 <+>
-infixl 6 <->
+instance PolymorphicNum Colour Colour Colour where
+    (Colour !r !g !b !a) <*> (Colour !r' !g' !b' !a') = Colour (r * r') (g * g') (b * b') (a * a')
+    (Colour !r !g !b !a) </> (Colour !r' !g' !b' !a') = Colour (r / r') (g / g') (b / b') (a / a')
+    (Colour !r !g !b !a) <-> (Colour !r' !g' !b' !a') = Colour (r - r') (g - g') (b - b') (a - a')
+    (Colour !r !g !b !a) <+> (Colour !r' !g' !b' !a') = Colour (r + r') (g + g') (b + b') (a + a')
 
-(<*>) :: Colour -> Double -> Colour
-(Colour !r !g !b !a) <*> k = Colour (r * k) (g * k) (b * k) (a * k)
+instance PolymorphicNum Colour Double Colour where
+    (Colour !r !g !b !a) <*> k = Colour (r * k) (g * k) (b * k) (a * k)
+    (Colour !r !g !b !a) </> k = Colour (r / k) (g / k) (b / k) (a / k)
+    (Colour !r !g !b !a) <-> k = Colour (r - k) (g - k) (b - k) (a - k)
+    (Colour !r !g !b !a) <+> k = Colour (r + k) (g + k) (b + k) (a + k)
 
-(</>) :: Colour -> Double -> Colour
-(Colour !r !g !b !a) </> k = Colour (r / k) (g / k) (b / k) (a / k)
-
-(<+>) :: Colour -> Double -> Colour
-(Colour !r !g !b !a) <+> k = Colour (r + k) (g + k) (b + k) (a + k)
-
-(<->) :: Colour -> Double -> Colour
-(Colour !r !g !b !a) <-> k = Colour (r - k) (g - k) (b - k) (a - k)
+instance PolymorphicNum Double Colour Colour where
+    k <*> (Colour !r !g !b !a) = Colour (k * r) (k * g) (k * b) (k * a)
+    k </> (Colour !r !g !b !a) = Colour (k / r) (k / g) (k / b) (k / a)
+    k <-> (Colour !r !g !b !a) = Colour (k - r) (k - g) (k - b) (k - a)
+    k <+> (Colour !r !g !b !a) = Colour (k + r) (k + g) (k + b) (k + a)
 
 clamp :: Colour -> Colour
 clamp (Colour !r !g !b !a) = Colour (max 0 (min r 1)) (max 0 (min g 1)) (max 0 (min b 1)) (max 0 (min a 1))

@@ -4,6 +4,7 @@
 
 module IrradianceCache (IrradianceCache, query, initialiseCache) where
 
+import PolymorphicNum
 import Vector
 import Colour
 import BoundingBox
@@ -57,9 +58,9 @@ findSamples _ [] !acc = acc
 
 -- Sum together a list of samples and error weights
 sumSamples :: [(Vector, CacheSample, Double)] -> Colour
-sumSamples !samples = colourSum Colour.</> weightSum
+sumSamples !samples = colourSum </> weightSum
     where
-      sumSamples' !(!colAcc, !weightAcc) ((_, CacheSample (_, !col, _), !weight):xs) = sumSamples' (colAcc + col Colour.<*> weight, weightAcc + weight) xs
+      sumSamples' !(!colAcc, !weightAcc) ((_, CacheSample (_, !col, _), !weight):xs) = sumSamples' (colAcc <+> col <*> weight, weightAcc + weight) xs
       sumSamples' !(!colAcc, !weightAcc) [] = (colAcc, weightAcc)
       !(!colourSum, !weightSum) = sumSamples' (colBlack, 0) samples
 

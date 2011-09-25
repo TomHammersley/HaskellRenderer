@@ -31,6 +31,7 @@ module Primitive (primitiveBoundingRadius,
                   TangentSpace,
                   Vertex) where
 
+import PolymorphicNum
 import Ray
 import Vector
 import Material
@@ -62,15 +63,15 @@ getCentre !object = getTranslation $ transform object
 
 -- Surface normal for 3 points
 surfaceNormal :: Position -> Position -> Position -> Direction
-surfaceNormal !v1 !v2 !v3 = (v2 - v1) `cross` (v3 - v1)
+surfaceNormal !v1 !v2 !v3 = (v2 <-> v1) `cross` (v3 <-> v1)
 
 -- Make a plane
 makePlane :: Position -> Position -> Position -> Primitive
 makePlane !v1 !v2 !v3 = Plane (tangent, binormal, normal) (-(v1 `dot3` normal))
     where 
       !normal = normalise (surfaceNormal v1 v2 v3)
-      !tangent = normalise (v2 - v1)
-      !binormal = normalise (v3 - v1)
+      !tangent = normalise (v2 <-> v1)
+      !binormal = normalise (v3 <-> v1)
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Triangle base functionality
@@ -82,7 +83,7 @@ makeTriangle !v1 !v2 !v3 = Triangle verts newPlane newHalfPlanes
           newTanSpace = planeTangentSpace newPlane
           verts = map (\v -> Vertex v zeroVector newTanSpace) [v1, v2, v3]
           edgeVertices = [v1, v2, v3]
-          edges = map normalise [v2 - v1, v3 - v2, v1 - v3]
+          edges = map normalise [v2 <-> v1, v3 <-> v2, v1 <-> v3]
           edgeNormals = map (\edge -> normalise $ thr newTanSpace `cross` edge) edges
           -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
           newHalfPlanes = zipWith (\edgeNormal edgeVertex -> Plane (Vector 1 0 0 1, Vector 0 1 0 1, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices
@@ -151,9 +152,9 @@ intersectRayAnyTriangleList [] _ _ _ = Nothing
 interpolatedTangentSpace :: Triangle -> Double -> Double -> Double -> TangentSpace
 interpolatedTangentSpace !triangle !triAlpha !triBeta !triGamma = (tangent, binormal, normal)
     where [!(tan1, bi1, norm1), !(tan2, bi2, norm2), !(tan3, bi3, norm3)] = map vertTangentSpace (vertices triangle)
-          tangent = normalise $ (tan1 <*> triAlpha) + (tan2 <*> triBeta) + (tan3 <*> triGamma)
-          binormal = normalise $ (bi1 <*> triAlpha) + (bi2 <*> triBeta) + (bi3 <*> triGamma)
-          normal = normalise $ (norm1 <*> triAlpha) + (norm2 <*> triBeta) + (norm3 <*> triGamma)
+          tangent = normalise $ tan1 <*> triAlpha <+> tan2 <*> triBeta <+> tan3 <*> triGamma
+          binormal = normalise $ bi1 <*> triAlpha <+> bi2 <*> triBeta <+> bi3 <*> triGamma
+          normal = normalise $ norm1 <*> triAlpha <+> norm2 <*> triBeta <+> norm3 <*> triGamma
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of intersection functions
@@ -167,7 +168,7 @@ primitiveClosestIntersect (Sphere !sphereRadius) (Ray !rayOrg !rayDir !rayLen) o
     | root2 >= 0 && root2 <= rayLen = Just (root2, 0)
     | otherwise = Nothing
     where 
-      !delta = rayOrg - getCentre obj
+      !delta = rayOrg <-> getCentre obj
       !b = 2 * (delta `dot3` rayDir)
       !c = (delta `dot3` delta) - sphereRadius ** 2
       !discriminant = b ** 2 - 4 * c -- A is 1 because the ray direction is normalised
@@ -198,7 +199,7 @@ primitiveTangentSpace (Sphere !sphereRadius) _ !intersectionPoint obj = (tangent
     where
       tangent = Vector 1 0 0 0 -- This is clearly incorrect - fix this later!
       binormal = Vector 0 1 0 0
-      normal = (intersectionPoint - getCentre obj) <*> (1 / sphereRadius)
+      normal = (intersectionPoint <-> getCentre obj) <*> (1 / sphereRadius)
 
 primitiveTangentSpace (Plane !planeNormal _) _ _ _ = planeNormal
 primitiveTangentSpace (TriangleMesh !tris) !triId !intersectionPoint _ = interpolatedTangentSpace triangle triAlpha triBeta triGamma
@@ -227,8 +228,8 @@ triangleListRadius maximumRadius [] _ = maximumRadius
 primitiveBoundingBox :: Primitive -> Object -> Maybe AABB
 primitiveBoundingBox (Sphere sphereRadius) obj = Just (boxMin, boxMax)
     where
-      boxMin = getCentre obj - Vector sphereRadius sphereRadius sphereRadius 0
-      boxMax = getCentre obj + Vector sphereRadius sphereRadius sphereRadius 0
+      boxMin = getCentre obj <-> Vector sphereRadius sphereRadius sphereRadius 0
+      boxMax = getCentre obj <+> Vector sphereRadius sphereRadius sphereRadius 0
 primitiveBoundingBox (Plane _ _) _ = Nothing
 primitiveBoundingBox (TriangleMesh tris) obj = Just $ triangleListBoundingBox initialInvalidBox (transform obj) tris
 
@@ -290,7 +291,7 @@ sphereIntersect !rad !centre (Ray !rayOrg !rayDir !rayLen)
     | root2 >= 0 && root2 <= rayLen = Just root2
     | otherwise = Nothing
     where 
-      !delta = rayOrg - centre
+      !delta = rayOrg <-> centre
       !b = 2.0 * (delta `dot3` rayDir)
       !c = (delta `dot3` delta) - rad**2
       !discriminant = b**2 - 4 * c -- A is 1 because the ray direction is normalised

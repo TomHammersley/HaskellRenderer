@@ -2,6 +2,8 @@
 {-# LANGUAGE MagicHash #-}
 
 module KDTree(generateSceneGraphUsingKDTree, makeSplittingPlane, degenerateSplitList, findSplittingPlane) where
+
+import PolymorphicNum
 import Vector
 import Primitive
 import Data.List
@@ -14,19 +16,19 @@ onPositiveSide :: (Vector, Double) -> Object -> Bool
 onPositiveSide (planeNormal, planeDist) obj = planeDist + (planeNormal `dot3` objBoxCentre) > 0.01
     where
       Just (boxMin, boxMax) = primitiveBoundingBox (primitive obj) obj
-      objBoxCentre = (boxMin + boxMax) <*> 0.5
+      objBoxCentre = (boxMin <+> boxMax) <*> (0.5 :: Double)
 
 -- This stuff is generic
 
 -- Generate a plane to split the objects along
 makeSplittingPlane :: AABB -> Int -> (Vector, Double)
-makeSplittingPlane (boxMin, boxMax) buildCycle = case nthLargestAxis (boxMax - boxMin) buildCycle of
+makeSplittingPlane (boxMin, boxMax) buildCycle = case nthLargestAxis (boxMax <-> boxMin) buildCycle of
                                                    0 -> (xaxis, -(vecX midPoint))
                                                    1 -> (yaxis, -(vecY midPoint))
                                                    2 -> (zaxis, -(vecZ midPoint))
                                                    _ -> error "Undefined value"
     where
-      midPoint = (boxMin + boxMax) <*> 0.5
+      midPoint = (boxMin <+> boxMax) <*> (0.5 :: Double)
 
 -- Find a working splitting plane
 findSplittingPlane :: AABB -> Int -> [t] -> ((Vector, Double) -> t -> Bool) -> Maybe (Vector, Double) 

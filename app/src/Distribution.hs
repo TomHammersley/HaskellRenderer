@@ -8,6 +8,7 @@ module Distribution (generatePointsOnSphere,
                      generateRandomUVs,
                      randomUV) where
 
+import PolymorphicNum
 import Vector
 import System.Random.Mersenne.Pure64
 import Control.Monad.State
@@ -63,7 +64,7 @@ generatePointsOnHemisphere numPoints r seed
 generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> Int -> [Position]
 generatePointsOnQuad pos deltaU deltaV numPoints seed 
     | numPoints <= 1 = [Vector 0 0 0 1]
-    | otherwise = map (\(u, v) -> pos + (deltaU <*> u) + (deltaV <*> v)) randomUVs
+    | otherwise = map (\(u, v) -> pos <+> deltaU <*> u <+> deltaV <*> v) randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
 

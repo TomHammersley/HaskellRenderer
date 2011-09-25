@@ -3,6 +3,7 @@
 
 module Shader where
 
+import PolymorphicNum
 import Vector
 import Colour
 import Misc
@@ -19,7 +20,7 @@ shadePoint :: Shader -> (Position, Direction) -> (Colour, Colour, Colour) -> Col
 
 -- Checked shaders
 evaluateDiffuse (CheckedShader checkScale checkColour1 checkColour2) position _ = 
-    let scaledPosition = checkScale * position
+    let scaledPosition = checkScale <*> position
         scaledX = round (vecX scaledPosition) :: Int
         scaledY = round (vecY scaledPosition) :: Int
         scaledZ = round (vecZ scaledPosition) :: Int
@@ -36,9 +37,9 @@ evaluateSpecular = evaluateDiffuse
 evaluateAmbient = evaluateDiffuse
 
 -- New style shader interface
-shadePoint (CheckedShader checkScale checkColour1 checkColour2) (position, _) (ambient, diffuse, specular) = (ambient + diffuse + specular) * checkColour
+shadePoint (CheckedShader checkScale checkColour1 checkColour2) (position, _) (ambient, diffuse, specular) = (ambient <+> diffuse <+> specular) <*> checkColour
     where
-      scaledPosition = checkScale * position
+      scaledPosition = checkScale <*> position
       scaledX = round (vecX scaledPosition) :: Int
       scaledY = round (vecY scaledPosition) :: Int
       scaledZ = round (vecZ scaledPosition) :: Int
@@ -47,4 +48,4 @@ shadePoint (CheckedShader checkScale checkColour1 checkColour2) (position, _) (a
 shadePoint ShowNormalShader (_, norm) (_, _, _) = encodeNormal norm
 
 -- Default fallback
-shadePoint _ (_, _) (ambient, diffuse, specular) = ambient + diffuse + specular
+shadePoint _ (_, _) (ambient, diffuse, specular) = ambient <+> diffuse <+> specular

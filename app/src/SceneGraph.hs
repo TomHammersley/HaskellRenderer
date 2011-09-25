@@ -3,6 +3,7 @@
 
 module SceneGraph (buildSceneGraph, SphereTreeNode(boundingRadius, boundingCentre, object, children), SceneGraph(root, infiniteObjects, finiteBox)) where
 
+import PolymorphicNum
 import Primitive
 import Vector
 import BoundingBox
@@ -13,13 +14,13 @@ data SceneGraph = SceneGraph { root :: SphereTreeNode, infiniteObjects :: [Objec
 
 -- Find the mean of a collection of objects
 calculateMeanPosition' :: [Object] -> Vector -> Vector
-calculateMeanPosition' (obj : objects) acc = calculateMeanPosition' objects acc + getCentre obj
+calculateMeanPosition' (obj : objects) acc = calculateMeanPosition' objects acc <+> getCentre obj
 calculateMeanPosition' [] acc = acc
 
 calculateMeanPosition :: [Object] -> Vector
 calculateMeanPosition objects = setWTo1 (calculateMeanPosition' objects zeroVector </> len')
     where
-      !len' = fromIntegral (length objects)
+      !len' = (fromIntegral (length objects)) :: Double
 
 -- Find the overall bounding radius of a list of objects
 calculateBoundingRadius :: [Object] -> Vector -> Double

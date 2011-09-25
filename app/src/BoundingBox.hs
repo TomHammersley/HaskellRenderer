@@ -4,6 +4,7 @@
 
 module BoundingBox where
 
+import PolymorphicNum
 import Vector
 import GHC.Types
 import GHC.Prim

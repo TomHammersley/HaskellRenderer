@@ -1,0 +1,442 @@
+[ 3 of 26] Compiling Vector           ( Vector.hs, obj/Vector.o )
+
+Vector.hs:189:65:
+    No instance for (LinearAlgebra Direction b0 a0)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction b0 a0)
+    In the first argument of `(<->)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming)))'
+    In the second argument of `($)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming'
+    In the expression:
+        restoreOriginalW incoming
+      $   (normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming
+
+Vector.hs:189:74:
+    No instance for (LinearAlgebra a1 Double b0)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a1 Double b0)
+    In the second argument of `(<*>)', namely
+      `(2.0 <*> (normal `dot3` incoming))'
+    In the first argument of `(<->)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming)))'
+    In the second argument of `($)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming'
+
+Vector.hs:189:105:
+    No instance for (LinearAlgebra a0 Direction Vector)
+      arising from a use of `<->'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a0 Direction Vector)
+    In the second argument of `($)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming'
+    In the expression:
+        restoreOriginalW incoming
+      $   (normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming
+    In an equation for `reflect':
+        reflect !incoming !normal
+          = restoreOriginalW incoming
+          $   (normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming
+
+Vector.hs:194:42:
+    No instance for (LinearAlgebra Direction Double a2)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction Double a2)
+    In the first argument of `(<+>)', namely `(l <*> eta)'
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+
+Vector.hs:194:51:
+    No instance for (LinearAlgebra a2 b1 Vector)
+      arising from a use of `<+>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a2 b1 Vector)
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+    In an equation for `refract':
+        refract !incoming !normal !eta
+          | cosTheta1 >## 0.0##
+          = setWTo0
+          $   (l <*> eta)
+            <+>
+              (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+          | otherwise
+          = setWTo0
+          $   (l <*> eta)
+            <+>
+              (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+          where
+              !(D# cosTheta1) = normal `dot3` incoming
+              !cosTheta2
+                = sqrtDouble#
+                    (1.0## -## eta# **## 2.0## *## (1.0## -## cosTheta1 **## 2.0##))
+              !l = Vector.negate incoming
+              !(D# eta#) = eta
+
+Vector.hs:194:63:
+    No instance for (LinearAlgebra Direction Double b1)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction Double b1)
+    In the second argument of `(<+>)', namely
+      `(normal <*> D# (eta# *## cosTheta1 -## cosTheta2))'
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+
+Vector.hs:195:32:
+    No instance for (LinearAlgebra Direction Double a3)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction Double a3)
+    In the first argument of `(<+>)', namely `(l <*> eta)'
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+
+Vector.hs:195:41:
+    No instance for (LinearAlgebra a3 b2 Vector)
+      arising from a use of `<+>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a3 b2 Vector)
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+    In an equation for `refract':
+        refract !incoming !normal !eta
+          | cosTheta1 >## 0.0##
+          = setWTo0
+          $   (l <*> eta)
+            <+>
+              (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+          | otherwise
+          = setWTo0
+          $   (l <*> eta)
+            <+>
+              (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+          where
+              !(D# cosTheta1) = normal `dot3` incoming
+              !cosTheta2
+                = sqrtDouble#
+                    (1.0## -## eta# **## 2.0## *## (1.0## -## cosTheta1 **## 2.0##))
+              !l = Vector.negate incoming
+              !(D# eta#) = eta
+
+Vector.hs:195:53:
+    No instance for (LinearAlgebra Direction Double b2)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction Double b2)
+    In the second argument of `(<+>)', namely
+      `(normal <*> D# (eta# *## cosTheta1 +## cosTheta2))'
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+
+Vector.hs:250:83:
+    No instance for (LinearAlgebra Vector Double a5)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Vector Double a5)
+    In the first argument of `(<+>)', namely `tangent <*> x'
+    In the first argument of `(<+>)', namely
+      `tangent <*> x <+> binormal <*> y'
+    In the second argument of `($)', namely
+      `tangent <*> x <+> binormal <*> y <+> normal <*> z'
+
+Vector.hs:250:102:
+    No instance for (LinearAlgebra Vector Double b4)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Vector Double b4)
+    In the second argument of `(<+>)', namely `binormal <*> y'
+    In the first argument of `(<+>)', namely
+      `tangent <*> x <+> binormal <*> y'
+    In the second argument of `($)', namely
+      `tangent <*> x <+> binormal <*> y <+> normal <*> z'
+
+Vector.hs:250:108:
+    No instance for (LinearAlgebra a4 b3 Vector)
+      arising from a use of `<+>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a4 b3 Vector)
+    In the second argument of `($)', namely
+      `tangent <*> x <+> binormal <*> y <+> normal <*> z'
+    In the expression:
+        setWTo0 $ tangent <*> x <+> binormal <*> y <+> normal <*> z
+    In an equation for `transformDir':
+        transformDir (Vector !x !y !z _) !(tangent, binormal, normal)
+          = setWTo0 $ tangent <*> x <+> binormal <*> y <+> normal <*> z
+
+Vector.hs:250:119:
+    No instance for (LinearAlgebra Vector Double b3)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Vector Double b3)
+    In the second argument of `(<+>)', namely `normal <*> z'
+    In the second argument of `($)', namely
+      `tangent <*> x <+> binormal <*> y <+> normal <*> z'
+    In the expression:
+        setWTo0 $ tangent <*> x <+> binormal <*> y <+> normal <*> z
+mv: rename *.hcr to core/*.hcr: No such file or directory
+
+Vector.hs:189:65:
+    No instance for (LinearAlgebra Direction b0 a0)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction b0 a0)
+    In the first argument of `(<->)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming)))'
+    In the second argument of `($)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming'
+    In the expression:
+        restoreOriginalW incoming
+      $   (normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming
+
+Vector.hs:189:74:
+    No instance for (LinearAlgebra a1 Double b0)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a1 Double b0)
+    In the second argument of `(<*>)', namely
+      `(2.0 <*> (normal `dot3` incoming))'
+    In the first argument of `(<->)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming)))'
+    In the second argument of `($)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming'
+
+Vector.hs:189:105:
+    No instance for (LinearAlgebra a0 Direction Vector)
+      arising from a use of `<->'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a0 Direction Vector)
+    In the second argument of `($)', namely
+      `(normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming'
+    In the expression:
+        restoreOriginalW incoming
+      $   (normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming
+    In an equation for `reflect':
+        reflect !incoming !normal
+          = restoreOriginalW incoming
+          $   (normal <*> (2.0 <*> (normal `dot3` incoming))) <-> incoming
+
+Vector.hs:194:42:
+    No instance for (LinearAlgebra Direction Double a2)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction Double a2)
+    In the first argument of `(<+>)', namely `(l <*> eta)'
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+
+Vector.hs:194:51:
+    No instance for (LinearAlgebra a2 b1 Vector)
+      arising from a use of `<+>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a2 b1 Vector)
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+    In an equation for `refract':
+        refract !incoming !normal !eta
+          | cosTheta1 >## 0.0##
+          = setWTo0
+          $   (l <*> eta)
+            <+>
+              (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+          | otherwise
+          = setWTo0
+          $   (l <*> eta)
+            <+>
+              (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+          where
+              !(D# cosTheta1) = normal `dot3` incoming
+              !cosTheta2
+                = sqrtDouble#
+                    (1.0## -## eta# **## 2.0## *## (1.0## -## cosTheta1 **## 2.0##))
+              !l = Vector.negate incoming
+              !(D# eta#) = eta
+
+Vector.hs:194:63:
+    No instance for (LinearAlgebra Direction Double b1)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction Double b1)
+    In the second argument of `(<+>)', namely
+      `(normal <*> D# (eta# *## cosTheta1 -## cosTheta2))'
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+
+Vector.hs:195:32:
+    No instance for (LinearAlgebra Direction Double a3)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction Double a3)
+    In the first argument of `(<+>)', namely `(l <*> eta)'
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+
+Vector.hs:195:41:
+    No instance for (LinearAlgebra a3 b2 Vector)
+      arising from a use of `<+>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a3 b2 Vector)
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+    In an equation for `refract':
+        refract !incoming !normal !eta
+          | cosTheta1 >## 0.0##
+          = setWTo0
+          $   (l <*> eta)
+            <+>
+              (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
+          | otherwise
+          = setWTo0
+          $   (l <*> eta)
+            <+>
+              (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+          where
+              !(D# cosTheta1) = normal `dot3` incoming
+              !cosTheta2
+                = sqrtDouble#
+                    (1.0## -## eta# **## 2.0## *## (1.0## -## cosTheta1 **## 2.0##))
+              !l = Vector.negate incoming
+              !(D# eta#) = eta
+
+Vector.hs:195:53:
+    No instance for (LinearAlgebra Direction Double b2)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Direction Double b2)
+    In the second argument of `(<+>)', namely
+      `(normal <*> D# (eta# *## cosTheta1 +## cosTheta2))'
+    In the second argument of `($)', namely
+      `(l <*> eta)
+     <+>
+       (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))'
+    In the expression:
+        setWTo0
+      $   (l <*> eta)
+        <+>
+          (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
+
+Vector.hs:250:83:
+    No instance for (LinearAlgebra Vector Double a5)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Vector Double a5)
+    In the first argument of `(<+>)', namely `tangent <*> x'
+    In the first argument of `(<+>)', namely
+      `tangent <*> x <+> binormal <*> y'
+    In the second argument of `($)', namely
+      `tangent <*> x <+> binormal <*> y <+> normal <*> z'
+
+Vector.hs:250:102:
+    No instance for (LinearAlgebra Vector Double b4)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Vector Double b4)
+    In the second argument of `(<+>)', namely `binormal <*> y'
+    In the first argument of `(<+>)', namely
+      `tangent <*> x <+> binormal <*> y'
+    In the second argument of `($)', namely
+      `tangent <*> x <+> binormal <*> y <+> normal <*> z'
+
+Vector.hs:250:108:
+    No instance for (LinearAlgebra a4 b3 Vector)
+      arising from a use of `<+>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra a4 b3 Vector)
+    In the second argument of `($)', namely
+      `tangent <*> x <+> binormal <*> y <+> normal <*> z'
+    In the expression:
+        setWTo0 $ tangent <*> x <+> binormal <*> y <+> normal <*> z
+    In an equation for `transformDir':
+        transformDir (Vector !x !y !z _) !(tangent, binormal, normal)
+          = setWTo0 $ tangent <*> x <+> binormal <*> y <+> normal <*> z
+
+Vector.hs:250:119:
+    No instance for (LinearAlgebra Vector Double b3)
+      arising from a use of `<*>'
+    Possible fix:
+      add an instance declaration for (LinearAlgebra Vector Double b3)
+    In the second argument of `(<+>)', namely `normal <*> z'
+    In the second argument of `($)', namely
+      `tangent <*> x <+> binormal <*> y <+> normal <*> z'
+    In the expression:
+        setWTo0 $ tangent <*> x <+> binormal <*> y <+> normal <*> z

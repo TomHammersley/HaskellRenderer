@@ -4,6 +4,7 @@
 
 module Ray where
 
+import PolymorphicNum
 import Vector
 
 -- For now, we're sticking to Doubles
@@ -11,7 +12,7 @@ data Ray = Ray { origin :: {-# UNPACK #-} !Position, direction :: {-# UNPACK #-}
 
 -- Make a ray given the start and end position
 rayWithPoints :: Position -> Position -> Ray
-rayWithPoints !start !end = Ray start (normalise (end - start)) (end `distance` start)
+rayWithPoints !start !end = Ray start (normalise (end <-> start)) (end `distance` start)
 
 rayWithDirection :: Position -> Direction -> Double -> Ray
 rayWithDirection !start !dir !rayLen = Ray start dir rayLen

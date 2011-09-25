@@ -10,8 +10,8 @@ module ToneMap(toneMapImage,
                imageAverageLogLuminance,
                imageAverageLuminance) where
 
+import PolymorphicNum
 import Colour
-import Debug.Trace
 
 -- x = x
 toneMapIdentity :: [Colour] -> [Colour]
@@ -31,9 +31,9 @@ toneMapReinhard = map (\(Colour !r !g !b _) -> Colour (r / (r + 1)) (g / (g + 1)
 toneMapHejlBurgessDawson :: [Colour] -> [Colour]
 toneMapHejlBurgessDawson = map f
     where
-      f colour = (x * (x <*> 6.2 <+> 0.5)) / (x * (x <*> 6.2 <+> 1.7) <+> 0.06)
+      f colour = (x <*> (x <*> (6.2 :: Double) <+> (0.5 :: Double))) </> (x <*> (x <*> (6.2 :: Double) <+> (1.7 :: Double)) <+> (0.06:: Double))
           where
-            x = (\x' -> fold max x' 0) (colour <-> 0.004)
+            x = (\x' -> fold max x' 0) (colour <-> (0.004 :: Double))
 
 -- Apply a tone map operator
 toneMapImage :: ([Colour] -> [Colour]) -> [Colour] -> [Colour]

@@ -60,4 +60,3 @@ zipWithState f arr1 arr2 s = mapWithState' arr1 arr2 s []
       mapWithState' (_:_) [] _ _ = error "Lists are of a different size - unhandled case!"
       mapWithState' [] (_:_) _ _ = error "Lists are of a different size - unhandled case!"
       mapWithState' [] [] st acc = (acc, st)
-

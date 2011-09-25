@@ -3,6 +3,7 @@
 
 module PhotonMap(buildPhotonMap, PhotonMap(photonList), irradiance, PhotonMapContext(PhotonMapContext)) where
 
+import PolymorphicNum
 import {-# SOURCE #-} Light hiding (position)
 import Vector
 import Distribution
@@ -54,13 +55,13 @@ seedToRefactor = 12345
 emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
 emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1 seedToRefactor) [1..numPhotons]
     where
-      flux = lightPower Colour.<*> (1.0 / fromIntegral numPhotons)
+      flux = lightPower <*> ((1.0 / fromIntegral numPhotons) :: Double)
 emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, transformDir dir tanSpace, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
       randomPoints = generatePointsOnQuad corner du dv numPhotons seedToRefactor
       randomDirs = generatePointsOnHemisphere numPhotons 1 (seedToRefactor * 10)
       area =  Vector.magnitude (du `cross` dv)
-      flux = lightPower Colour.<*> (area / fromIntegral numPhotons)
+      flux = lightPower <*> (area / fromIntegral numPhotons)
       tanSpace = (normalise du, normalise dv, normalise (du `cross` dv))
 emitPhotons _ _ = []
 
@@ -78,8 +79,8 @@ choosePhotonFate (diffuseP, specularP) = do
 -- Compute new power for a photon
 computeNewPhotonPower :: RussianRouletteChoice -> (Double, Double) -> Colour -> Material -> Colour
 computeNewPhotonPower fate (diffuseP, specularP) photonPower mat = case fate of
-                                                                     DiffuseReflect -> photonPower * diffuse mat Colour.</> diffuseP
-                                                                     SpecularReflect -> photonPower * specular mat Colour.</> specularP
+                                                                     DiffuseReflect -> photonPower <*> diffuse mat </> diffuseP
+                                                                     SpecularReflect -> photonPower <*> specular mat </> specularP
                                                                      Absorb -> colBlack
 
 -- Find a diffuse reflection direction in the hemisphere of the normal
@@ -126,7 +127,7 @@ tracePhoton currentPhotons (Photon photonPower photonPosDir) sceneGraph rndState
             tanSpace = primitiveTangentSpace (primitive obj) subId hitPosition obj
             normal = thr tanSpace
             hitPosition = pointAlongRay ray t
-            surfacePos = hitPosition + (normal Vector.<*> surfaceEpsilon)
+            surfacePos = hitPosition <+> normal <*> surfaceEpsilon
             brightnessEpsilon = 0.1
             storedPhoton = Photon photonPower (surfacePos, snd photonPosDir)
     where
@@ -158,9 +159,9 @@ buildKDTree :: [Photon] -> PhotonMapTree
 buildKDTree (x:[]) = PhotonMapLeaf x
 buildKDTree [] = error "buildKDTree [] should never get called"
 buildKDTree photons = let (boxMin, boxMax) = photonsBoundingBox photons
-                          axis = largestAxis (boxMax - boxMin)
-                          numPhotons = fromIntegral (length photons)
-                          photonsMedian = foldl' (\box photon -> box + (fst . posDir $ photon)) zeroVector photons Vector.</> numPhotons
+                          axis = largestAxis (boxMax <-> boxMin)
+                          numPhotons = (fromIntegral (length photons)) :: Double
+                          photonsMedian = foldl' (\box photon -> box <+> (fst . posDir $ photon)) zeroVector photons </> numPhotons
                           value = component photonsMedian axis
                           photonsGT = Prelude.filter (\p -> component ((fst . posDir) p) axis > value) photons
                           photonsLE = Prelude.filter (\p -> component ((fst . posDir) p) axis <= value) photons
@@ -221,19 +222,19 @@ gatherPhotons (PhotonMapLeaf p) pos rSq photonHeap maxPhotons
 -- Return the contribution of a given photon, including a simple cos term to emulate BRDF plus the cone filter
 -- Cone filter is from Realistic Image Synthesis Using Photon Mapping p81
 photonContribution :: Double -> SurfaceLocation -> Photon -> Colour
-photonContribution kr (pos, (_, _, normal)) photon = power photon Colour.<*> ((Vector.negate normal `sdot3` (snd . posDir) photon) * weight)
+photonContribution kr (pos, (_, _, normal)) photon = power photon <*> ((Vector.negate normal `sdot3` (snd . posDir) photon) * weight)
     where
       weight = 1 - (pos `distance` (fst . posDir) photon) / (kr + 0.000000001) -- Add on an epsilon to prevent div0 in cone filter
 
 -- Find the overall contribution of a list of photons
 -- Radiance estimate algorithm from Realistic Image Synthesis Using Photon Mapping p81
 sumPhotonContribution :: Double -> Double -> SurfaceLocation -> [Photon] -> Colour
-sumPhotonContribution r k posTanSpace photons = foldl' (\y x -> y + photonContribution (k * r) posTanSpace x) colBlack photons Colour.<*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
+sumPhotonContribution r k posTanSpace photons = foldl' (\y x -> y <+> photonContribution (k * r) posTanSpace x) colBlack photons <*> (1.0 / ((1.0 - 2.0 / (3.0 * k)) * pi * r * r))
 
 -- Look up the resulting irradiance from the photon map at a given point
 -- Realistic Image Synthesis Using Photon Mapping, e7.6
 irradiance :: PhotonMap -> PhotonMapContext -> Material -> SurfaceLocation -> (Colour, Double)
-irradiance photonMap photonMapContext mat posTanSpace = (sumPhotonContribution r k posTanSpace gatheredPhotons * diffuse mat, harmonicMean $ map (\(GatheredPhoton dist _) -> sqrt dist) nearestPhotons)
+irradiance photonMap photonMapContext mat posTanSpace = (sumPhotonContribution r k posTanSpace gatheredPhotons <*> diffuse mat, harmonicMean $ map (\(GatheredPhoton dist _) -> sqrt dist) nearestPhotons)
     where
       r = photonGatherDistance photonMapContext
       maxPhotons
