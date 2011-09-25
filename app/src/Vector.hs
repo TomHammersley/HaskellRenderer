@@ -2,13 +2,17 @@
 
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Vector where
+
+import Prelude as P
 import Data.List
 import Misc
 import GHC.Prim
 import GHC.Types
 import Control.DeepSeq
+--import LinearAlgebra as L
 
 data Vector = Vector { vecX :: {-# UNPACK #-} !Double,
                        vecY :: {-# UNPACK #-} !Double,
@@ -197,19 +201,19 @@ min :: Vector -> Vector -> Vector
 {-# SPECIALIZE INLINE Vector.min :: Vector -> Vector -> Vector #-}
 min (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector x y z w
     where
-      !x = Prelude.min x1 x2
-      !y = Prelude.min y1 y2
-      !z = Prelude.min z1 z2
-      !w = Prelude.min w1 w2
+      !x = P.min x1 x2
+      !y = P.min y1 y2
+      !z = P.min z1 z2
+      !w = P.min w1 w2
 
 max :: Vector -> Vector -> Vector
 {-# SPECIALIZE INLINE Vector.max :: Vector -> Vector -> Vector #-}
 max (Vector !x1 !y1 !z1 !w1) (Vector !x2 !y2 !z2 !w2) = Vector x y z w
     where
-      !x = Prelude.max x1 x2
-      !y = Prelude.max y1 y2
-      !z = Prelude.max z1 z2
-      !w = Prelude.max w1 w2
+      !x = P.max x1 x2
+      !y = P.max y1 y2
+      !z = P.max z1 z2
+      !w = P.max w1 w2
 
 directionToSpherical :: Direction -> (Double, Double)
 directionToSpherical (Vector !x !y !z _) = (theta, phi)
