@@ -1,6 +1,5 @@
 -- This is a module for constructing bounding volume hierarchies using an octree approach
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 
 module Octree(generateSceneGraphUsingOctree, generateOctreeBoxList, OctTree(OctTreeNode, OctTreeLeaf, OctTreeDummy), create, Octree.insert, gather) where
 

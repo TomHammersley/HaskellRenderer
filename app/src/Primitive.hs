@@ -1,6 +1,5 @@
 -- Module for general primitives and intersections
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 
 module Primitive (primitiveBoundingRadius, 

@@ -1,5 +1,4 @@
 -- Generic shaders to return colour and texture information
-{-# LANGUAGE MagicHash #-}
 
 module Shader where
 

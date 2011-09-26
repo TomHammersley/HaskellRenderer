@@ -1,5 +1,4 @@
 -- The graph structure holding the scene
-{-# LANGUAGE MagicHash #-}
 
 module SceneGraph (buildSceneGraph, SphereTreeNode(boundingRadius, boundingCentre, object, children), SceneGraph(root, infiniteObjects, finiteBox)) where
 

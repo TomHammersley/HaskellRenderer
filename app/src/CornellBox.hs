@@ -1,5 +1,4 @@
 -- Cornell box reference data
-{-# LANGUAGE MagicHash #-}
 
 module CornellBox(cornellBox, cornellBoxCamera, cornellBoxLights) where
 
@@ -27,14 +26,14 @@ ceilingObject :: Object
 backWallObject :: Object
 tallBlockObject :: Object
 shortBlockObject :: Object
-lightObject :: Object
+--lightObject :: Object
 
 leftWallVertices :: [Vector]
 rightWallVertices :: [Vector]
 backWallVertices :: [Vector]
 frontWallVertices :: [Vector]
 ceilingVertices :: [Vector]
-lightVertices :: [Vector]
+--lightVertices :: [Vector]
 floorVertices :: [Vector]
 tallBlockVertices :: [Vector]
 shortBlockVertices :: [Vector]
@@ -42,7 +41,7 @@ shortBlockVertices :: [Vector]
 whiteMaterial :: Material
 redMaterial :: Material
 greenMaterial :: Material
-lightMaterial :: Material
+--lightMaterial :: Material
 
 cornellBoxLights = [ 
     QuadLight (CommonLightData (Colour 500 500 500 0) True) (Vector 213.0 548.0 227.0 1.0) 600 (Vector 130.0 0.0 0.0 0.0) (Vector 0.0 0.0 105.0 0.0)
@@ -54,14 +53,14 @@ cornellBoxCamera = withVectors cameraPosition xaxis yaxis zaxis 45.0 10000
 whiteMaterial = Material (Colour 0.5 0.5 0.5 1) (Colour 0.5 0.5 0.5 1) colBlack colBlack 0 0 0 iorAir NullShader
 redMaterial   = Material (Colour 0.5 0.0 0.0 1) (Colour 0.5 0.0 0.0 1) colBlack colBlack 0 0 0 iorAir NullShader
 greenMaterial = Material (Colour 0.0 0.5 0.0 1) (Colour 0.0 0.5 0.0 1) colBlack colBlack 0 0 0 iorAir NullShader
-lightMaterial = Material colBlack colBlack colBlack (Colour 1000 1000 1000 1) 0 0 0 iorAir NullShader
+--lightMaterial = Material colBlack colBlack colBlack (Colour 1000 1000 1000 1) 0 0 0 iorAir NullShader
 
-lightVertices = [
-    Vector 343.0 548.0 227.0 1.0,
-    Vector 343.0 548.0 342.2 1.0,
-    Vector 213.0 548.0 342.0 1.0,
-    Vector 213.0 548.0 227.2 1.0
-    ]
+--lightVertices = [
+--    Vector 343.0 548.0 227.0 1.0,
+--    Vector 343.0 548.0 342.2 1.0,
+--    Vector 213.0 548.0 342.0 1.0,
+--    Vector 213.0 548.0 227.2 1.0
+--    ]
 
 floorVertices = [
     Vector 556.0 0.0   0.0 1.0,
@@ -167,7 +166,7 @@ ceilingObject = Object (TriangleMesh (quadsToTriangles ceilingVertices)) whiteMa
 backWallObject = Object (TriangleMesh (quadsToTriangles backWallVertices)) whiteMaterial identity
 shortBlockObject = Object (TriangleMesh (quadsToTriangles shortBlockVertices)) whiteMaterial identity
 tallBlockObject = Object (TriangleMesh (quadsToTriangles tallBlockVertices)) whiteMaterial identity
-lightObject = Object (TriangleMesh (quadsToTriangles lightVertices)) lightMaterial identity
+--lightObject = Object (TriangleMesh (quadsToTriangles lightVertices)) lightMaterial identity
 
 cornellBox :: [Object]
 cornellBox = [ceilingObject, floorObject, leftWallObject, rightWallObject, backWallObject, frontWallObject, tallBlockObject, shortBlockObject{-, lightObject-}]

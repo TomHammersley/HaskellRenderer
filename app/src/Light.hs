@@ -1,6 +1,5 @@
 -- Module for lights
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 
 module Light (applyLight, 
               surfaceEpsilon, 

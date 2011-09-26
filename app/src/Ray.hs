@@ -1,6 +1,5 @@
 -- Module for handling rays in a raytracer
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 
 module Ray where
 

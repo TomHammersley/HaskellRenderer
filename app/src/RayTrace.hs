@@ -1,6 +1,5 @@
 -- The module where all the tracing actually happens
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 
 module RayTrace (rayTraceImage, pathTraceImage, findNearestIntersection, findAnyIntersection, GlobalIlluminationFunc) where
 

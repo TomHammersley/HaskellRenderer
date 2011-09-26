@@ -1,5 +1,4 @@
 -- This is a module for constructing bounding volume hierarchies using a kdtree
-{-# LANGUAGE MagicHash #-}
 
 module KDTree(generateSceneGraphUsingKDTree, makeSplittingPlane, degenerateSplitList, findSplittingPlane) where
 

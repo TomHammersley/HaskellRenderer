@@ -1,6 +1,5 @@
 -- 4D Matrix Library
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 
 module Matrix where
 
