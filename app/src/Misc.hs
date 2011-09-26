@@ -52,11 +52,11 @@ mapWithState arr s f = mapWithState' arr s []
 
 -- Zip over two lists, passing state from one to the next with the state monad
 zipWithState :: (a -> b -> State s c) -> [a] -> [b] -> s -> ([c], s)
-zipWithState f arr1 arr2 s = mapWithState' arr1 arr2 s []
+zipWithState f arr1 arr2 s = zipWithState' arr1 arr2 s []
     where
-      mapWithState' (x:xs) (y:ys) st acc = mapWithState' xs ys st' (result : acc)
+      zipWithState' (x:xs) (y:ys) st acc = zipWithState' xs ys st' (result : acc)
           where
             (result, st') = runState (f x y) st
-      mapWithState' (_:_) [] _ _ = error "Lists are of a different size - unhandled case!"
-      mapWithState' [] (_:_) _ _ = error "Lists are of a different size - unhandled case!"
-      mapWithState' [] [] st acc = (acc, st)
+      zipWithState' (_:_) [] _ _ = error "Lists are of a different size - unhandled case!"
+      zipWithState' [] (_:_) _ _ = error "Lists are of a different size - unhandled case!"
+      zipWithState' [] [] st acc = (acc, st)

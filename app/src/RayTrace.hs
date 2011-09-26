@@ -308,11 +308,11 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
           return $! result
 
 -- Path-trace a sub-sample
-pathTracePixelSample :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> PathTraceState
-pathTracePixelSample renderContext camera xy (width, height) uv = pathTrace renderContext ray 0 rayDirection 1 colWhite
+pathTracePixelSample :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> (Double, Double) -> PathTraceState
+pathTracePixelSample renderContext camera xy (width, height) jitterUV stratUV = pathTrace renderContext ray 0 rayDirection 1 colWhite
     where
-      jitteredX = (fromIntegral . fst) xy + fst uv
-      jitteredY = (fromIntegral . snd) xy + snd uv
+      jitteredX = (fromIntegral . fst) xy + fst stratUV + fst jitterUV
+      jitteredY = (fromIntegral . snd) xy + snd stratUV + snd jitterUV
       rayDirection = makeRayDirection width height camera (jitteredX, jitteredY)
       ray = rayWithDirection (Camera.position camera) rayDirection (farClip camera)
 
@@ -320,11 +320,24 @@ pathTracePixelSample renderContext camera xy (width, height) uv = pathTrace rend
 pathTracePixel :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> PathTraceState
 pathTracePixel renderContext camera pixelCoords renderTargetSize =
     do
+      -- Total number of samples to take
+      let numPathTraceSamplesRoot = 4 :: Int
+      let numPathTraceSamples = numPathTraceSamplesRoot * numPathTraceSamplesRoot
+      let weight = (1.0 :: Double) / fromIntegral numPathTraceSamples
+
+      -- Work out a set of stratified centres to jitter from
+      let du = (1.0 :: Double) / fromIntegral numPathTraceSamplesRoot
+      let dv = du
+      let stratifiedCentres = [(fromIntegral x * du, fromIntegral y * dv) | y <- [0..(numPathTraceSamplesRoot - 1)], x <- [0..(numPathTraceSamplesRoot - 1)]]
+
+      -- Work out the jittered UV offsets
       gen <- get
-      let numPathTraceSamples = 20
-      let weight = (1 / fromIntegral numPathTraceSamples) :: Double
       let (offsetUVs, gen') = runState (generateRandomUVs numPathTraceSamples) gen
-      let (pixelSamples, gen'') = mapWithState offsetUVs gen' (pathTracePixelSample renderContext camera pixelCoords renderTargetSize)
+      let offsetUVs' = map (\(u, v) -> (u * du, v * dv)) offsetUVs
+      put gen'
+
+      -- Mung it all together
+      let (pixelSamples, gen'') = zipWithState (pathTracePixelSample renderContext camera pixelCoords renderTargetSize) offsetUVs' stratifiedCentres gen'
       put gen''
       return $! foldl' (\x y -> x <*> weight <+> y) colBlack pixelSamples
 
