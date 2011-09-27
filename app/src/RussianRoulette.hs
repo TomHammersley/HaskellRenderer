@@ -11,7 +11,5 @@ data RussianRouletteChoice = DiffuseReflect | SpecularReflect | Absorb deriving 
 russianRouletteCoefficients :: Material -> (Double, Double)
 russianRouletteCoefficients mat = (diffuseP, specularP)
     where
-      (Colour diffuseR diffuseG diffuseB _) = Material.diffuse mat
-      (Colour specularR specularG specularB _) = Material.specular mat
-      diffuseP = (diffuseR + diffuseG + diffuseB) / 3
-      specularP = (specularR + specularG + specularB) / 3
+      diffuseP = (magnitude . Material.diffuse) mat
+      specularP = (magnitude . Material.specular) mat
