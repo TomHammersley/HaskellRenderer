@@ -37,11 +37,11 @@ uvToSphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
       !y = w * sin t
 
 uvToHemisphere :: Double -> (Double, Double) -> Position
-uvToHemisphere r (!u, !v) = Vector (r * x) (r * z) (r * y) 1
+uvToHemisphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
     where
-      !z = 2 * u - 1
-      !t = pi * v
-      !w = sqrt (1 - z * z)
+      !z = v
+      !t = 2 * pi * u
+      !w = sqrt (1 - v * v)
       !x = w * cos t
       !y = w * sin t
 
@@ -57,7 +57,7 @@ generatePointsOnSphere numPoints r seed
 generatePointsOnHemisphere :: Int -> Double -> Int -> [Position]
 generatePointsOnHemisphere numPoints r seed
     | numPoints <= 1 = [Vector 0 0 0 1]
-    | otherwise = map (uvToSphere r) randomUVs
+    | otherwise = map (uvToHemisphere r) randomUVs
     where
       randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
 
