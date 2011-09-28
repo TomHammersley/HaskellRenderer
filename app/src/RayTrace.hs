@@ -264,10 +264,10 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
         Nothing -> return $! colBlack
         Just (obj, intersectionDistance, hitId) -> do
           -- Evaluate surface-location specific things such as shader results
-          let !intersectionPoint = pointAlongRay ray intersectionDistance
-          let !tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
-          let !normal = thr tanSpace
-          let !incoming = Vector.negate $ direction ray
+          let intersectionPoint = pointAlongRay ray intersectionDistance
+          let tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
+          let normal = thr tanSpace
+          let incoming = Vector.negate $ direction ray
 
           -- TODO - Need to evaluate the shader model here!
 
@@ -301,8 +301,8 @@ pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
           put gen'''
 
           -- Have to divide by probability to correctly account for that relative proportion of the domain
-          let result = case interaction of DiffuseReflect -> (emittedLight <+> radiance <+> reflectedLight) </> (1 - diffuseP)
-                                           SpecularReflect -> (emittedLight <+> radiance <+> reflectedLight) </> (1 - diffuseP - specularP)
+          let result = case interaction of DiffuseReflect -> (emittedLight <+> radiance <+> reflectedLight) </> diffuseP
+                                           SpecularReflect -> (emittedLight <+> radiance <+> reflectedLight) </> (diffuseP + specularP)
                                            Absorb -> (emittedLight <+> radiance) </> (1 - diffuseP - specularP)
 
           return $! result
