@@ -8,6 +8,10 @@ import {-# SOURCE #-} PhotonMap (PhotonMapContext)
 
 data RenderMode = RayTrace | PhotonMapper | PathTracer deriving (Show)
 
+data RenderMethodConfiguration = RenderMethodRayTrace
+                               | RenderMethodPhotonMap 
+                               | RenderMethodPathTracer deriving (Show)
+
 data RenderContext = RenderContext {
       numDistribSamples :: Int,
       sceneGraph :: SceneGraph,

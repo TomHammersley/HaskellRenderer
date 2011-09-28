@@ -219,12 +219,11 @@ rayTracePixelSample renderContext !acc (x:xs) photonMap !eyeViewDir !sampleWeigh
       return $! col
 rayTracePixelSample _ !acc [] _ _ _ = return $! acc
 
--- Need to remove hard coded constants of 8 here
 -- This traces for a given pixel (x, y)
 rayTracePixel :: RenderContext -> Position -> Maybe PhotonMap -> Direction -> RayTraceState
 rayTracePixel renderContext eye photonMap viewDirection = do
   irrCache <- get
-  let distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) 12345
+  let distributedPositions = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) 12345 -- TODO Fix this magic number!
   let (pixelColour, irrCache') = runState (rayTracePixelSample renderContext colBlack distributedPositions photonMap (eye, viewDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) irrCache
   put irrCache'
   return $! pixelColour
@@ -250,6 +249,7 @@ rayTraceImage renderContext camera renderWidth renderHeight photonMap = tracePix
           eyePosition = Camera.position camera
           irrCache = initialiseCache (sceneGraph renderContext)
           -- This function is the equivalent to map, but it passes the ending state of one invocation to the next invocation
+          -- I'm using this rather than my mapWithState routine because I'm concerned to do so may break the parallelism of parListChunk
           tracePixelPassingState !(x:xs) !st = result : tracePixelPassingState xs st'
               where
                 (!result, !st') = runState (rayTracePixel renderContext eyePosition photonMap x) st
@@ -343,15 +343,13 @@ pathTracePixel renderContext camera pixelCoords renderTargetSize =
 
 -- Currently separate codepath... unify later
 pathTraceImage :: RenderContext -> Camera -> Int -> Int -> [Colour]
-pathTraceImage renderContext camera renderWidth renderHeight = tracePixelPassingState pixelCoordinates gen `using` parListChunk 256 rdeepseq
+pathTraceImage renderContext camera renderWidth renderHeight = launchPixelPathTrace pixelCoordinates [1..] `using` parListChunk 256 rdeepseq
     where pixelCoordinates = [(x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
-          -- Sort out this 12345 magic number!
-          gen = pureMT 12345
-          -- This function is the equivalent to map, but it passes the ending state of one invocation to the next invocation
-          -- not using the mapState
-          tracePixelPassingState !(x:xs) !st = result : tracePixelPassingState xs st'
+          -- TODO - Try switching this over to zipWithState, but I'm concerned that may interfere with parListChunk
+          launchPixelPathTrace !(x:xs) !(y:ys) = result : launchPixelPathTrace xs ys
               where
-                (!result, !st') = runState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) st
-          tracePixelPassingState [] _ = []
+                !result = evalState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) (pureMT y)
+          launchPixelPathTrace [] _ = []
+          launchPixelPathTrace (_:_) [] = undefined
 
 -- TODO Re-unify the path tracer and ray tracer/photon map code paths as much as practical to ease maintenance (?)
