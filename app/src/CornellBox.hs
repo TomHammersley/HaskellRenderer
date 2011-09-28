@@ -47,7 +47,7 @@ cornellBoxLights = [
     QuadLight (CommonLightData (Colour 500 500 500 0) True) (Vector 213.0 548.0 227.0 1.0) 600 (Vector 130.0 0.0 0.0 0.0) (Vector 0.0 0.0 105.0 0.0)
     ]
 
-cameraPosition = Vector 278.0 273.0 (-2000.0) 1.0
+cameraPosition = Vector 278.0 273.0 (-800.0) 1.0
 cornellBoxCamera = withVectors cameraPosition xaxis yaxis zaxis 45.0 10000
 
 whiteMaterial = Material (Colour 0.5 0.5 0.5 1) (Colour 0.5 0.5 0.5 1) colBlack colBlack 0 0 0 iorAir NullShader
