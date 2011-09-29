@@ -262,50 +262,49 @@ pathTrace :: RenderContext -> Ray -> Int -> Direction -> Double -> Colour -> Pat
 pathTrace renderContext !ray depth !viewDir !currentIOR !weight =
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> return $! colBlack
-        Just (obj, intersectionDistance, hitId) -> do
-          -- Evaluate surface-location specific things such as shader results
-          let intersectionPoint = pointAlongRay ray intersectionDistance
-          let tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
-          let normal = thr tanSpace
-          let incoming = Vector.negate $ direction ray
+        Just (obj, intersectionDistance, hitId) ->           
+            -- Evaluate surface-location specific things such as shader results
+            let intersectionPoint = pointAlongRay ray intersectionDistance
+                tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
+                normal = thr tanSpace
+                incoming = Vector.negate $ direction ray
 
-          -- TODO - Need to evaluate the shader model here!
+                -- Thunk for emitted light
+                emittedLight = (emission . material) obj
+            
+                -- Compute radiance at this point
+                radiance = lightSurface (lights renderContext) colBlack renderContext (intersectionPoint, tanSpace) (material obj) viewDir
 
-          -- Randomly decide the fate at this intersection
-          let (diffuseP, specularP) = russianRouletteCoefficients (material obj)
-          gen <- get
-          let (p, gen') = randomDouble gen
-          put gen'
-          let interaction | p < diffuseP = DiffuseReflect
-                          | p < (diffuseP + specularP) = SpecularReflect
-                          | otherwise = Absorb
+                (diffuseP, specularP) = russianRouletteCoefficients (material obj)
+            in do
+              -- TODO - Need to evaluate the shader model here!
 
-          -- Thunk for emitted light
-          let emittedLight = (emission . material) obj
+              -- Randomly decide the fate at this intersection
+              gen <- get
+              let (p, gen') = randomDouble gen
+              put gen'
+              let interaction | p < diffuseP = DiffuseReflect
+                              | p < (diffuseP + specularP) = SpecularReflect
+                              | otherwise = Absorb
 
-          -- Thunk for reflected light 
-          let (randomDir, gen'') = generatePointOnHemisphere gen' 1
-          put gen''
+              -- Thunk for reflected light 
+              let (randomDir, gen'') = generatePointOnHemisphere gen' 1
+              put gen''
 
-          -- Compute radiance at this point
-          let radiance = lightSurface (lights renderContext) colBlack renderContext (intersectionPoint, tanSpace) (material obj) viewDir
+              -- Set up expression for reflected light
+              let reflectedDir 
+                      | interaction == DiffuseReflect = transformDir randomDir tanSpace
+                      | otherwise = incoming `reflect` normal
+              let ray' = rayWithDirection intersectionPoint reflectedDir (rayLength ray)
+              let weight' = (diffuse . material) obj <*> weight <*> (normal `sdot3` reflectedDir)
+              let (tracedPathColour, gen''') = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
+              let reflectedLight = tracedPathColour <*> weight'
+              put gen'''
 
-          -- Set up expression for reflected light
-          let reflectedDir 
-                  | interaction == DiffuseReflect = transformDir randomDir tanSpace
-                  | otherwise = incoming `reflect` normal
-          let ray' = rayWithDirection intersectionPoint reflectedDir (rayLength ray)
-          let weight' = (diffuse . material) obj <*> weight <*> (normal `sdot3` reflectedDir)
-          let (tracedPathColour, gen''') = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
-          let reflectedLight = tracedPathColour <*> weight'
-          put gen'''
-
-          -- Have to divide by probability to correctly account for that relative proportion of the domain
-          let result = case interaction of DiffuseReflect -> (emittedLight <+> radiance <+> reflectedLight) </> diffuseP
-                                           SpecularReflect -> (emittedLight <+> radiance <+> reflectedLight) </> (diffuseP + specularP)
-                                           Absorb -> (emittedLight <+> radiance) </> (1 - diffuseP - specularP)
-
-          return $! result
+              -- Have to divide by probability to correctly account for that relative proportion of the domain
+              return $! case interaction of DiffuseReflect -> (emittedLight <+> radiance <+> reflectedLight) </> diffuseP
+                                            SpecularReflect -> (emittedLight <+> radiance <+> reflectedLight) </> (diffuseP + specularP)
+                                            Absorb -> (emittedLight <+> radiance) </> (1 - diffuseP - specularP)
 
 -- Path-trace a sub-sample
 pathTracePixelSample :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> (Double, Double) -> PathTraceState
@@ -320,16 +319,6 @@ pathTracePixelSample renderContext camera xy (width, height) jitterUV stratUV = 
 pathTracePixel :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> PathTraceState
 pathTracePixel renderContext camera pixelCoords renderTargetSize =
     do
-      -- Total number of samples to take
-      let numPathTraceSamplesRoot = 16 :: Int
-      let numPathTraceSamples = numPathTraceSamplesRoot * numPathTraceSamplesRoot
-      let weight = (1.0 :: Double) / fromIntegral numPathTraceSamples
-
-      -- Work out a set of stratified centres to jitter from
-      let du = (1.0 :: Double) / fromIntegral numPathTraceSamplesRoot
-      let dv = du
-      let stratifiedCentres = [(fromIntegral x * du, fromIntegral y * dv) | y <- [0..(numPathTraceSamplesRoot - 1)], x <- [0..(numPathTraceSamplesRoot - 1)]]
-
       -- Work out the jittered UV offsets
       gen <- get
       let (offsetUVs, gen') = runState (generateRandomUVs numPathTraceSamples) gen
@@ -340,8 +329,17 @@ pathTracePixel renderContext camera pixelCoords renderTargetSize =
       let (pixelSamples, gen'') = zipWithState (pathTracePixelSample renderContext camera pixelCoords renderTargetSize) offsetUVs' stratifiedCentres gen'
       put gen''
       return $! foldl' (\x y -> x <*> weight <+> y) colBlack pixelSamples
+    where
+      -- Total number of samples to take
+      numPathTraceSamplesRoot = 6 :: Int
+      numPathTraceSamples = numPathTraceSamplesRoot * numPathTraceSamplesRoot
+      weight = (1.0 :: Double) / fromIntegral numPathTraceSamples
 
--- Currently separate codepath... unify later
+      -- Work out a set of stratified centres to jitter from
+      du = (1.0 :: Double) / fromIntegral numPathTraceSamplesRoot
+      dv = du
+      stratifiedCentres = [(fromIntegral x * du, fromIntegral y * dv) | y <- [0..(numPathTraceSamplesRoot - 1)], x <- [0..(numPathTraceSamplesRoot - 1)]]
+
 pathTraceImage :: RenderContext -> Camera -> Int -> Int -> [Colour]
 pathTraceImage renderContext camera renderWidth renderHeight = zipWith
                                                                (\x y -> evalState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) (pureMT y))
