@@ -15,6 +15,7 @@ Fully recursive raytracer with reflection and refraction
 * Irradiance caching
 * Gamma correction
 * Tone mapping
+* Path tracing (work-in-progress, as a reference renderer)
 
 Disclaimer
 ----------
@@ -37,7 +38,7 @@ scripts/build
 
 and execute it with:
 
-time ./crocodile -p -i -c +RTS -N -RTS
+time ./crocodile -p -i +RTS -N -RTS
 
 Cabal also works, of course
 
@@ -50,6 +51,8 @@ Options
 -p enables the photon mapping pass
 -v directly visualises the photon map
 -c enable the irradiance cache
+-P invokes the path tracer codepath
+-d enable ray distribution for depth of field and anti-aliasing
 
 Bugs
 ----
