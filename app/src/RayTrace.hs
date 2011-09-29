@@ -343,13 +343,10 @@ pathTracePixel renderContext camera pixelCoords renderTargetSize =
 
 -- Currently separate codepath... unify later
 pathTraceImage :: RenderContext -> Camera -> Int -> Int -> [Colour]
-pathTraceImage renderContext camera renderWidth renderHeight = launchPixelPathTrace pixelCoordinates [1..] `using` parListChunk 256 rdeepseq
-    where pixelCoordinates = [(x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
-          -- TODO - Try switching this over to zipWithState, but I'm concerned that may interfere with parListChunk
-          launchPixelPathTrace !(x:xs) !(y:ys) = result : launchPixelPathTrace xs ys
-              where
-                !result = evalState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) (pureMT y)
-          launchPixelPathTrace [] _ = []
-          launchPixelPathTrace (_:_) [] = undefined
+pathTraceImage renderContext camera renderWidth renderHeight = zipWith
+                                                               (\x y -> evalState (pathTracePixel renderContext camera x (renderWidth, renderHeight)) (pureMT y))
+                                                               [(x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
+                                                               [1..] 
+                                                               `using` parListChunk 256 rdeepseq
 
 -- TODO Re-unify the path tracer and ray tracer/photon map code paths as much as practical to ease maintenance (?)
