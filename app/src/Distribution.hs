@@ -36,12 +36,13 @@ uvToSphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
       !x = w * cos t
       !y = w * sin t
 
+-- Proportional to cosine-weighted solid angle
 uvToHemisphere :: Double -> (Double, Double) -> Position
 uvToHemisphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
     where
-      !z = v
+      !z = sqrt v
       !t = 2 * pi * u
-      !w = sqrt (1 - v * v)
+      !w = sqrt (1 - v)
       !x = w * cos t
       !y = w * sin t
 
