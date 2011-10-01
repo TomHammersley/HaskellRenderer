@@ -160,7 +160,7 @@ buildKDTree (x:[]) = PhotonMapLeaf x
 buildKDTree [] = error "buildKDTree [] should never get called"
 buildKDTree photons = let (boxMin, boxMax) = photonsBoundingBox photons
                           axis = largestAxis (boxMax <-> boxMin)
-                          numPhotons = (fromIntegral (length photons)) :: Double
+                          numPhotons = fromIntegral (length photons) :: Double
                           photonsMedian = foldl' (\box photon -> box <+> (fst . posDir $ photon)) zeroVector photons </> numPhotons
                           value = component photonsMedian axis
                           photonsGT = Prelude.filter (\p -> component ((fst . posDir) p) axis > value) photons
