@@ -54,9 +54,14 @@ mapWithState arr s f = mapWithState' arr s []
 zipWithState :: (a -> b -> State s c) -> [a] -> [b] -> s -> ([c], s)
 zipWithState f arr1 arr2 s = zipWithState' arr1 arr2 s []
     where
-      zipWithState' (x:xs) (y:ys) st acc = zipWithState' xs ys st' (result : acc)
+      zipWithState' (x:xs) (y:ys) st acc = result `seq` st' `seq` zipWithState' xs ys st' (result : acc)
           where
             (result, st') = runState (f x y) st
       zipWithState' (_:_) [] _ _ = error "Lists are of a different size - unhandled case!"
       zipWithState' [] (_:_) _ _ = error "Lists are of a different size - unhandled case!"
       zipWithState' [] [] st acc = (acc, st)
+
+zipWith' :: (a -> b -> t) -> [a] -> [b] -> [t]
+zipWith' f l1 l2 = [ f e1 e2 | (e1, e2) <- zipWith k l1 l2 ]
+    where
+      k x y = x `seq` y `seq` (x,y)
