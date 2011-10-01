@@ -38,6 +38,7 @@ uvToSphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
 
 -- Proportional to cosine-weighted solid angle
 uvToHemisphere :: Double -> (Double, Double) -> Position
+{-# SPECIALIZE INLINE uvToHemisphere :: Double -> (Double, Double) -> Position #-}
 uvToHemisphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
     where
       !z = sqrt v
