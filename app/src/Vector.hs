@@ -100,11 +100,11 @@ zeroVector = Vector 0 0 0 0
 
 setWTo1 :: Vector -> Vector
 {-# SPECIALIZE INLINE setWTo1 :: Vector -> Vector #-}
-setWTo1 (Vector !x !y !z _) = Vector x y z 1
+setWTo1 v = v { vecW = 1 }
 
 setWTo0 :: Vector -> Vector
 {-# SPECIALIZE INLINE setWTo0 :: Vector -> Vector #-}
-setWTo0 (Vector !x !y !z _) = Vector x y z 0
+setWTo0 v = v { vecW = 0 }
 
 restoreOriginalW :: Vector -> Vector -> Vector
 {-# SPECIALIZE INLINE restoreOriginalW :: Vector -> Vector -> Vector #-}

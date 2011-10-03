@@ -114,7 +114,7 @@ calculateBarycentricCoordinates !pos !triangle = (alpha, beta, gamma)
 
 -- Distance to a plane
 distanceToPlane :: Primitive -> Vector -> Double
-distanceToPlane (Plane !(_, _, norm) !dist) !pos = (pos `dot3` norm) + dist
+distanceToPlane (Plane !(_, _, !norm) !dist) !pos = (pos `dot3` norm) + dist
 distanceToPlane _ _ = error "distanceToPlane: Unsupported primitive for this function"
 
 -- Use halfplanes to test if a point is inside a triangle
@@ -123,7 +123,7 @@ pointInsideTriangle !tri !point = all (\pln -> distanceToPlane pln point >= 0) (
 
 -- Intersect a ray with a triangle
 intersectRayTriangle :: Ray -> Object -> Triangle -> Bool -> (# Bool, Double, Triangle #)
-intersectRayTriangle !ray !obj !triangle !doubleSided
+intersectRayTriangle !ray obj !triangle !doubleSided
     | not doubleSided && direction ray `dot3` (thr . planeTangentSpace . plane) triangle > 0 = (# False, 0, triangle #)
     | otherwise = case primitiveClosestIntersect (plane triangle) ray obj of
                     Nothing -> (# False, 0, triangle #)
@@ -133,7 +133,7 @@ intersectRayTriangle !ray !obj !triangle !doubleSided
 
 -- Intersect against a list of triangles
 intersectRayTriangleList :: [Triangle] -> Int -> Maybe (Double, Int) -> Ray -> Object -> Maybe (Double, Int)
-intersectRayTriangleList !(x:xs) !index !currentResult !currentRay !obj = intersectRayTriangleList xs (index + 1) newResult newRay obj
+intersectRayTriangleList !(x:xs) !index !currentResult !currentRay obj = intersectRayTriangleList xs (index + 1) newResult newRay obj
     where
       (!newRay, !newResult) = case intersectRayTriangle currentRay obj x False of
                                 (# False, _, _ #) -> (currentRay, currentResult)
@@ -142,18 +142,18 @@ intersectRayTriangleList [] _ !currentResult _ _ = currentResult
 
 -- Intersect against any triangle
 intersectRayAnyTriangleList :: [Triangle] -> Int  -> Ray -> Object -> Maybe (Double, Int)
-intersectRayAnyTriangleList !(x:xs) !index !ray !obj = case intersectRayTriangle ray obj x True of
-                                                         (# False, _, _ #) -> intersectRayAnyTriangleList xs (index + 1) ray obj
-                                                         (# True, !dist, _ #) -> Just (dist, index)
+intersectRayAnyTriangleList (x:xs) !index !ray obj = case intersectRayTriangle ray obj x True of
+                                                        (# False, _, _ #) -> intersectRayAnyTriangleList xs (index + 1) ray obj
+                                                        (# True, !dist, _ #) -> Just (dist, index)
 intersectRayAnyTriangleList [] _ _ _ = Nothing
 
 -- Get the interpolated vertex normal
 interpolatedTangentSpace :: Triangle -> Double -> Double -> Double -> TangentSpace
 interpolatedTangentSpace !triangle !triAlpha !triBeta !triGamma = (tangent, binormal, normal)
     where [!(tan1, bi1, norm1), !(tan2, bi2, norm2), !(tan3, bi3, norm3)] = map vertTangentSpace (vertices triangle)
-          tangent = normalise $ tan1 <*> triAlpha <+> tan2 <*> triBeta <+> tan3 <*> triGamma
-          binormal = normalise $ bi1 <*> triAlpha <+> bi2 <*> triBeta <+> bi3 <*> triGamma
-          normal = normalise $ norm1 <*> triAlpha <+> norm2 <*> triBeta <+> norm3 <*> triGamma
+          !tangent = normalise $ tan1 <*> triAlpha <+> tan2 <*> triBeta <+> tan3 <*> triGamma
+          !binormal = normalise $ bi1 <*> triAlpha <+> bi2 <*> triBeta <+> bi3 <*> triGamma
+          !normal = normalise $ norm1 <*> triAlpha <+> norm2 <*> triBeta <+> norm3 <*> triGamma
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of intersection functions
@@ -186,7 +186,7 @@ primitiveClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray !rayOrg !ray
 primitiveClosestIntersect (TriangleMesh !tris) !ray !obj = intersectRayTriangleList tris 0 Nothing ray obj
 
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
-primitiveAnyIntersect (TriangleMesh !tris) !ray !obj = intersectRayAnyTriangleList tris 0 ray obj
+primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
 primitiveAnyIntersect primitive' ray obj = primitiveClosestIntersect primitive' ray obj
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------

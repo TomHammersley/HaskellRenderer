@@ -3,6 +3,7 @@
 {-# LANGUAGE BangPatterns #-}
 
 module Misc where
+
 import GHC.Prim
 import GHC.Types
 import Data.List
@@ -54,7 +55,7 @@ mapWithState arr s f = mapWithState' arr s []
 zipWithState :: (a -> b -> State s c) -> [a] -> [b] -> s -> ([c], s)
 zipWithState f arr1 arr2 s = zipWithState' arr1 arr2 s []
     where
-      zipWithState' (x:xs) (y:ys) st acc = result `seq` st' `seq` zipWithState' xs ys st' (result : acc)
+      zipWithState' (x:xs) (y:ys) st acc = zipWithState' xs ys st' (result : acc)
           where
             (result, st') = runState (f x y) st
       zipWithState' (_:_) [] _ _ = error "Lists are of a different size - unhandled case!"
