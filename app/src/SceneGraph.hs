@@ -19,7 +19,7 @@ calculateMeanPosition' [] acc = acc
 calculateMeanPosition :: [Object] -> Vector
 calculateMeanPosition objects = setWTo1 (calculateMeanPosition' objects zeroVector </> len')
     where
-      !len' = fromIntegral (length objects) :: Double
+      len' = fromIntegral (length objects) :: Double
 
 -- Find the overall bounding radius of a list of objects
 calculateBoundingRadius :: [Object] -> Vector -> Double

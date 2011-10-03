@@ -187,9 +187,9 @@ instance NFData GatheredPhoton where
 -- Return the minimum squared search radius from that specified, versus the furthest photon in the heap
 -- We don't want to locate any photons further away than our current furthest - we're looking for the closest ones, after all
 minimalSearchRadius :: Double -> PhotonHeap -> Double
-minimalSearchRadius !rSq photonHeap = case viewHead photonHeap of
+minimalSearchRadius rSq photonHeap = case viewHead photonHeap of
                                        Nothing -> rSq
-                                       Just (GatheredPhoton !dSq _) -> Prelude.min rSq dSq
+                                       Just (GatheredPhoton dSq _) -> Prelude.min rSq dSq
 
 -- Gather photons for irradiance computations
 -- Algorithm adapted from Realistic Image Synthesis Using Photon Mapping p73

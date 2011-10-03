@@ -42,8 +42,8 @@ growBoundingBox (Vector x1 y1 z1 _, Vector x2 y2 z2 _) k = (Vector (x1 - k) (y1 
 initialInvalidBox :: AABB
 initialInvalidBox = (Vector bigNumber bigNumber bigNumber 1, Vector smallNumber smallNumber smallNumber 1)
     where
-      !bigNumber = 10000000
-      !smallNumber = -10000000
+      bigNumber = 10000000
+      smallNumber = -10000000
 
 -- These functions are useful for finding the greatest or smallest part of a box relative to a normal
 selectMinBoxComponent :: (Vector -> Double) -> Vector -> AABB -> Double

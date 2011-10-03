@@ -18,8 +18,8 @@ type GeneratorState = State PureMT
 -- Generate a pair of random normalised floats
 randomUV :: GeneratorState (Double, Double)
 randomUV = do generator <- get
-              let !(u, generator') = randomDouble generator
-              let !(v, generator'') = randomDouble generator'
+              let (u, generator') = randomDouble generator
+              let (v, generator'') = randomDouble generator'
               put generator''
               return (u, v)
 
@@ -28,24 +28,24 @@ generateRandomUVs :: Int -> GeneratorState [(Double, Double)]
 generateRandomUVs n = replicateM n randomUV
 
 uvToSphere :: Double -> (Double, Double) -> Position
-uvToSphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
+uvToSphere r (u, v) = Vector (r * x) (r * y) (r * z) 1
     where
-      !z = 2 * u - 1
-      !t = 2 * pi * v
-      !w = sqrt (1 - z * z)
-      !x = w * cos t
-      !y = w * sin t
+      z = 2 * u - 1
+      t = 2 * pi * v
+      w = sqrt (1 - z * z)
+      x = w * cos t
+      y = w * sin t
 
 -- Proportional to cosine-weighted solid angle
 uvToHemisphere :: Double -> (Double, Double) -> Position
 {-# SPECIALIZE INLINE uvToHemisphere :: Double -> (Double, Double) -> Position #-}
-uvToHemisphere r (!u, !v) = Vector (r * x) (r * y) (r * z) 1
+uvToHemisphere r (u, v) = Vector (r * x) (r * y) (r * z) 1
     where
-      !z = sqrt v
-      !t = 2 * pi * u
-      !w = sqrt (1 - v)
-      !x = w * cos t
-      !y = w * sin t
+      z = sqrt v
+      t = 2 * pi * u
+      w = sqrt (1 - v)
+      x = w * cos t
+      y = w * sin t
 
 -- Generate a list of random points on a sphere
 generatePointsOnSphere :: Int -> Double -> Int -> [Position]

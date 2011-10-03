@@ -306,7 +306,7 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
               let (tracedPathColour, gen''') = if depth < maxBounces && Colour.magnitude weight > 0.01
                                                then runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
                                                else (colBlack, gen'')
-              let reflectedLight = tracedPathColour `deepseq` tracedPathColour <*> weight'
+              let reflectedLight = tracedPathColour <*> weight'
               put gen'''
 
               -- Have to divide by probability to correctly account for that relative proportion of the domain
@@ -339,7 +339,7 @@ pathTracePixel renderContext camera pixelCoords renderTargetSize =
       return $! pixelSamples `deepseq` foldl' (\x y -> x <*> weight <+> y) colBlack pixelSamples
     where
       -- Total number of samples to take
-      numPathTraceSamplesRoot = 7 :: Int
+      numPathTraceSamplesRoot = 32 :: Int
       numPathTraceSamples = numPathTraceSamplesRoot * numPathTraceSamplesRoot
       weight = (1.0 :: Double) / fromIntegral numPathTraceSamples
 

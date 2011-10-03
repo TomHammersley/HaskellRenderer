@@ -33,15 +33,15 @@ insert pos a oct = fst $ insert' pos oct (Just a)
 insert' :: Vector -> OctTree a -> Maybe a -> (OctTree a, Maybe a)
 insert' pos oct@(OctTreeDummy box) state = case state of
                                              -- If we have been passed some state then attempt to consume it
-                                             Just !value -> if box `contains` pos
-                                                            then (OctTreeLeaf box (pos, value), Nothing)
-                                                            else (oct, state)
+                                             Just value -> if box `contains` pos
+                                                           then (OctTreeLeaf box (pos, value), Nothing)
+                                                           else (oct, state)
                                              _ -> (oct, state)
 
-insert' pos oct@(OctTreeNode box nodeChildren) !state = if box `contains` pos
-                                                        then let (nodeChildren', state') = mapS (insert' pos) nodeChildren state 
-                                                             in (OctTreeNode box nodeChildren', state')
-                                                        else (oct, state)
+insert' pos oct@(OctTreeNode box nodeChildren) state = if box `contains` pos
+                                                       then let (nodeChildren', state') = mapS (insert' pos) nodeChildren state 
+                                                            in (OctTreeNode box nodeChildren', state')
+                                                       else (oct, state)
 
 insert' pos oct@(OctTreeLeaf box (pos', a')) state = if box `contains` pos 
                                                      then 
@@ -61,7 +61,7 @@ gather pos r (OctTreeNode box nodeChildren) = if overlapsSphere box pos r
 gather pos r (OctTreeLeaf _ (pos', a))
     | dSq <= r * r = [(a, dSq)]
     | otherwise = []
-    where !dSq = pos `distanceSq` pos'
+    where dSq = pos `distanceSq` pos'
 gather _ _ (OctTreeDummy _) = []
 
 -- Generate a scene graph using an octree. Refactor this to just be an octree later
@@ -79,9 +79,9 @@ generateOctreeBoxList (Vector xmin ymin zmin _, Vector xmax ymax zmax _) =
      (Vector centreX centreY centreZ 1, Vector xmax ymax zmax 1)
     ]
     where
-      !centreX = (xmin + xmax) * 0.5
-      !centreY = (ymin + ymax) * 0.5
-      !centreZ = (zmin + zmax) * 0.5
+      centreX = (xmin + xmax) * 0.5
+      centreY = (ymin + ymax) * 0.5
+      centreZ = (zmin + zmax) * 0.5
 
 -- Octree code that's spilt out from other modules... this is scene graph specific helper code rather than self-contained octree stuff
 

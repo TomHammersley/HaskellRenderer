@@ -25,7 +25,7 @@ toneMapAverageLuminance xs = map (<*> invAverageBrightness) xs
 
 -- Reinhard tone map operator http://filmicgames.com/archives/75
 toneMapReinhard :: [Colour] -> [Colour]
-toneMapReinhard = map (\(Colour !r !g !b _) -> Colour (r / (r + 1)) (g / (g + 1)) (b / (b + 1)) 1)
+toneMapReinhard = map (\(Colour r g b _) -> Colour (r / (r + 1)) (g / (g + 1)) (b / (b + 1)) 1)
 
 -- Hejl-Burgess-Dawson http://filmicgames.com/archives/75
 toneMapHejlBurgessDawson :: [Colour] -> [Colour]
