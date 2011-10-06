@@ -272,12 +272,14 @@ makeRayDirection renderWidth renderHeight camera (x, y) =
         rayDir = normalise (Vector dirX dirY 1 0)
     in normalise $ transformVector (worldToCamera camera) rayDir
 
+--pathTracePixel :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> PathTraceState
+
 -- Generate a list of colours which contains a raytraced image. In parallel
 rayTraceImage :: RenderContext -> Camera -> Int -> Int -> Maybe PhotonMap -> [Colour]
 rayTraceImage renderContext camera renderWidth renderHeight photonMap = mapWithStateDiscard rayDirections irrCache (rayTracePixel renderContext eyePosition photonMap)
                                                                         `using` parListChunk 256 rdeepseq
     where 
-      rayDirections = [makeRayDirection renderWidth renderHeight camera (fromIntegral x, fromIntegral y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
+      rayDirections = [makeRayDirection renderWidth renderHeight camera (fromIntegral x, fromIntegral (renderHeight - 1 - y)) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
       eyePosition = Camera.position camera
       irrCache = initialiseCache (sceneGraph renderContext)
 
