@@ -29,12 +29,12 @@ data Option
 
 options :: [OptDescr Option]
 options = [
-    Option ['i'] [] (NoArg ShowIntermediate) "Show intermediates",
-    Option ['p'] [] (NoArg PhotonMap) "Photon map",
-    Option ['v'] [] (NoArg DirectPhotonMapVisualisation) "Direct photon map visualisation",
-    Option ['d'] [] (NoArg DistributedRayTracing) "Distributed ray tracing",
-    Option ['c'] [] (NoArg IrradianceCaching) "Irradiance caching",
-    Option ['P'] [] (NoArg PathTrace) "Path tracing"
+    Option "i" [] (NoArg ShowIntermediate) "Show intermediates",
+    Option "p" [] (NoArg PhotonMap) "Photon map",
+    Option "v" [] (NoArg DirectPhotonMapVisualisation) "Direct photon map visualisation",
+    Option "d" [] (NoArg DistributedRayTracing) "Distributed ray tracing",
+    Option "c" [] (NoArg IrradianceCaching) "Irradiance caching",
+    Option "P" [] (NoArg PathTrace) "Path tracing"
     ]
 
 parsedOptions :: [String] -> [Option]

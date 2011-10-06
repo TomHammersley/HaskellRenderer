@@ -1,5 +1,4 @@
 -- Tone map an image
-{-# LANGUAGE BangPatterns #-}
 
 module ToneMap(toneMapImage, 
                toneMapIdentity, 

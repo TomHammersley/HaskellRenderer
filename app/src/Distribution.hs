@@ -1,17 +1,20 @@
 -- Module for generating sample patterns for distributed ray tracing
-{-# LANGUAGE BangPatterns #-}
 
 module Distribution (generatePointsOnSphere, 
                      generatePointsOnQuad, 
                      generatePointsOnHemisphere,
                      generatePointOnHemisphere,
                      generateRandomUVs,
+                     generateDirectionOnHemisphere,
+                     generateDirectionsOnHemisphere,
+                     generateDirectionsOnSphere,
                      randomUV) where
 
 import PolymorphicNum
 import Vector
 import System.Random.Mersenne.Pure64
 import Control.Monad.State
+import Misc
 
 type GeneratorState = State PureMT
 
@@ -41,37 +44,70 @@ uvToHemisphere :: Double -> (Double, Double) -> Position
 {-# SPECIALIZE INLINE uvToHemisphere :: Double -> (Double, Double) -> Position #-}
 uvToHemisphere r (u, v) = Vector (r * x) (r * y) (r * z) 1
     where
-      z = sqrt v
-      t = 2 * pi * u
-      w = sqrt (1 - v)
-      x = w * cos t
-      y = w * sin t
+      k = sqrt u
+      theta = 2 * pi * v
+      x = k * cos theta
+      y = k * sin theta
+      z = sqrt (0 `Prelude.max` (1 - u))
 
 -- Generate a list of random points on a sphere
-generatePointsOnSphere :: Int -> Double -> Int -> [Position]
-generatePointsOnSphere numPoints r seed 
+generatePointsOnSphere :: Int -> Double -> PureMT -> [Position]
+generatePointsOnSphere numPoints r mt
     | numPoints <= 1 = [Vector 0 0 0 1]
     | otherwise = map (uvToSphere r) randomUVs
     where
-      randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
+      randomUVs = evalState (generateRandomUVs numPoints) mt
 
 -- Generate a list of random points on a hemisphere (z > 0)
-generatePointsOnHemisphere :: Int -> Double -> Int -> [Position]
-generatePointsOnHemisphere numPoints r seed
+generatePointsOnHemisphere :: Int -> Double -> PureMT -> [Position]
+generatePointsOnHemisphere numPoints r mt
     | numPoints <= 1 = [Vector 0 0 0 1]
     | otherwise = map (uvToHemisphere r) randomUVs
     where
-      randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
+      randomUVs = evalState (generateRandomUVs numPoints) mt
 
-generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> Int -> [Position]
-generatePointsOnQuad pos deltaU deltaV numPoints seed 
+generatePointsOnQuad :: Position -> Direction -> Direction -> Int -> PureMT -> [Position]
+generatePointsOnQuad pos deltaU deltaV numPoints mt
     | numPoints <= 1 = [Vector 0 0 0 1]
     | otherwise = map (\(u, v) -> pos <+> deltaU <*> u <+> deltaV <*> v) randomUVs
     where
-      randomUVs = evalState (generateRandomUVs numPoints) (pureMT (fromIntegral seed))
+      randomUVs = evalState (generateRandomUVs numPoints) mt
 
 -- Generate a single random point on a hemisphere
 generatePointOnHemisphere :: PureMT -> Double -> (Position, PureMT)
 generatePointOnHemisphere rndGen r  = (uvToHemisphere r uv, rndGen')
+    where
+      (uv, rndGen') = runState randomUV rndGen
+
+-- Stratify over an 8x8 grid
+stratify :: (Double, Double) -> Int -> (Double, Double)
+stratify (u, v) index = (saturate ((col + u) * recipGridX), saturate ((row + v) * recipGridY))
+    where
+      gridX = 8
+      gridY = 8
+      recipGridX = (1.0 :: Double) / gridX
+      recipGridY = (1.0 :: Double) / gridY
+      wrappedIndex = index `mod` (floor $ gridX * gridY)
+      row = fromIntegral (wrappedIndex `div` (floor gridX))
+      col = fromIntegral (wrappedIndex `mod` (floor gridX))
+
+generateDirectionsOnHemisphere :: Int -> Double -> PureMT -> [Direction]
+generateDirectionsOnHemisphere numPoints r mt
+    | numPoints <= 1 = [Vector 0 0 0 1]
+    | numPoints `mod` 64 /= 0 = error "Error, must specify point count in multiples of 64 (8x8 grid stratification)"
+    | otherwise = map (setWTo0 . uvToHemisphere r) stratifiedUVs
+    where
+      randomUVs = evalState (generateRandomUVs numPoints) mt
+      stratifiedUVs = zipWith stratify randomUVs [1..]
+
+generateDirectionsOnSphere :: Int -> Double -> PureMT -> [Direction]
+generateDirectionsOnSphere numPoints r mt
+    | numPoints <= 1 = [Vector 0 0 0 1]
+    | otherwise = map (setWTo0 . uvToSphere r) randomUVs
+    where
+      randomUVs = evalState (generateRandomUVs numPoints) mt
+
+generateDirectionOnHemisphere :: PureMT -> Double -> (Direction, PureMT)
+generateDirectionOnHemisphere rndGen r  = (setWTo0 $ uvToHemisphere r uv, rndGen')
     where
       (uv, rndGen') = runState randomUV rndGen

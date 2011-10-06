@@ -42,7 +42,7 @@ mapS f z s = mapS' z s []
           where (!result, !st') = f x st `using` rseq
       mapS' [] !st !acc = (acc, st)
 
--- Map over a list, passing state from one to the next with the state monad
+-- Map over a list, passing state from one to the next with the state monad and returning state
 mapWithState :: [a] -> s -> (a -> State s b) -> ([b], s)
 mapWithState arr s f = mapWithState' arr s []
     where
@@ -50,6 +50,15 @@ mapWithState arr s f = mapWithState' arr s []
           where
             (result, st') = runState (f x) st
       mapWithState' [] st acc = (acc, st)
+
+-- As above, but discard state
+mapWithStateDiscard :: [a] -> s -> (a -> State s b) -> [b]
+mapWithStateDiscard arr s f = mapWithState' arr s []
+    where
+      mapWithState' (x:xs) st acc = mapWithState' xs st' (result : acc)
+          where
+            (result, st') = runState (f x) st
+      mapWithState' [] _ acc = acc
 
 -- Zip over two lists, passing state from one to the next with the state monad
 zipWithState :: (a -> b -> State s c) -> [a] -> [b] -> s -> ([c], s)

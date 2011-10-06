@@ -1,5 +1,4 @@
 -- Module for lights
-{-# LANGUAGE BangPatterns #-}
 
 module Light (applyLight, 
               surfaceEpsilon, 

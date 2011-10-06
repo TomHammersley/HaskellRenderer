@@ -27,6 +27,7 @@ module Primitive (primitiveBoundingRadius,
                   infinite, 
                   boundingBoxValid, 
                   sphereIntersect,
+                  makePlane,
                   TangentSpace,
                   Vertex) where
 
@@ -70,7 +71,7 @@ makePlane v1 v2 v3 = Plane (tangent, binormal, normal) (-(v1 `dot3` normal))
     where 
       normal = normalise (surfaceNormal v1 v2 v3)
       tangent = normalise (v2 <-> v1)
-      binormal = normalise (v3 <-> v1)
+      binormal = normalise (normal `cross` tangent)
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Triangle base functionality

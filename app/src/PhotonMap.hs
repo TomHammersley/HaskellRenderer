@@ -1,5 +1,4 @@
 -- Photon mapping
-{-# LANGUAGE BangPatterns #-}
 
 module PhotonMap(buildPhotonMap, PhotonMap(photonList), irradiance, PhotonMapContext(PhotonMapContext)) where
 
@@ -45,21 +44,21 @@ instance NFData Photon where
     rnf (Photon power' posDir') = rnf power' `seq` rnf posDir'
 
 -- TODO - Sort this out!
-seedToRefactor :: Int
-seedToRefactor = 12345
+mtToRefactor :: PureMT
+mtToRefactor = pureMT 12345
 
 -- Generate a list of photon position and direction tuples to emit
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
 -- Helps parallelisation...
 -- TODO Eliminate magic number seeds from here
 emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
-emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1 seedToRefactor) [1..numPhotons]
+emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1 mtToRefactor) [1..numPhotons]
     where
       flux = lightPower <*> ((1.0 / fromIntegral numPhotons) :: Double)
 emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, transformDir dir tanSpace, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
-      randomPoints = generatePointsOnQuad corner du dv numPhotons seedToRefactor
-      randomDirs = generatePointsOnHemisphere numPhotons 1 (seedToRefactor * 10)
+      randomPoints = generatePointsOnQuad corner du dv numPhotons mtToRefactor
+      randomDirs = generatePointsOnHemisphere numPhotons 1 mtToRefactor
       area =  Vector.magnitude (du `cross` dv)
       flux = lightPower <*> (area / fromIntegral numPhotons)
       tanSpace = (normalise du, normalise dv, normalise (du `cross` dv))
