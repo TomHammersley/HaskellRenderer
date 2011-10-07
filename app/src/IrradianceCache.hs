@@ -37,43 +37,43 @@ errorWeight (pos', dir') (pos, CacheSample (dir, _, r))
     | dot <= 0 = 0
     | otherwise = 1 / ((pos `distance` pos') / r + sqrt (1 + dot))
     where
-      !dot = dir `dot3` dir'
+      dot = dir `dot3` dir'
 
 -- This slightly convoluted version is written to be tail recursive. I effectively have to maintain a software stack of the
 -- nodes remaining to be traversed
 findSamples :: (Position, Direction) -> [IrradianceCache] -> [(Vector, CacheSample, Double)] -> [(Vector, CacheSample, Double)]
-findSamples posDir@(!pos, _) (OctTreeNode !box nodeChildren : xs) !acc
+findSamples posDir@(pos, _) (OctTreeNode box nodeChildren : xs) acc
     | box `contains` pos = findSamples posDir (nodeChildren ++ xs) acc
     | otherwise = findSamples posDir xs acc
-findSamples posDir@(pos, _) (OctTreeLeaf _ (samplePos, sample) : xs) !acc
+findSamples posDir@(pos, _) (OctTreeLeaf _ (samplePos, sample) : xs) acc
     | (pos `distanceSq` samplePos) <= sampleR * sampleR && weight > minimumWeight = findSamples posDir xs ((samplePos, sample, weight) : acc)
     | otherwise = findSamples posDir xs acc
     where
-      !weight = errorWeight posDir (samplePos, sample)
-      (CacheSample (_, _, !sampleR)) = sample
+      weight = errorWeight posDir (samplePos, sample)
+      (CacheSample (_, _, sampleR)) = sample
       minimumWeight = 1.5 -- The bigger this weight, the less it will reuse samples and the higher the quality
-findSamples posDir (OctTreeDummy _ : xs) !acc = findSamples posDir xs acc
-findSamples _ [] !acc = acc
+findSamples posDir (OctTreeDummy _ : xs) acc = findSamples posDir xs acc
+findSamples _ [] acc = acc
 
 -- Sum together a list of samples and error weights
 sumSamples :: [(Vector, CacheSample, Double)] -> Colour
-sumSamples !samples = colourSum </> weightSum
+sumSamples samples = colourSum </> weightSum
     where
-      sumSamples' !(!colAcc, !weightAcc) ((_, CacheSample (_, !col, _), !weight):xs) = sumSamples' (colAcc <+> col <*> weight, weightAcc + weight) xs
-      sumSamples' !(!colAcc, !weightAcc) [] = (colAcc, weightAcc)
-      !(!colourSum, !weightSum) = sumSamples' (colBlack, 0) samples
+      sumSamples' (colAcc, weightAcc) ((_, CacheSample (_, col, _), weight):xs) = sumSamples' (colAcc <+> col <*> weight, weightAcc + weight) xs
+      sumSamples' (colAcc, weightAcc) [] = (colAcc, weightAcc)
+      (colourSum, weightSum) = sumSamples' (colBlack, 0) samples
 
 -- Query the irradiance given a point
 -- Supplied function supplies the irradiance colour at a surface location along with the radius it is valid for
 query :: IrradianceCache -> SurfaceLocation -> (SurfaceLocation -> (Colour, Double)) -> (Colour, IrradianceCache)
-query irrCache !posTanSpace f = case findSamples (position, normal) [irrCache] [] of
-                                  -- Insert a new cache sample
-                                  [] -> let (!colour, !r) = f posTanSpace 
-                                            !sample = CacheSample (normal, colour, r)
+query irrCache posTanSpace f = case findSamples (position, normal) [irrCache] [] of
+                                 -- Insert a new cache sample
+                                 [] -> let (colour, r) = f posTanSpace 
+                                           sample = CacheSample (normal, colour, r)
                                         in (colour, Octree.insert (fst posTanSpace) sample irrCache)
-                                  -- Re-use existing cache samples
-                                  list -> (sumSamples list, irrCache)
+                                 -- Re-use existing cache samples
+                                 list -> (sumSamples list, irrCache)
     where
-      !position = fst posTanSpace
-      !tanSpace = snd posTanSpace
-      !normal = tsNormal tanSpace
+      position = fst posTanSpace
+      tanSpace = snd posTanSpace
+      normal = tsNormal tanSpace

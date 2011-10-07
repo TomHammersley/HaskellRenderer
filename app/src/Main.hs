@@ -50,12 +50,10 @@ renderHeight :: Int -> Int
 renderHeight mipLevel = 720 `shiftR` mipLevel
 
 -- This returns a list of colours of pixels
-renderImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
-renderImage mipLevel renderSettings photonMap = finalImage
+renderScaledImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
+renderScaledImage mipLevel renderSettings photonMap = finalImage
     where
-      rawImageOutput = case renderMode renderSettings of
-                         PathTracer -> pathTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel)
-                         _ -> rayTraceImage renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) photonMap
+      rawImageOutput = renderScene photonMap renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) 
       exposedImage = exposeImage imageAverageLuminance rawImageOutput 4
       toneMappedImage = toneMapImage toneMapHejlBurgessDawson exposedImage
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
@@ -63,21 +61,21 @@ renderImage mipLevel renderSettings photonMap = finalImage
 -- In the interest of rapid developer feedback, this functions writes a progressively-increasing image
 -- So, we get quick feedback on the intermediate results, but will still ultimately get the final image
 -- Note this does no re-use, so it'll be slower overall
-writeRaytracedImage :: [Int] -> Maybe PhotonMap -> RenderContext -> IO ()
-writeRaytracedImage [] photonMap renderSettings = do
-  let imageData = renderImage 0 renderSettings photonMap
+writeImageMipMapChain :: String -> [Int] -> Maybe PhotonMap -> RenderContext -> IO ()
+writeImageMipMapChain baseFilename [] photonMap renderSettings = do
+  let imageData = renderScaledImage 0 renderSettings photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
   let bmp = packRGBA32ToBMP (renderWidth 0) (renderHeight 0) rgba
   Prelude.putStrLn "Performing final render"
-  writeBMP "test.bmp" bmp
-writeRaytracedImage (mipLevel:mipLevels) photonMap renderSettings = do
-  let imageData = renderImage mipLevel renderSettings photonMap
+  writeBMP (baseFilename ++ ".bmp") bmp
+writeImageMipMapChain baseFilename (mipLevel:mipLevels) photonMap renderSettings = do
+  let imageData = renderScaledImage mipLevel renderSettings photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
   let bmp = packRGBA32ToBMP (renderWidth mipLevel) (renderHeight mipLevel) rgba
-  let filename = "test-intermediate-" ++ show mipLevel ++ ".bmp"
+  let filename = baseFilename ++ show mipLevel ++ ".bmp"
   Prelude.putStrLn filename
   writeBMP filename bmp
-  writeRaytracedImage mipLevels photonMap renderSettings
+  writeImageMipMapChain baseFilename mipLevels photonMap renderSettings
 
 -- Strip off the photon map flag from a light
 notInPhotonMap :: Light -> Light
@@ -156,4 +154,4 @@ main = do
                               then Prelude.reverse [1..maxMipLevel]
                               else []
   Prelude.putStrLn "Rendering image..."
-  writeRaytracedImage intermediateMipLevels photonMap renderSettings'
+  writeImageMipMapChain "render-output" intermediateMipLevels photonMap renderSettings'

@@ -1,7 +1,6 @@
 -- The module where all the tracing actually happens
 
-module RayTrace (rayTraceImage, 
-                 pathTraceImage, 
+module RayTrace (renderScene, 
                  findNearestIntersection, 
                  findAnyIntersection, 
                  GlobalIlluminationFunc, 
@@ -36,6 +35,7 @@ data PathTraceContext = PathTraceContext {
       samplesOverHemisphere :: Int, -- Number of samples to trace over the hemisphere used to estimate irradiance at first bounce
       hemisphereGatherDistance :: Double
     }
+
 -- Intersect a ray against a sphere tree
 intersectSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Double, Int) -> Maybe (Object, Double, Int)
 intersectSphereTree (node:nodes) ray currentHit = intersectSphereTree (newNodeList ++ nodes) newRay thisResult
@@ -277,14 +277,6 @@ makeRayDirection renderWidth renderHeight camera (x, y) =
         rayDir = normalise (Vector dirX dirY 1 0)
     in normalise $ transformVector (worldToCamera camera) rayDir
 
--- Generate a list of colours which contains a raytraced image. In parallel
-rayTraceImage :: RenderContext -> Camera -> Int -> Int -> Maybe PhotonMap -> [Colour]
-rayTraceImage renderContext camera renderWidth renderHeight photonMap = mapWithStateDiscard pixelCoords (irrCache, pureMT 12345) (rayTracePixel photonMap renderContext camera (renderWidth, renderHeight))
-                                                                        `using` parListChunk 256 rdeepseq
-    where 
-      pixelCoords = [(x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
-      irrCache = initialiseCache (sceneGraph renderContext)
-
 type PathTraceState = State PureMT Colour
 
 -- Trace a path, throough a scene
@@ -310,8 +302,8 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
                 -- Perhaps these should be precalculated?
                 (diffuseP, specularP) = russianRouletteCoefficients objMaterial
 
-                -- Don't just let things keep going, put a lid on it
-                bounceLimit = 50
+                -- Don't just let things keep going, put a lid on it. Very diminishing returns after 10 bounces
+                bounceLimit = 10
             in do
               -- TODO - Need to evaluate the shader model here!
 
@@ -381,6 +373,14 @@ pathTracePixel renderContext camera renderTargetSize pixelCoords =
       dv = du
       stratifiedCentres = [(fromIntegral x * du, fromIntegral y * dv) | y <- [0..(numPathTraceSamplesRoot - 1)], x <- [0..(numPathTraceSamplesRoot - 1)]]
 
+-- Generate a list of colours which contains a raytraced image. In parallel
+rayTraceImage :: Maybe PhotonMap -> RenderContext -> Camera -> Int -> Int -> [Colour]
+rayTraceImage photonMap renderContext camera renderWidth renderHeight = mapWithStateDiscard pixelCoords (irrCache, pureMT 12345) (rayTracePixel photonMap renderContext camera (renderWidth, renderHeight))
+                                                                        `using` parListChunk 256 rdeepseq
+    where 
+      pixelCoords = [(x, y) | y <- [0..(renderHeight - 1)], x <- [0..(renderWidth - 1)]]
+      irrCache = initialiseCache (sceneGraph renderContext)
+
 pathTraceImage :: RenderContext -> Camera -> Int -> Int -> [Colour]
 pathTraceImage renderContext camera renderWidth renderHeight = zipWith'
                                                                (\x y -> evalState (pathTracePixel renderContext camera (renderWidth, renderHeight) x) (pureMT y))
@@ -388,4 +388,8 @@ pathTraceImage renderContext camera renderWidth renderHeight = zipWith'
                                                                [1..] 
                                                                `using` parListChunk 16 rdeepseq
 
--- TODO Re-unify the path tracer and ray tracer/photon map code paths as much as practical to ease maintenance (?)
+-- Perform a full render of the frame
+renderScene :: Maybe PhotonMap -> RenderContext -> Camera -> Int -> Int -> [Colour]
+renderScene photonMap renderContext camera width height = case renderMode renderContext of
+                                                            PathTracer -> pathTraceImage renderContext camera width height
+                                                            _ -> rayTraceImage photonMap renderContext camera width height
