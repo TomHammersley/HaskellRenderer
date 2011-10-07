@@ -52,7 +52,7 @@ mtToRefactor = pureMT 12345
 -- Helps parallelisation...
 -- TODO Eliminate magic number seeds from here
 emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
-emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (generatePointsOnSphere numPhotons 1 mtToRefactor) [1..numPhotons]
+emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (fst $ generatePointsOnSphere numPhotons 1 mtToRefactor) [1..numPhotons]
     where
       flux = lightPower <*> ((1.0 / fromIntegral numPhotons) :: Double)
 emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, transformDir dir tanSpace, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]

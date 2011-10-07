@@ -51,12 +51,12 @@ uvToHemisphere r (u, v) = Vector (r * x) (r * y) (r * z) 1
       z = sqrt (0 `Prelude.max` (1 - u))
 
 -- Generate a list of random points on a sphere
-generatePointsOnSphere :: Int -> Double -> PureMT -> [Position]
+generatePointsOnSphere :: Int -> Double -> PureMT -> ([Position], PureMT)
 generatePointsOnSphere numPoints r mt
-    | numPoints <= 1 = [Vector 0 0 0 1]
-    | otherwise = map (uvToSphere r) randomUVs
+    | numPoints <= 1 = ([Vector 0 0 0 1], mt)
+    | otherwise = (map (uvToSphere r) randomUVs, mt')
     where
-      randomUVs = evalState (generateRandomUVs numPoints) mt
+      (randomUVs, mt') = runState (generateRandomUVs numPoints) mt
 
 -- Generate a list of random points on a hemisphere (z > 0)
 generatePointsOnHemisphere :: Int -> Double -> PureMT -> [Position]
