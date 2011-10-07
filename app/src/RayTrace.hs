@@ -255,7 +255,7 @@ rayTracePixelSample _ _ acc [] _ _ = return $! acc
 rayTracePixel :: Maybe PhotonMap -> RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> RayTraceState
 rayTracePixel photonMap renderContext camera (width, height) (x, y) = 
     let eye = Camera.position camera
-        rayDirection = makeRayDirection width height camera (fromIntegral x, fromIntegral y)
+        rayDirection = makeRayDirection width height camera (fromIntegral x, fromIntegral (height - 1 - y))
     in do 
       (irrCache, mt) <- get
       let (distributedPositions, mt') = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) mt
