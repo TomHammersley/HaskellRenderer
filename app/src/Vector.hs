@@ -230,4 +230,4 @@ component _ _ = error "Invalid component index"
 
 transformDir :: Direction -> TangentSpace -> Direction
 {-# SPECIALIZE INLINE transformDir :: Direction -> TangentSpace -> Direction #-}
-transformDir (Vector !x !y !z _) !(tangent, binormal, normal) = setWTo0 $ tangent <*> x <+> binormal <*> y <+> normal <*> z
+transformDir (Vector !x !y !z _) !(tangent, binormal, normal) = (setWTo0 . normalise) (tangent <*> x <+> binormal <*> y <+> normal <*> z)

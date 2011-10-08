@@ -57,8 +57,8 @@ emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zi
       flux = lightPower <*> ((1.0 / fromIntegral numPhotons) :: Double)
 emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, transformDir dir tanSpace, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
     where
-      randomPoints = generatePointsOnQuad corner du dv numPhotons mtToRefactor
-      randomDirs = generatePointsOnHemisphere numPhotons 1 mtToRefactor
+      randomPoints = fst $ generatePointsOnQuad corner du dv numPhotons mtToRefactor
+      randomDirs = fst $ generatePointsOnHemisphere numPhotons 1 mtToRefactor
       area =  Vector.magnitude (du `cross` dv)
       flux = lightPower <*> (area / fromIntegral numPhotons)
       tanSpace = (normalise du, normalise dv, normalise (du `cross` dv))

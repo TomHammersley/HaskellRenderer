@@ -7,6 +7,7 @@ import Misc
 import Data.Word
 import Control.DeepSeq
 import PolymorphicNum
+import Data.List
 
 -- Normalised RGBA colour
 data Colour = Colour { red :: {-# UNPACK #-} !Double, 
@@ -108,3 +109,9 @@ luminance (Colour !r !g !b _) = r * 0.3 + g * 0.6 + b * 0.1
 
 logLuminance :: Colour -> Double
 logLuminance = log . max 1e-5 . luminance
+
+-- Average together a list of colours
+averageColour :: [Colour] -> Colour
+averageColour xs = foldl' (\x y -> x <*> weight <+> y) colBlack xs
+    where
+      weight = (1 :: Double) / fromIntegral (length xs)

@@ -6,7 +6,7 @@ import PolymorphicNum
 import Vector
 
 -- For now, we're sticking to Doubles
-data Ray = Ray { origin :: {-# UNPACK #-} !Position, direction :: {-# UNPACK #-} !Direction, rayLength :: {-# UNPACK #-} !Double }
+data Ray = Ray { origin :: {-# UNPACK #-} !Position, direction :: {-# UNPACK #-} !Direction, rayLength :: {-# UNPACK #-} !Double } deriving (Show)
 
 -- Make a ray given the start and end position
 rayWithPoints :: Position -> Position -> Ray

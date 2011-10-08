@@ -27,7 +27,6 @@ import System.Random.Mersenne.Pure64
 import Data.List
 import RussianRoulette
 import Control.DeepSeq
---import Debug.Trace
 
 data PathTraceContext = PathTraceContext {
       samplesPerPixelRoot :: Int, -- sqrt of the total number of samples per pixel
@@ -216,12 +215,12 @@ traceRay renderContext photonMap ray limit viewDir currentIOR accumulatedReflect
                 enteringObject incoming normal = incoming `dot3` normal > 0
 
 -- Work out the irradiance over a hemisphere at a point in space
-irradianceOverHemisphere :: RenderContext -> Int -> SurfaceLocation -> Direction -> PathTraceState
-irradianceOverHemisphere renderContext numSamples (pos, tanSpace) viewDir =
+irradianceOverHemisphere :: RenderContext -> Int -> SurfaceLocation -> Direction -> Double -> PathTraceState
+irradianceOverHemisphere renderContext numSamples (pos, tanSpace) viewDir gatherDistance =
     do
       gen <- get
-      let hemisphereDirs = generateDirectionsOnHemisphere numSamples 1 gen
-      let gatherDistance = 5000
+      let (hemisphereDirs, gen') = generateDirectionsOnHemisphere numSamples 1 gen
+      put gen'
       let samples = map (\x -> let ray = rayWithDirection pos (transformDir x tanSpace) gatherDistance
                                in case findNearestIntersection (sceneGraph renderContext) ray of
                                  Nothing -> colBlack
@@ -230,8 +229,7 @@ irradianceOverHemisphere renderContext numSamples (pos, tanSpace) viewDir =
                                                             in lightSurface (lights renderContext) colBlack renderContext (hitPoint, hitTanSpace) (material obj) viewDir
                         ) 
                     hemisphereDirs
-      let weight = (1 :: Double) / fromIntegral numSamples
-      return $! foldl' (\x y -> x <*> weight <+> y) colBlack samples
+      return $! averageColour samples -- Reduce samples down
 
 -- Trace a list of distributed samples with tail recursion
 rayTracePixelSample :: Maybe PhotonMap -> RenderContext -> Colour -> [Position] -> (Position, Direction) -> Double -> RayTraceState
@@ -287,6 +285,7 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
         Just (obj, intersectionDistance, hitId) ->           
             -- Evaluate surface-location specific things such as shader results
             let intersectionPoint = pointAlongRay ray intersectionDistance
+                shadingPoint = madd intersectionPoint normal surfaceEpsilon
                 tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
                 normal = thr tanSpace
                 incoming = Vector.negate $ direction ray
@@ -328,11 +327,15 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
               -- For the first hit, run an extra in-depth gather for the irradiance
               -- For subsequent bounces, just do a single ray
               let (tracedPathColour, gen''') 
-                      | depth == 0 = runState (irradianceOverHemisphere renderContext 256 (intersectionPoint, tanSpace) viewDir) gen''
+                      | depth == 0 = runState (irradianceOverHemisphere renderContext 256 (shadingPoint, tanSpace) viewDir 5000) gen''
                       | depth < bounceLimit && Colour.magnitude weight' > 0.001 = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
                       | otherwise = (colBlack, gen'')
+
+--              let (tracedPathColour, gen''') = runState (irradianceOverHemisphere renderContext 256 (shadingPoint, tanSpace) viewDir 5000) gen''
               let reflectedLight = tracedPathColour <*> weight'
               put gen'''
+
+--              return $!tracedPathColour
 
               -- Have to divide by probability to correctly account for that relative proportion of the domain
               return $! case interaction of DiffuseReflect -> (emittedLight <+> radiance <+> reflectedLight) </> diffuseP

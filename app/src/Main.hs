@@ -72,7 +72,7 @@ writeImageMipMapChain baseFilename (mipLevel:mipLevels) photonMap renderSettings
   let imageData = renderScaledImage mipLevel renderSettings photonMap
   let rgba = Data.ByteString.pack (convertColoursToPixels imageData)
   let bmp = packRGBA32ToBMP (renderWidth mipLevel) (renderHeight mipLevel) rgba
-  let filename = baseFilename ++ show mipLevel ++ ".bmp"
+  let filename = baseFilename ++ "-" ++ show mipLevel ++ ".bmp"
   Prelude.putStrLn filename
   writeBMP filename bmp
   writeImageMipMapChain baseFilename mipLevels photonMap renderSettings
