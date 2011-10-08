@@ -327,7 +327,7 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
               -- For the first hit, run an extra in-depth gather for the irradiance
               -- For subsequent bounces, just do a single ray
               let (tracedPathColour, gen''') 
-                      | depth == 0 = runState (irradianceOverHemisphere renderContext 256 (shadingPoint, tanSpace) viewDir 5000) gen''
+                      | depth == 0 = runState (irradianceOverHemisphere renderContext 128 (shadingPoint, tanSpace) viewDir 5000) gen''
                       | depth < bounceLimit && Colour.magnitude weight' > 0.001 = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
                       | otherwise = (colBlack, gen'')
 
@@ -367,7 +367,7 @@ pathTracePixel renderContext camera renderTargetSize pixelCoords =
       return $! pixelSamples `deepseq` foldl' (\x y -> x <*> weight <+> y) colBlack pixelSamples
     where
       -- Total number of samples to take
-      numPathTraceSamplesRoot = 6 :: Int
+      numPathTraceSamplesRoot = 8 :: Int
       numPathTraceSamples = numPathTraceSamplesRoot * numPathTraceSamplesRoot
       weight = (1.0 :: Double) / fromIntegral numPathTraceSamples
 
