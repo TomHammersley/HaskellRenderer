@@ -332,7 +332,7 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
                       | otherwise = (colBlack, gen'')
 
 --              let (tracedPathColour, gen''') = runState (irradianceOverHemisphere renderContext 256 (shadingPoint, tanSpace) viewDir 5000) gen''
-              let reflectedLight = tracedPathColour <*> weight'
+              let reflectedLight = tracedPathColour <*> weight
               put gen'''
 
 --              return $!tracedPathColour

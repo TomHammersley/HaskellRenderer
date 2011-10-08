@@ -47,8 +47,8 @@ uvToHemisphere r w (u, v) = Vector (r * x) (r * y) (r * z) w
       k = sqrt u
       theta = 2 * pi * v
       x = k * cos theta
-      z = k * sin theta
-      y = sqrt (0 `Prelude.max` (1 - u))
+      y = k * sin theta
+      z = sqrt (0 `Prelude.max` (1 - u))
 
 -- Generate a list of random points on a sphere
 generatePointsOnSphere :: Int -> Double -> PureMT -> ([Position], PureMT)
