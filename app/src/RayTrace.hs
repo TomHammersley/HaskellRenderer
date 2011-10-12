@@ -3,6 +3,7 @@
 module RayTrace (renderScene, 
                  findNearestIntersection, 
                  findAnyIntersection, 
+                 irradianceOverHemisphere,
                  GlobalIlluminationFunc, 
                  PathTraceContext(PathTraceContext, samplesPerPixelRoot, maxPathBounces, samplesOverHemisphere, hemisphereGatherDistance)) where
 
@@ -24,9 +25,7 @@ import IrradianceCache
 import Control.Monad.State
 import RenderContext
 import System.Random.Mersenne.Pure64
-import Data.List
 import RussianRoulette
-import Control.DeepSeq
 
 data PathTraceContext = PathTraceContext {
       samplesPerPixelRoot :: Int, -- sqrt of the total number of samples per pixel
@@ -148,13 +147,13 @@ calculateGI renderContext photonMap = case renderMode renderContext of
 
 -- Perform a full trace of a ray
 type RayTraceState = State (IrradianceCache, PureMT) Colour
-traceRay :: RenderContext -> Maybe PhotonMap -> Ray -> Int -> Direction -> Double -> Double -> RayTraceState
+traceRay :: RenderContext -> Maybe PhotonMap -> Ray -> Int -> Camera -> Double -> Double -> RayTraceState
 
 -- Special case for lowest level of recursion (theoretically this should not get hit)
 traceRay _ _ _ 0 _ _ _ = error "Should not hit this codepath"
 
 -- Special case for penultimate level - we're not allowed to spawn rays here
-traceRay renderContext photonMap ray 1 viewDir _ _ = 
+traceRay renderContext photonMap ray 1 camera _ _ = 
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> return $! defaultColour (direction ray)
         Just (obj, intersectionDistance, hitId) -> do
@@ -163,12 +162,13 @@ traceRay renderContext photonMap ray 1 viewDir _ _ =
           let tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           -- TODO - Need to plug irradiance values into shader model correctly
+          let viewDir = normalise (intersectionPoint <-> (Camera.position camera))
           let resultColour = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
           put (irrCache', mt)
           return $! resultColour
 
 -- General case
-traceRay renderContext photonMap ray limit viewDir currentIOR accumulatedReflectivity = 
+traceRay renderContext photonMap ray limit camera currentIOR accumulatedReflectivity = 
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> return $! defaultColour (direction ray)
         Just (obj, intersectionDistance, hitId) -> do
@@ -184,6 +184,7 @@ traceRay renderContext photonMap ray limit viewDir currentIOR accumulatedReflect
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           put (irrCache', mt)
 
+          let viewDir = normalise (intersectionPoint <-> (Camera.position camera))
           let surfaceShading = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
 
           -- Reflection specific code
@@ -192,7 +193,7 @@ traceRay renderContext photonMap ray limit viewDir currentIOR accumulatedReflect
           let shine = reflectivity $ material obj
           let reflectRay = rayWithDirection offsetToExterior reflectionDir (reflectionRayLength renderContext)
           let (reflection, (irrCache'', mt')) = if shine > 0 && (accumulatedReflectivity * shine) > 0.03 
-                                                then runState (traceRay renderContext photonMap reflectRay (limit - 1) viewDir currentIOR (accumulatedReflectivity * shine)) (irrCache', mt)
+                                                then runState (traceRay renderContext photonMap reflectRay (limit - 1) camera currentIOR (accumulatedReflectivity * shine)) (irrCache', mt)
                                                 else (colBlack, (irrCache', mt))
           put (irrCache'', mt')
 
@@ -205,7 +206,7 @@ traceRay renderContext photonMap ray limit viewDir currentIOR accumulatedReflect
           let transmittance = transmit $ material obj
           let refractRay = rayWithDirection offsetToInterior refractionDir (refractionRayLength renderContext)
           let (refraction, (irrCache''', mt'')) = if transmittance > 0 
-                                                  then runState (traceRay renderContext photonMap refractRay (limit - 1) viewDir (indexOfRefraction $ material obj) accumulatedReflectivity) (irrCache'', mt')
+                                                  then runState (traceRay renderContext photonMap refractRay (limit - 1) camera (indexOfRefraction $ material obj) accumulatedReflectivity) (irrCache'', mt')
                                                   else (colBlack, (irrCache'', mt'))
           put (irrCache''', mt'')
 
@@ -221,7 +222,8 @@ irradianceOverHemisphere renderContext numSamples (pos, tanSpace) viewDir gather
       gen <- get
       let (hemisphereDirs, gen') = generateDirectionsOnHemisphere numSamples 1 gen
       put gen'
-      let samples = map (\x -> let ray = rayWithDirection pos (transformDir x tanSpace) gatherDistance
+      let samples = map (\x -> let gatherDir = transformDir x tanSpace
+                                   ray = rayWithDirection pos gatherDir gatherDistance
                                in case findNearestIntersection (sceneGraph renderContext) ray of
                                  Nothing -> colBlack
                                  Just (obj, dist, hitId) -> let hitPoint = pointAlongRay ray dist
@@ -232,22 +234,22 @@ irradianceOverHemisphere renderContext numSamples (pos, tanSpace) viewDir gather
       return $! averageColour samples -- Reduce samples down
 
 -- Trace a list of distributed samples with tail recursion
-rayTracePixelSample :: Maybe PhotonMap -> RenderContext -> Colour -> [Position] -> (Position, Direction) -> Double -> RayTraceState
-rayTracePixelSample photonMap renderContext acc (x:xs) eyeViewDir sampleWeighting = 
+rayTracePixelSample :: Maybe PhotonMap -> RenderContext -> Colour -> [Position] -> (Position, Direction) -> Double -> Camera -> RayTraceState
+rayTracePixelSample photonMap renderContext acc (x:xs) eyeViewDir sampleWeighting camera = 
     do
       let dofFocalDistance = depthOfFieldFocalDistance renderContext
       let jitteredRayPosition jitter = fst eyeViewDir <+> jitter
       let jitteredRayDirection jitter = normalise $ madd jitter (snd eyeViewDir) dofFocalDistance
 
       (irrCache, mt) <- get
-      let (sampleColour, (irrCache', mt')) = runState (traceRay renderContext photonMap (rayWithDirection (jitteredRayPosition x) (jitteredRayDirection x) 100000.0) (maximumRayDepth renderContext) (snd eyeViewDir) 1 1) (irrCache, mt)
+      let (sampleColour, (irrCache', mt')) = runState (traceRay renderContext photonMap (rayWithDirection (jitteredRayPosition x) (jitteredRayDirection x) 100000.0) (maximumRayDepth renderContext) camera 1 1) (irrCache, mt)
       put (irrCache', mt')
 
       let acc' = sampleColour <*> sampleWeighting <+> acc
-      let (col, (irrCache'', mt'')) = runState (rayTracePixelSample photonMap renderContext acc' xs eyeViewDir sampleWeighting) (irrCache', mt')
+      let (col, (irrCache'', mt'')) = runState (rayTracePixelSample photonMap renderContext acc' xs eyeViewDir sampleWeighting camera) (irrCache', mt')
       put (irrCache'', mt'')
       return $! col
-rayTracePixelSample _ _ acc [] _ _ = return $! acc
+rayTracePixelSample _ _ acc [] _ _ _ = return $! acc
 
 -- This traces for a given pixel (x, y)
 rayTracePixel :: Maybe PhotonMap -> RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> RayTraceState
@@ -257,7 +259,7 @@ rayTracePixel photonMap renderContext camera (width, height) (x, y) =
     in do 
       (irrCache, mt) <- get
       let (distributedPositions, mt') = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) mt
-      let (pixelColour, (irrCache', mt'')) = runState (rayTracePixelSample photonMap renderContext colBlack distributedPositions (eye, rayDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext))) (irrCache, mt')
+      let (pixelColour, (irrCache', mt'')) = runState (rayTracePixelSample photonMap renderContext colBlack distributedPositions (eye, rayDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext)) camera) (irrCache, mt')
       put (irrCache', mt'')
       return $! pixelColour
 
@@ -278,8 +280,8 @@ makeRayDirection renderWidth renderHeight camera (x, y) =
 type PathTraceState = State PureMT Colour
 
 -- Trace a path, throough a scene
-pathTrace :: RenderContext -> Ray -> Int -> Direction -> Double -> Colour -> PathTraceState
-pathTrace renderContext ray depth viewDir currentIOR weight =
+pathTrace :: RenderContext -> Ray -> Int -> Double -> Colour -> Camera -> PathTraceState
+pathTrace renderContext ray depth currentIOR weight camera =
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> return $! colBlack
         Just (obj, intersectionDistance, hitId) ->           
@@ -287,8 +289,8 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
             let intersectionPoint = pointAlongRay ray intersectionDistance
                 shadingPoint = madd intersectionPoint normal surfaceEpsilon
                 tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
-                normal = thr tanSpace
-                incoming = Vector.negate $ direction ray
+                normal = tsNormal tanSpace
+                incoming = (Vector.negate . direction) ray
 
                 objMaterial = material obj
 
@@ -296,7 +298,8 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
                 emittedLight = emission objMaterial
             
                 -- Compute radiance at this point
-                radiance = lightSurface (lights renderContext) colBlack renderContext (intersectionPoint, tanSpace) (material obj) viewDir
+                viewDir = normalise (shadingPoint <-> (Camera.position camera))
+                radiance = lightSurface (lights renderContext) colBlack renderContext (shadingPoint, tanSpace) (material obj) viewDir
 
                 -- Perhaps these should be precalculated?
                 (diffuseP, specularP) = russianRouletteCoefficients objMaterial
@@ -311,7 +314,7 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
               let (p, gen') = randomDouble gen
               put gen'
               let interaction | depth >= bounceLimit = Absorb
-                              | depth <= 5 || p < diffuseP = DiffuseReflect
+                              | p < diffuseP = DiffuseReflect
                               | p < (diffuseP + specularP) = SpecularReflect
                               | otherwise = Absorb
 
@@ -321,21 +324,18 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
               let reflectedDir 
                       | interaction == DiffuseReflect = transformDir randomDir tanSpace
                       | otherwise = incoming `reflect` normal
-              let ray' = rayWithDirection (madd intersectionPoint normal surfaceEpsilon) reflectedDir (rayLength ray)
-              let weight' = (diffuse . material) obj <*> weight <*> (normal `sdot3` reflectedDir)
+              let ray' = rayWithDirection shadingPoint reflectedDir (rayLength ray)
+              let weight' = diffuse objMaterial <*> weight <*> (normal `sdot3` reflectedDir)
               -- Handled the depth < maxBounces test in two places as it was causing an infinite recursion with deepseq
               -- For the first hit, run an extra in-depth gather for the irradiance
               -- For subsequent bounces, just do a single ray
               let (tracedPathColour, gen''') 
-                      | depth == 0 = runState (irradianceOverHemisphere renderContext 128 (shadingPoint, tanSpace) viewDir 5000) gen''
-                      | depth < bounceLimit && Colour.magnitude weight' > 0.001 = runState (pathTrace renderContext ray' (depth + 1) viewDir currentIOR weight') gen''
+--                      | depth == 0 = runState (irradianceOverHemisphere renderContext 512 (shadingPoint, tanSpace) viewDir 5000) gen''
+                      | depth < bounceLimit && Colour.magnitude weight' > 0.001 = runState (pathTrace renderContext ray' (depth + 1) currentIOR weight' camera) gen''
                       | otherwise = (colBlack, gen'')
-
---              let (tracedPathColour, gen''') = runState (irradianceOverHemisphere renderContext 256 (shadingPoint, tanSpace) viewDir 5000) gen''
-              let reflectedLight = tracedPathColour <*> weight
               put gen'''
 
---              return $!tracedPathColour
+              let reflectedLight = tracedPathColour <*> weight'
 
               -- Have to divide by probability to correctly account for that relative proportion of the domain
               return $! case interaction of DiffuseReflect -> (emittedLight <+> radiance <+> reflectedLight) </> diffuseP
@@ -344,7 +344,7 @@ pathTrace renderContext ray depth viewDir currentIOR weight =
 
 -- Path-trace a sub-sample
 pathTracePixelSample :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> (Double, Double) -> PathTraceState
-pathTracePixelSample renderContext camera xy (width, height) jitterUV stratUV = pathTrace renderContext ray 0 rayDirection 1 colWhite
+pathTracePixelSample renderContext camera xy (width, height) jitterUV stratUV = pathTrace renderContext ray 0 1 colWhite camera
     where
       jitteredX = (fromIntegral . fst) xy + fst stratUV + fst jitterUV
       jitteredY = (fromIntegral . snd) xy + snd stratUV + snd jitterUV
@@ -358,18 +358,17 @@ pathTracePixel renderContext camera renderTargetSize pixelCoords =
       -- Work out the jittered UV offsets
       gen <- get
       let (offsetUVs, gen') = runState (generateRandomUVs numPathTraceSamples) gen
-      let offsetUVs' = map (\(u, v) -> (u * du, v * dv)) offsetUVs
       put gen'
+      let offsetUVs' = map (\(u, v) -> (u * du, v * dv)) offsetUVs
 
       -- Mung it all together
       let (pixelSamples, gen'') = zipWithState (pathTracePixelSample renderContext camera pixelCoords renderTargetSize) offsetUVs' stratifiedCentres gen'
       put gen''
-      return $! pixelSamples `deepseq` foldl' (\x y -> x <*> weight <+> y) colBlack pixelSamples
+      return $! averageColour pixelSamples
     where
       -- Total number of samples to take
-      numPathTraceSamplesRoot = 8 :: Int
+      numPathTraceSamplesRoot = 32 :: Int
       numPathTraceSamples = numPathTraceSamplesRoot * numPathTraceSamplesRoot
-      weight = (1.0 :: Double) / fromIntegral numPathTraceSamples
 
       -- Work out a set of stratified centres to jitter from
       du = (1.0 :: Double) / fromIntegral numPathTraceSamplesRoot

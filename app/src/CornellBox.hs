@@ -90,14 +90,14 @@ frontWallVertices = [
     Vector 556.0   0.0 0.0 1.0
     ]
 
-rightWallVertices = [
+leftWallVertices = [
     Vector 0.0   0.0 559.2 1.0,
     Vector 0.0   0.0   0.0 1.0,
     Vector 0.0 548.8   0.0 1.0,
     Vector 0.0 548.8 559.2 1.0
     ]
 
-leftWallVertices = [
+rightWallVertices = [
     Vector 556.0   0.0   0.0 1.0,
     Vector 556.0   0.0 559.2 1.0,
     Vector 556.0 548.8 559.2 1.0,
@@ -170,3 +170,4 @@ tallBlockObject = Object (TriangleMesh (quadsToTriangles tallBlockVertices)) whi
 
 cornellBox :: [Object]
 cornellBox = [ceilingObject, floorObject, leftWallObject, rightWallObject, backWallObject, frontWallObject, tallBlockObject, shortBlockObject{-, lightObject-}]
+--cornellBox = [leftWallObject, rightWallObject]
