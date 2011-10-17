@@ -115,3 +115,6 @@ averageColour :: [Colour] -> Colour
 averageColour xs = foldl' (\x y -> x <*> weight <+> y) colBlack xs
     where
       weight = (1 :: Double) / fromIntegral (length xs)
+
+maxChannel :: Colour -> Double
+maxChannel (Colour r g b _) = r `max` g `max` b

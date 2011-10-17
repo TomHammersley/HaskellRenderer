@@ -13,3 +13,9 @@ russianRouletteCoefficients mat = (diffuseP, specularP)
     where
       diffuseP = (magnitude . Material.diffuse) mat
       specularP = (magnitude . Material.specular) mat
+
+russianRouletteCoefficients2 :: Material -> (Double, Double)
+russianRouletteCoefficients2 mat = (diffuseP, specularP)
+    where
+      diffuseP = (maxChannel . Material.diffuse) mat
+      specularP = (maxChannel . Material.specular) mat

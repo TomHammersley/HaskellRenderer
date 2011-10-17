@@ -26,6 +26,7 @@ import Control.Monad.State
 import RenderContext
 import System.Random.Mersenne.Pure64
 import RussianRoulette
+import Debug.Trace
 
 data PathTraceContext = PathTraceContext {
       samplesPerPixelRoot :: Int, -- sqrt of the total number of samples per pixel
@@ -302,7 +303,7 @@ pathTrace renderContext ray depth currentIOR weight camera =
                 radiance = lightSurface (lights renderContext) colBlack renderContext (shadingPoint, tanSpace) (material obj) viewDir
 
                 -- Perhaps these should be precalculated?
-                (diffuseP, specularP) = russianRouletteCoefficients objMaterial
+                (diffuseP, specularP) = russianRouletteCoefficients2 objMaterial
 
                 -- Don't just let things keep going, put a lid on it. Very diminishing returns after 10 bounces
                 bounceLimit = 10
@@ -314,7 +315,7 @@ pathTrace renderContext ray depth currentIOR weight camera =
               let (p, gen') = randomDouble gen
               put gen'
               let interaction | depth >= bounceLimit = Absorb
-                              | p < diffuseP = DiffuseReflect
+                              | (depth < 5 && diffuseP > 0) || p < diffuseP = DiffuseReflect -- Force it to keep bouncing a little just to reduce variance in RR
                               | p < (diffuseP + specularP) = SpecularReflect
                               | otherwise = Absorb
 
@@ -330,17 +331,16 @@ pathTrace renderContext ray depth currentIOR weight camera =
               -- For the first hit, run an extra in-depth gather for the irradiance
               -- For subsequent bounces, just do a single ray
               let (tracedPathColour, gen''') 
---                      | depth == 0 = runState (irradianceOverHemisphere renderContext 512 (shadingPoint, tanSpace) viewDir 5000) gen''
-                      | depth < bounceLimit && Colour.magnitude weight' > 0.001 = runState (pathTrace renderContext ray' (depth + 1) currentIOR weight' camera) gen''
+                      | interaction /= Absorb && Colour.magnitude weight' > 0.001 = runState (pathTrace renderContext ray' (depth + 1) currentIOR weight' camera) gen''
                       | otherwise = (colBlack, gen'')
               put gen'''
 
-              let reflectedLight = tracedPathColour <*> weight'
+              let reflectedLight = tracedPathColour
 
               -- Have to divide by probability to correctly account for that relative proportion of the domain
-              return $! case interaction of DiffuseReflect -> (emittedLight <+> radiance <+> reflectedLight) </> diffuseP
-                                            SpecularReflect -> (emittedLight <+> radiance <+> reflectedLight) </> (specularP - diffuseP)
-                                            Absorb -> (emittedLight <+> radiance) </> (1 - (specularP `Prelude.max` diffuseP))
+              return $! case interaction of DiffuseReflect -> emittedLight <+> (radiance <*> weight) <+> (reflectedLight </> diffuseP)
+                                            SpecularReflect -> emittedLight <+> (radiance <*> weight) <+> (reflectedLight </> (diffuseP + specularP))
+                                            Absorb -> emittedLight <+> (radiance <*> weight) -- (emittedLight <+> radiance)-- </> (specularP `Prelude.max` diffuseP)
 
 -- Path-trace a sub-sample
 pathTracePixelSample :: RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> (Double, Double) -> PathTraceState
