@@ -8,6 +8,7 @@ module Distribution (generatePointsOnSphere,
                      generateDirectionOnHemisphere,
                      generateDirectionsOnHemisphere,
                      generateDirectionsOnSphere,
+                     generateDirectionsOnHemisphereUnstratified,
                      randomUV) where
 
 import PolymorphicNum
@@ -112,3 +113,10 @@ generateDirectionOnHemisphere :: PureMT -> Double -> (Direction, PureMT)
 generateDirectionOnHemisphere mt r = (uvToHemisphere r 0 uv, mt')
     where
       (uv, mt') = runState randomUV mt
+
+generateDirectionsOnHemisphereUnstratified :: Int -> Double -> PureMT -> ([Direction], PureMT)
+generateDirectionsOnHemisphereUnstratified numPoints r mt
+    | numPoints <= 1 = ([Vector 0 0 0 1], mt)
+    | otherwise = (map (uvToHemisphere r 0) randomUVs, mt')
+    where
+      (randomUVs, mt') = runState (generateRandomUVs numPoints) mt
