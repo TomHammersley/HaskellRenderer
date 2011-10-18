@@ -17,4 +17,4 @@ dist/*
 dist/setup-config
 hlint-output.txt
 *~
-Tests/HemisphereTest
+app/src/Tests/HemisphereTest
