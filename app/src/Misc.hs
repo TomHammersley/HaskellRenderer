@@ -75,3 +75,12 @@ zipWith' :: (a -> b -> t) -> [a] -> [b] -> [t]
 zipWith' f l1 l2 = [ f e1 e2 | (e1, e2) <- zipWith k l1 l2 ]
     where
       k x y = x `seq` y `seq` (x,y)
+
+-- Repeatedly call a function and pass state (eg, random numbers)
+replicateWithState :: Int -> s -> (State s b) -> ([b], s)
+replicateWithState count s f = replicateWithState' count s []
+    where
+      replicateWithState' 0 st acc = (acc, st)
+      replicateWithState' ct st acc = replicateWithState' (ct - 1) st' (result : acc)
+          where
+            (result, st') = runState f st
