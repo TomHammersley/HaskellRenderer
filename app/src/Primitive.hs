@@ -73,6 +73,11 @@ makePlane v1 v2 v3 = Plane (tangent, binormal, normal) (-(v1 `dot3` normal))
       tangent = normalise (v2 <-> v1)
       binormal = normalise (normal `cross` tangent)
 
+makePlaneWithTangents :: Position -> Position -> Position -> Direction -> Direction -> Primitive
+makePlaneWithTangents v1 v2 v3 tangent binormal = Plane (tangent, binormal, normal) (-(v1 `dot3` normal))
+    where 
+      normal = normalise (surfaceNormal v1 v2 v3)
+
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Triangle base functionality
 
@@ -88,8 +93,23 @@ makeTriangle v1 v2 v3 = Triangle verts newPlane newHalfPlanes
           -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
           newHalfPlanes = zipWith (\edgeNormal edgeVertex -> Plane (Vector 1 0 0 1, Vector 0 1 0 1, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices
 
+makeTriangleWithTangents :: Position -> Position -> Position -> Direction -> Direction -> Triangle
+makeTriangleWithTangents v1 v2 v3 tangent binormal = Triangle verts newPlane newHalfPlanes
+    where newPlane = makePlaneWithTangents v1 v2 v3 tangent binormal
+          newTanSpace = planeTangentSpace newPlane
+          verts = map (\v -> Vertex v zeroVector newTanSpace) [v1, v2, v3]
+          edgeVertices = [v1, v2, v3]
+          edges = map normalise [v2 <-> v1, v3 <-> v2, v1 <-> v3]
+          edgeNormals = map (\edge -> normalise $ thr newTanSpace `cross` edge) edges
+          -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
+          newHalfPlanes = zipWith (\edgeNormal edgeVertex -> Plane (Vector 1 0 0 1, Vector 0 1 0 1, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices
+
 makeQuad :: [Position] -> [Triangle]
-makeQuad [vert1, vert2, vert3, vert4] = [makeTriangle vert1 vert2 vert3, makeTriangle vert1 vert3 vert4]
+makeQuad [vert1, vert2, vert3, vert4] = [makeTriangleWithTangents vert1 vert2 vert3 tangent binormal, 
+                                         makeTriangleWithTangents vert1 vert3 vert4 tangent binormal]
+    where
+      tangent = normalise (vert2 <-> vert1)
+      binormal = normalise (vert3 <-> vert1)
 makeQuad _ = error "makeQuad: List was invalid size"
 
 -- Turn a list of quad vertices into a triangle list
