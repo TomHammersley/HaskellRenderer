@@ -84,6 +84,7 @@ computeNewPhotonPower fate (diffuseP, specularP) photonPower mat = case fate of
 
 -- Find a diffuse reflection direction in the hemisphere of the normal
 -- Realistic Image Synthesis Using Photon Mapping - Eq 2.24
+-- TODO - Rewrite this using code from Distribution.hs
 diffuseReflectionDirection :: PureMT -> TangentSpace -> (Direction, PureMT)
 diffuseReflectionDirection stdGen tanSpace = (transformDir dir tanSpace, stdGen')
     where

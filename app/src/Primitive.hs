@@ -28,6 +28,7 @@ module Primitive (primitiveBoundingRadius,
                   boundingBoxValid, 
                   sphereIntersect,
                   makePlane,
+                  intersectRayTriangle,
                   TangentSpace,
                   Vertex) where
 
@@ -37,7 +38,6 @@ import Vector
 import Material
 import Matrix
 import BoundingBox
-import Misc
 import Data.Maybe
 import Data.List
 
@@ -89,7 +89,7 @@ makeTriangle v1 v2 v3 = Triangle verts newPlane newHalfPlanes
           verts = map (\v -> Vertex v zeroVector newTanSpace) [v1, v2, v3]
           edgeVertices = [v1, v2, v3]
           edges = map normalise [v2 <-> v1, v3 <-> v2, v1 <-> v3]
-          edgeNormals = map (\edge -> normalise $ thr newTanSpace `cross` edge) edges
+          edgeNormals = map (\edge -> normalise $ tsNormal newTanSpace `cross` edge) edges
           -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
           newHalfPlanes = zipWith (\edgeNormal edgeVertex -> Plane (Vector 1 0 0 1, Vector 0 1 0 1, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices
 
@@ -100,9 +100,9 @@ makeTriangleWithTangents v1 v2 v3 tangent binormal = Triangle verts newPlane new
           verts = map (\v -> Vertex v zeroVector newTanSpace) [v1, v2, v3]
           edgeVertices = [v1, v2, v3]
           edges = map normalise [v2 <-> v1, v3 <-> v2, v1 <-> v3]
-          edgeNormals = map (\edge -> normalise $ thr newTanSpace `cross` edge) edges
+          edgeNormals = map (\edge -> normalise (tsNormal newTanSpace `cross` edge)) edges
           -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
-          newHalfPlanes = zipWith (\edgeNormal edgeVertex -> Plane (Vector 1 0 0 1, Vector 0 1 0 1, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices
+          newHalfPlanes = zipWith3 (\edgeNormal edgeVertex edgeDir -> Plane (edgeDir, tsNormal newTanSpace, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices edges
 
 makeQuad :: [Position] -> [Triangle]
 makeQuad [vert1, vert2, vert3, vert4] = [makeTriangleWithTangents vert1 vert2 vert3 tangent binormal, 
@@ -142,11 +142,30 @@ distanceToPlane _ _ = error "distanceToPlane: Unsupported primitive for this fun
 pointInsideTriangle :: Triangle -> Position -> Bool
 pointInsideTriangle tri point = all (\pln -> distanceToPlane pln point >= 0) (halfPlanes tri)
 
+pointInsideTriangleBary :: Triangle -> Position -> Bool
+pointInsideTriangleBary tri point = u >= 0 && v >= 0 && (u + v) < 1
+    where
+      [a, b, c] = map vertPosition (vertices tri)
+      v0 = c <-> a
+      v1 = b <-> a
+      v2 = point <-> a
+
+      dot00 = v0 `dot3` v0
+      dot01 = v0 `dot3` v1
+      dot02 = v0 `dot3` v2
+
+      dot11 = v1 `dot3` v1
+      dot12 = v1 `dot3` v2
+
+      invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
+      u = (dot11 * dot02 - dot01 * dot12) * invDenom
+      v = (dot00 * dot12 - dot01 * dot02) * invDenom
+
 -- Intersect a ray with a triangle
-intersectRayTriangle :: Ray -> Object -> Triangle -> Bool -> (# Bool, Double, Triangle #)
-intersectRayTriangle ray obj triangle doubleSided
-    | not doubleSided && direction ray `dot3` (thr . planeTangentSpace . plane) triangle > 0 = (# False, 0, triangle #)
-    | otherwise = case primitiveClosestIntersect (plane triangle) ray obj of
+intersectRayTriangle :: Ray -> Triangle -> Bool -> (# Bool, Double, Triangle #)
+intersectRayTriangle ray triangle doubleSided
+    | not doubleSided && direction ray `dot3` (tsNormal . planeTangentSpace . plane) triangle >= 0 = (# False, 0, triangle #)
+    | otherwise = case planeIntersect (plane triangle) ray of
                     Nothing -> (# False, 0, triangle #)
                     Just (dist', _) -> if pointInsideTriangle triangle (pointAlongRay ray dist')
                                        then (# True, dist', triangle #)
@@ -154,16 +173,16 @@ intersectRayTriangle ray obj triangle doubleSided
 
 -- Intersect against a list of triangles
 intersectRayTriangleList :: [Triangle] -> Int -> Maybe (Double, Int) -> Ray -> Object -> Maybe (Double, Int)
-intersectRayTriangleList (x:xs) index currentResult currentRay obj = intersectRayTriangleList xs (index + 1) newResult newRay obj
+intersectRayTriangleList (x:xs) index acc ray obj = intersectRayTriangleList xs (index + 1) acc' ray' obj
     where
-      (newRay, newResult) = case intersectRayTriangle currentRay obj x False of
-                              (# False, _, _ #) -> (currentRay, currentResult)
-                              (# True, dist, _ #) -> (shortenRay currentRay dist, Just (dist, index))
-intersectRayTriangleList [] _ currentResult _ _ = currentResult
+      (ray', acc') = case intersectRayTriangle ray x False of
+                       (# False, _, _ #) -> (ray, acc)
+                       (# True, dist, _ #) -> (shortenRay ray dist, Just (dist, index))
+intersectRayTriangleList [] _ acc _ _ = acc
 
 -- Intersect against any triangle
 intersectRayAnyTriangleList :: [Triangle] -> Int  -> Ray -> Object -> Maybe (Double, Int)
-intersectRayAnyTriangleList (x:xs) index ray obj = case intersectRayTriangle ray obj x True of
+intersectRayAnyTriangleList (x:xs) index ray obj = case intersectRayTriangle ray x False of
                                                      (# False, _, _ #) -> intersectRayAnyTriangleList xs (index + 1) ray obj
                                                      (# True, dist, _ #) -> Just (dist, index)
 intersectRayAnyTriangleList [] _ _ _ = Nothing
@@ -175,6 +194,15 @@ interpolatedTangentSpace triangle triAlpha triBeta triGamma = (tangent, binormal
           tangent = normalise $ tan1 <*> triAlpha <+> tan2 <*> triBeta <+> tan3 <*> triGamma
           binormal = normalise $ bi1 <*> triAlpha <+> bi2 <*> triBeta <+> bi3 <*> triGamma
           normal = normalise $ norm1 <*> triAlpha <+> norm2 <*> triBeta <+> norm3 <*> triGamma
+
+planeIntersect :: Primitive -> Ray -> Maybe (Double, Int)
+planeIntersect (Plane (_, _, planeNormal) planeD) (Ray rayOrg rayDir rayLen)
+    | dirDotNormal == 0 = Nothing
+    | intercept >= 0 && intercept <= rayLen = Just (intercept, 0)
+    | otherwise = Nothing
+    where dirDotNormal = rayDir `dot3` planeNormal
+          intercept = ((-planeD) - (rayOrg `dot3` planeNormal)) / dirDotNormal
+planeIntersect _ _ = undefined -- only available for this case
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of intersection functions
@@ -196,12 +224,7 @@ primitiveClosestIntersect (Sphere sphereRadius) (Ray rayOrg rayDir rayLen) obj
       root2 = ((-b) + sqrt discriminant) * 0.5
 
 -- This function intersects a ray with a plane and returns the closest intercept
-primitiveClosestIntersect (Plane (_, _, planeNormal) planeD) (Ray rayOrg rayDir rayLen) _
-    | dirDotNormal == 0 = Nothing
-    | intercept >= 0 && intercept <= rayLen = Just (intercept, 0)
-    | otherwise = Nothing
-    where dirDotNormal = rayDir `dot3` planeNormal
-          intercept = ((-planeD) - (rayOrg `dot3` planeNormal)) / dirDotNormal
+primitiveClosestIntersect pln@(Plane (_, _, _) _) ray@(Ray _ _ _) _ = planeIntersect pln ray
 
 -- Find intersection with a triangle mesh
 primitiveClosestIntersect (TriangleMesh tris) ray obj = intersectRayTriangleList tris 0 Nothing ray obj
