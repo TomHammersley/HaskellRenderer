@@ -106,6 +106,12 @@ test_Max = TestCase (assertEqual "max" expectedResult (v1 `Vector.max` v2))
       v2 = Vector 10 (-20) 50 2
       expectedResult = Vector 10 2 50 8
 
+test_TransformDir = TestCase (assertEqual "TransformDir" expectedResult (transformDir normal tangentSpace))
+    where
+      normal = Vector 0 0.7 0.7 0
+      tangentSpace = (yaxis, zaxis, xaxis)
+      expectedResult = Vector 0.7071067811865476 0 0.7071067811865476 0
+
 tests_Vector = TestList [
                 TestLabel "Addition" test_Add, 
                 TestLabel "Subtraction" test_Sub,
@@ -123,5 +129,6 @@ tests_Vector = TestList [
                 TestLabel "Normalise" test_Normalise,
                 TestLabel "LargestAxis" test_LargestAxis,
                 TestLabel "Min" test_Min,
-                TestLabel "Max" test_Max
+                TestLabel "Max" test_Max,
+                TestLabel "TransformDir" test_TransformDir
                ]
