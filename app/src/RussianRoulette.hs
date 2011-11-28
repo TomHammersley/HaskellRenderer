@@ -5,7 +5,7 @@ module RussianRoulette where
 import Material
 import Colour
 
-data RussianRouletteChoice = DiffuseReflect | SpecularReflect | Absorb deriving Eq
+data RussianRouletteChoice = DiffuseReflect | SpecularReflect | Absorb deriving (Show, Eq)
 
 -- Compute russian roulette coefficients
 russianRouletteCoefficients :: Material -> (Double, Double)
@@ -15,4 +15,9 @@ russianRouletteCoefficients mat = (diffuseP, specularP)
       specularP = (magnitude . Material.specular) mat
 
 russianRouletteCoefficients2 :: Material -> (Double, Double)
-russianRouletteCoefficients2 mat = ((maxChannel . Material.diffuse) mat, (maxChannel . Material.specular) mat)
+russianRouletteCoefficients2 mat = (diffuseP, 1 - diffuseP)
+  where
+    (Colour dr dg db _) = diffuse mat
+    (Colour sr sg sb _) = specular mat
+    diffuseP = (dr + dg + db) / (dr + dg + db + sr + sg + sb)
+    

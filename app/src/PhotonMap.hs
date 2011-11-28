@@ -19,12 +19,10 @@ import Misc
 import Control.Parallel.Strategies
 import Control.DeepSeq
 import Data.Heap hiding (partition)
-import System.Random.Mersenne.Pure64
+import System.Random
 import Data.List hiding (union, insert)
 import Primitive
 import RussianRoulette
-
-type GeneratorState = State PureMT
 
 data PhotonMapContext = PhotonMapContext {
       photonGatherDistance :: Double,
@@ -44,18 +42,18 @@ instance NFData Photon where
     rnf (Photon power' posDir') = rnf power' `seq` rnf posDir'
 
 -- TODO - Sort this out!
-mtToRefactor :: PureMT
-mtToRefactor = pureMT 12345
+mtToRefactor :: StdGen
+mtToRefactor = mkStdGen 12345
 
 -- Generate a list of photon position and direction tuples to emit
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
 -- Helps parallelisation...
 -- TODO Eliminate magic number seeds from here
-emitPhotons :: Light -> Int -> [(Position, Direction, PureMT, Colour)]
-emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, pureMT (fromIntegral num), flux)) (fst $ generatePointsOnSphere numPhotons 1 mtToRefactor) [1..numPhotons]
+emitPhotons :: Light -> Int -> [(Position, Direction, StdGen, Colour)]
+emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, mkStdGen num, flux)) (fst $ generatePointsOnSphere numPhotons 1 mtToRefactor) [1..numPhotons]
     where
       flux = lightPower <*> ((1.0 / fromIntegral numPhotons) :: Double)
-emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, transformDir dir tanSpace, pureMT (fromIntegral num), flux)) randomPoints randomDirs [1..numPhotons]
+emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, transformDir dir tanSpace, mkStdGen num, flux)) randomPoints randomDirs [1..numPhotons]
     where
       randomPoints = fst $ generatePointsOnQuad corner du dv numPhotons mtToRefactor
       randomDirs = fst $ generatePointsOnHemisphere numPhotons 1 mtToRefactor
@@ -65,14 +63,12 @@ emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhot
 emitPhotons _ _ = []
 
 -- Decide what to do with a photon
-choosePhotonFate :: (Double, Double) -> GeneratorState RussianRouletteChoice
+choosePhotonFate :: (RandomGen g) => (Double, Double) -> State g RussianRouletteChoice
 choosePhotonFate (diffuseP, specularP) = do
-  generator <- get
-  let (p, generator') = randomDouble generator
+  p <- randDouble
   let result | p < diffuseP = DiffuseReflect
              | p < (diffuseP + specularP) = SpecularReflect
              | otherwise = Absorb
-  put generator'
   return $! result
 
 -- Compute new power for a photon
@@ -85,7 +81,7 @@ computeNewPhotonPower fate (diffuseP, specularP) photonPower mat = case fate of
 -- Find a diffuse reflection direction in the hemisphere of the normal
 -- Realistic Image Synthesis Using Photon Mapping - Eq 2.24
 -- TODO - Rewrite this using code from Distribution.hs
-diffuseReflectionDirection :: PureMT -> TangentSpace -> (Direction, PureMT)
+diffuseReflectionDirection :: (RandomGen g) => g -> TangentSpace -> (Direction, g)
 diffuseReflectionDirection stdGen tanSpace = (transformDir dir tanSpace, stdGen')
     where
       ((u, v), stdGen') = runState randomUV stdGen
@@ -95,7 +91,7 @@ diffuseReflectionDirection stdGen tanSpace = (transformDir dir tanSpace, stdGen'
 
 -- Main working photon tracing function
 -- Realistic Image Synthesis Using Photon Mapping p60
-tracePhoton :: [Photon] -> Photon -> SceneGraph -> PureMT -> (Int, Int) -> [Photon]
+tracePhoton :: (RandomGen g) => [Photon] -> Photon -> SceneGraph -> g -> (Int, Int) -> [Photon]
 tracePhoton currentPhotons (Photon photonPower photonPosDir) sceneGraph rndState (bounce, maxBounces) = 
     -- See if the photon intersects a surfaces
     case findNearestIntersection sceneGraph ray of

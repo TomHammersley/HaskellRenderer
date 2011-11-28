@@ -20,3 +20,16 @@ iorAir = 1.000293
 
 iorWater :: Double
 iorWater = 1.3330
+
+defaultMaterial :: Material
+defaultMaterial = Material 
+                  (Colour 0.5 0.5 0.5 0.5)
+                  (Colour 0.5 0.5 0.5 0.5)
+                  (Colour 0.5 0.5 0.5 0.5)
+                  (Colour 0.0 0.0 0.0 0.0)
+                  25
+                  0
+                  0
+                  iorAir
+                  NullShader
+                  

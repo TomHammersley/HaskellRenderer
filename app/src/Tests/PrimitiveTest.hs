@@ -7,6 +7,8 @@ import Vector
 import Test.HUnit
 import Primitive
 import Ray
+import Matrix
+import Material
 
 test_triIntersect1 = TestCase (assertEqual "Triangle intersection 1" expectedResult actualResult)
     where
@@ -58,10 +60,21 @@ test_triIntersect5 = TestCase (assertEqual "Triangle intersection 5" expectedRes
       expectedResult = False
       (# actualResult, _, _ #) = (intersectRayTriangle ray tri True)
 
+test_boxIntersect1 = TestCase (assertEqual "Box intersection 1" expectedResult actualResult)
+    where
+      box = Box (Vector 10 10 10 0)
+      ray = rayWithDirection (Vector 0 0 (-100) 1) (Vector 0 0 1 0) 1000
+      expectedResult = True
+      obj = Object box defaultMaterial identity
+      hitResult = primitiveClosestIntersect box ray obj
+      actualResult = case hitResult of Nothing -> False
+                                       _ -> True
+
 tests_Primitive = TestList [
                 TestLabel "Triangle intersection 1" test_triIntersect1,
                 TestLabel "Triangle intersection 2" test_triIntersect2,
                 TestLabel "Triangle intersection 3" test_triIntersect3,
                 TestLabel "Triangle intersection 4" test_triIntersect4,
-                TestLabel "Triangle intersection 5" test_triIntersect5
+                TestLabel "Triangle intersection 5" test_triIntersect5,
+                TestLabel "Box intersection 1" test_boxIntersect1
               ]

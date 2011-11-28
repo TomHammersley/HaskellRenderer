@@ -7,7 +7,7 @@ module Primitive (primitiveBoundingRadius,
                   primitiveAnyIntersect,
                   primitiveTangentSpace, 
                   Object(Object), 
-                  Primitive(Sphere, Plane, TriangleMesh), 
+                  Primitive(Sphere, Plane, TriangleMesh, Box), 
                   primitive, 
                   material, 
                   makeTriangle, 
@@ -55,7 +55,8 @@ data Object = Object { primitive :: Primitive,
 -- Different kinds of primitives that an object can have
 data Primitive = Sphere { radius :: {-# UNPACK #-} !Double }
                | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Double }
-               | TriangleMesh { triangles :: [Triangle] } deriving (Show, Eq)
+               | TriangleMesh { triangles :: [Triangle] } 
+               | Box { size :: {-# UNPACK #-} !Vector } deriving (Show, Eq)
 
 -- Get the centre of an object
 getCentre :: Object -> Vector
@@ -142,6 +143,7 @@ distanceToPlane _ _ = error "distanceToPlane: Unsupported primitive for this fun
 pointInsideTriangle :: Triangle -> Position -> Bool
 pointInsideTriangle tri point = all (\pln -> distanceToPlane pln point >= 0) (halfPlanes tri)
 
+{-
 pointInsideTriangleBary :: Triangle -> Position -> Bool
 pointInsideTriangleBary tri point = u >= 0 && v >= 0 && (u + v) < 1
     where
@@ -160,6 +162,7 @@ pointInsideTriangleBary tri point = u >= 0 && v >= 0 && (u + v) < 1
       invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
       u = (dot11 * dot02 - dot01 * dot12) * invDenom
       v = (dot00 * dot12 - dot01 * dot02) * invDenom
+-}
 
 -- Intersect a ray with a triangle
 intersectRayTriangle :: Ray -> Triangle -> Bool -> (# Bool, Double, Triangle #)
@@ -229,6 +232,21 @@ primitiveClosestIntersect pln@(Plane (_, _, _) _) ray@(Ray _ _ _) _ = planeInter
 -- Find intersection with a triangle mesh
 primitiveClosestIntersect (TriangleMesh tris) ray obj = intersectRayTriangleList tris 0 Nothing ray obj
 
+primitiveClosestIntersect (Box sz) (Ray rayOrg rayDir t1) _
+  | tmin < t1 && tmax > 0 = Just (tmin, 0)
+  | otherwise = Nothing
+  where
+    bounds0 = sz <*> (-0.5 :: Double)
+    bounds1 = sz <*> (0.5 :: Double)
+    (tminX, tmaxX) = nearestSlabIntersection vecX
+    (tminY, tmaxY) = nearestSlabIntersection vecY
+    (tminZ, tmaxZ) = nearestSlabIntersection vecZ
+    tmin = tminX `Prelude.max` tminY `Prelude.max` tminZ
+    tmax = tmaxX `Prelude.min` tmaxY `Prelude.min` tmaxZ
+    nearestSlabIntersection f
+      | (f rayDir) > 0 = (((f bounds0) - (f rayOrg)) / (f rayDir), ((f bounds1) - (f rayOrg)) / (f rayDir))
+      | otherwise = (((f bounds1) - (f rayOrg)) / (f rayDir), ((f bounds0) - (f rayOrg)) / (f rayDir))
+                    
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
 primitiveAnyIntersect primitive' ray obj = primitiveClosestIntersect primitive' ray obj
@@ -248,6 +266,9 @@ primitiveTangentSpace (Plane planeNormal _) _ _ _ = planeNormal
 primitiveTangentSpace (TriangleMesh tris) triId intersectionPoint _ = interpolatedTangentSpace triangle triAlpha triBeta triGamma
     where triangle = tris !! triId
           (triAlpha, triBeta, triGamma) = calculateBarycentricCoordinates intersectionPoint triangle
+          
+-- Unimplemented (no specialised implementation) case
+primitiveTangentSpace _ _ _ _ = undefined
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of bounding radius functions
@@ -256,6 +277,7 @@ primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Double
 primitiveBoundingRadius (Sphere sphereRadius) sphereTransform pos = sphereRadius + (pos `distance` getTranslation sphereTransform)
 primitiveBoundingRadius (Plane _ _) _ _ = 0
 primitiveBoundingRadius (TriangleMesh tris) _ centre = triangleListRadius 0 tris centre
+primitiveBoundingRadius (Box sze) _ _ = Vector.magnitude sze
 
 triangleListRadius :: Double -> [Triangle] -> Vector -> Double
 triangleListRadius maximumRadius (tri:tris) centre = triangleListRadius (Prelude.max maximumRadius triangleRadius) tris centre
@@ -275,6 +297,7 @@ primitiveBoundingBox (Sphere sphereRadius) obj = Just (boxMin, boxMax)
       boxMax = getCentre obj <+> Vector sphereRadius sphereRadius sphereRadius 0
 primitiveBoundingBox (Plane _ _) _ = Nothing
 primitiveBoundingBox (TriangleMesh tris) obj = Just $ triangleListBoundingBox initialInvalidBox (transform obj) tris
+primitiveBoundingBox (Box sz) obj = Just (sz <*> (-0.5 :: Double), sz <*> (0.5 :: Double))
 
 -- Bounding box of a list of something
 triangleListBoundingBox :: AABB -> Matrix -> [Triangle] -> AABB
@@ -316,6 +339,8 @@ intersectsBox (Plane (_, _, planeNormal) planeD) _ box = signum minDistance /= s
 intersectsBox (TriangleMesh tris) matrix box = boundingBoxOverlaps box triListBox
     where
       triListBox = triangleListBoundingBox initialInvalidBox matrix tris
+      
+intersectsBox _ _ _ = undefined
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Aspect querying of objects

@@ -9,6 +9,7 @@ import GHC.Types
 import Data.List
 import Control.Parallel.Strategies
 import Control.Monad.State
+import System.Random
 
 degreesToRadians :: Double -> Double
 degreesToRadians x = x * pi / 180
@@ -71,6 +72,18 @@ zipWithState f arr1 arr2 s = zipWithState' arr1 arr2 s []
       zipWithState' [] (_:_) _ _ = error "Lists are of a different size - unhandled case!"
       zipWithState' [] [] st acc = (acc, st)
 
+zipWithState3 :: (a -> b -> c -> State s d) -> [a] -> [b] -> [c] -> s -> ([d], s)
+zipWithState3 f arr1 arr2 arr3 s = zipWithState3' arr1 arr2 arr3 s []
+    where
+      zipWithState3' (x:xs) (y:ys) (z:zs) st acc = zipWithState3' xs ys zs st' (result : acc)
+          where
+            (result, st') = runState (f x y z) st
+      zipWithState3' (_:_) [] _ st acc = (acc, st)
+      zipWithState3' (_:_) (_:_) [] st acc = (acc, st)
+      zipWithState3' [] (_:_) _ st acc = (acc, st)
+      zipWithState3' [] [] (_:_) st acc = (acc, st)
+      zipWithState3' [] [] [] st acc = (acc, st)
+
 zipWith' :: (a -> b -> t) -> [a] -> [b] -> [t]
 zipWith' f l1 l2 = [ f e1 e2 | (e1, e2) <- zipWith k l1 l2 ]
     where
@@ -84,3 +97,15 @@ replicateWithState count s f = replicateWithState' count s []
       replicateWithState' ct st acc = replicateWithState' (ct - 1) st' (result : acc)
           where
             (result, st') = runState f st
+
+randDouble :: (RandomGen g) => State g Double
+randDouble = do
+  gen <- get
+  let (r, gen') = randomR (0, 1) gen
+  put gen'
+  return r
+
+meanRand :: (RandomGen g) => Int -> State g Double
+meanRand n = do nums <- replicateM n randDouble
+                return $! (foldr (+) 0 nums) / (fromIntegral $ length nums)
+                
