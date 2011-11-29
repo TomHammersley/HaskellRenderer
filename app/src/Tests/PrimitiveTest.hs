@@ -70,11 +70,20 @@ test_boxIntersect1 = TestCase (assertEqual "Box intersection 1" expectedResult a
       actualResult = case hitResult of Nothing -> False
                                        _ -> True
 
+test_boxIntersect2 = TestCase (assertEqual "Box intersection 2" expectedResult actualResult)
+    where
+      box = Box (Vector 10 10 10 0)
+      ray = rayWithDirection (Vector (-1000) 0 (-100) 1) (Vector 0 0 1 0) 1000
+      expectedResult = Nothing
+      obj = Object box defaultMaterial identity
+      actualResult = primitiveClosestIntersect box ray obj
+
 tests_Primitive = TestList [
                 TestLabel "Triangle intersection 1" test_triIntersect1,
                 TestLabel "Triangle intersection 2" test_triIntersect2,
                 TestLabel "Triangle intersection 3" test_triIntersect3,
                 TestLabel "Triangle intersection 4" test_triIntersect4,
                 TestLabel "Triangle intersection 5" test_triIntersect5,
-                TestLabel "Box intersection 1" test_boxIntersect1
+                TestLabel "Box intersection 1" test_boxIntersect1,
+                TestLabel "Box intersection 2" test_boxIntersect2
               ]
