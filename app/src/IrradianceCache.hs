@@ -1,5 +1,4 @@
 -- The irradiance cache
-{-# LANGUAGE BangPatterns #-}
 
 module IrradianceCache (IrradianceCache, query, initialiseCache) where
 

@@ -15,7 +15,6 @@ import Colour
 import Ray
 import Material
 import Matrix
-import Misc
 import Camera
 import Distribution
 import SceneGraph
@@ -164,7 +163,7 @@ traceRay renderContext photonMap ray 1 camera _ _ =
           let tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           -- TODO - Need to plug irradiance values into shader model correctly
-          let viewDir = normalise (intersectionPoint <-> (Camera.position camera))
+          let viewDir = normalise (intersectionPoint <-> Camera.position camera)
           let resultColour = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
           put (irrCache', mt)
           return $! resultColour
@@ -186,7 +185,7 @@ traceRay renderContext photonMap ray limit camera currentIOR accumulatedReflecti
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           put (irrCache', mt)
 
-          let viewDir = normalise (intersectionPoint <-> (Camera.position camera))
+          let viewDir = normalise (intersectionPoint <-> Camera.position camera)
           let surfaceShading = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
 
           -- Reflection specific code
@@ -283,7 +282,7 @@ type PathTraceState g = State g Colour
 
 -- Trace a path, throough a scene
 pathTrace :: (RandomGen g) => RenderContext -> Ray -> Int -> Double -> Colour -> Camera -> State g Colour
-pathTrace _ _ 10 _ _ _ = do return $! colBlack
+pathTrace _ _ 10 _ _ _ = return $! colBlack
 pathTrace renderContext ray depth currentIOR weight camera =
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> return $! colBlack
@@ -321,7 +320,7 @@ pathTrace renderContext ray depth currentIOR weight camera =
                 emittedLight = emission objMaterial
             
                 -- Compute radiance at this point
-                viewDir = normalise (shadingPoint <-> (Camera.position camera))
+                viewDir = normalise (shadingPoint <-> Camera.position camera)
                 radiance = lightSurface (lights renderContext) colBlack renderContext (shadingPoint, tanSpace) objMaterial viewDir
 
                 -- Perhaps these should be precalculated?
