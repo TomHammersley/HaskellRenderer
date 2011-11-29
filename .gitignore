@@ -18,3 +18,5 @@ dist/setup-config
 hlint-output.txt
 *~
 app/src/Tests/HemisphereTest
+
+app/src/Tests/RandomUVTest/RandomUVTest
