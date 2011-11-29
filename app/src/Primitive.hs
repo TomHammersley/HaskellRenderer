@@ -232,20 +232,36 @@ primitiveClosestIntersect pln@(Plane (_, _, _) _) ray@(Ray _ _ _) _ = planeInter
 -- Find intersection with a triangle mesh
 primitiveClosestIntersect (TriangleMesh tris) ray obj = intersectRayTriangleList tris 0 Nothing ray obj
 
-primitiveClosestIntersect (Box sz) (Ray rayOrg rayDir t1) _
-  | tmin < t1 && tmax > 0 = Just (tmin, 0)
-  | otherwise = Nothing
+primitiveClosestIntersect (Box sz) (Ray rayOrg@(Vector ox oy oz _) rayDir@(Vector dx dy dz _) rayLen) _ -- TODO Need to transform ray by inverse object matrix
+  | dx == 0 && (ox < vecX bounds0 || ox > vecX bounds1) = Nothing
+  | dy == 0 && (oy < vecY bounds0 || oy > vecY bounds1) = Nothing
+  | dz == 0 && (oz < vecZ bounds0 || oz > vecZ bounds1) = Nothing
+  | otherwise = case tMinMax of
+                     Nothing -> Nothing
+                     Just (tmin, tmax) -> if tmin > tmax || 
+                                             tmax < 0 || 
+                                             tmin > rayLen then Nothing
+                                          else Just (tmin, 0)
   where
     bounds0 = sz <*> (-0.5 :: Double)
     bounds1 = sz <*> (0.5 :: Double)
-    (tminX, tmaxX) = nearestSlabIntersection vecX
-    (tminY, tmaxY) = nearestSlabIntersection vecY
-    (tminZ, tmaxZ) = nearestSlabIntersection vecZ
-    tmin = tminX `Prelude.max` tminY `Prelude.max` tminZ
-    tmax = tmaxX `Prelude.min` tmaxY `Prelude.min` tmaxZ
+    intX = nearestSlabIntersection vecX
+    intY = nearestSlabIntersection vecY
+    intZ = nearestSlabIntersection vecZ
+    tMinMax = maybeFold Prelude.max Prelude.min intX (maybeFold Prelude.max Prelude.min intY intZ)
     nearestSlabIntersection f
-      | (f rayDir) > 0 = (((f bounds0) - (f rayOrg)) / (f rayDir), ((f bounds1) - (f rayOrg)) / (f rayDir))
-      | otherwise = (((f bounds1) - (f rayOrg)) / (f rayDir), ((f bounds0) - (f rayOrg)) / (f rayDir))
+      | f rayDir == 0 = Nothing
+      | t1 > t2 = Just (t2, t1)
+      | otherwise = Just (t1, t2)
+      where
+        t1 = ((f bounds0) - (f rayOrg)) / (f rayDir)
+        t2 = ((f bounds1) - (f rayOrg)) / (f rayDir)
+
+maybeFold :: (Ord a) => (a -> a -> a) -> (a -> a -> a) -> Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
+maybeFold _ _ Nothing Nothing = Nothing
+maybeFold _ _ Nothing x@(Just (_, _)) = x
+maybeFold _ _ x@(Just (_, _)) Nothing = x
+maybeFold f1 f2 (Just (a1, a2)) (Just (b1, b2)) = Just (a1 `f1` b1, a2 `f2` b2)
                     
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
@@ -297,7 +313,7 @@ primitiveBoundingBox (Sphere sphereRadius) obj = Just (boxMin, boxMax)
       boxMax = getCentre obj <+> Vector sphereRadius sphereRadius sphereRadius 0
 primitiveBoundingBox (Plane _ _) _ = Nothing
 primitiveBoundingBox (TriangleMesh tris) obj = Just $ triangleListBoundingBox initialInvalidBox (transform obj) tris
-primitiveBoundingBox (Box sz) obj = Just (sz <*> (-0.5 :: Double), sz <*> (0.5 :: Double))
+primitiveBoundingBox (Box sz) _ = Just (sz <*> (-0.5 :: Double), sz <*> (0.5 :: Double)) -- TODO Need to transform this by object's matrix
 
 -- Bounding box of a list of something
 triangleListBoundingBox :: AABB -> Matrix -> [Triangle] -> AABB
