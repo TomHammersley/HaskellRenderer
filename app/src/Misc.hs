@@ -107,5 +107,11 @@ randDouble = do
 
 meanRand :: (RandomGen g) => Int -> State g Double
 meanRand n = do nums <- replicateM n randDouble
-                return $! (foldr (+) 0 nums) / (fromIntegral $ length nums)
-                
+                return $! (foldr (+) 0 nums) / (fromIntegral $ length 
+                                                
+-- Handy little thing to apply a differnet function to each of the two elements in a Maybe (a, a) pair. USeful in various ray tracing bits of code                                                
+maybePairFunctor :: (Ord a) => (a -> a -> a) -> (a -> a -> a) -> Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
+maybePairFunctor _ _ Nothing Nothing = Nothing
+maybePairFunctor _ _ Nothing x@(Just (_, _)) = x
+maybePairFunctor _ _ x@(Just (_, _)) Nothing = x
+maybePairFunctor f1 f2 (Just (a1, a2)) (Just (b1, b2)) = Just (a1 `f1` b1, a2 `f2` b2)

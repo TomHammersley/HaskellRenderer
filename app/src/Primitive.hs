@@ -248,7 +248,7 @@ primitiveClosestIntersect (Box sz) (Ray rayOrg@(Vector ox oy oz _) rayDir@(Vecto
     intX = nearestSlabIntersection vecX
     intY = nearestSlabIntersection vecY
     intZ = nearestSlabIntersection vecZ
-    tMinMax = maybeFold Prelude.max Prelude.min intX (maybeFold Prelude.max Prelude.min intY intZ)
+    tMinMax = maybePairFunctor Prelude.max Prelude.min intX (maybePairFunctor Prelude.max Prelude.min intY intZ)
     nearestSlabIntersection f
       | f rayDir == 0 = Nothing
       | t1 > t2 = Just (t2, t1)
@@ -256,12 +256,6 @@ primitiveClosestIntersect (Box sz) (Ray rayOrg@(Vector ox oy oz _) rayDir@(Vecto
       where
         t1 = ((f bounds0) - (f rayOrg)) / (f rayDir)
         t2 = ((f bounds1) - (f rayOrg)) / (f rayDir)
-
-maybeFold :: (Ord a) => (a -> a -> a) -> (a -> a -> a) -> Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
-maybeFold _ _ Nothing Nothing = Nothing
-maybeFold _ _ Nothing x@(Just (_, _)) = x
-maybeFold _ _ x@(Just (_, _)) Nothing = x
-maybeFold f1 f2 (Just (a1, a2)) (Just (b1, b2)) = Just (a1 `f1` b1, a2 `f2` b2)
                     
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
