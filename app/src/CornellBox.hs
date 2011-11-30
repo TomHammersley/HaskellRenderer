@@ -169,5 +169,5 @@ tallBlockObject = Object (TriangleMesh (quadsToTriangles tallBlockVertices)) whi
 lightObject = Object (TriangleMesh (quadsToTriangles lightVertices)) lightMaterial identity
 
 cornellBox :: [Object]
-cornellBox = [ceilingObject, floorObject, leftWallObject, rightWallObject, backWallObject, frontWallObject, tallBlockObject, shortBlockObject, lightObject]
+cornellBox = [ceilingObject, floorObject, leftWallObject, rightWallObject, backWallObject, frontWallObject, tallBlockObject, shortBlockObject]
 --cornellBox = [leftWallObject, rightWallObject]

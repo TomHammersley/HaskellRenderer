@@ -25,7 +25,7 @@ import Control.Monad.State
 import RenderContext
 import System.Random
 import RussianRoulette
-import Debug.Trace
+--import Debug.Trace
 import Misc
 
 data PathTraceContext = PathTraceContext {
@@ -115,9 +115,8 @@ defaultColour _ = colBlue
 -- Accumulate the contributions of the lights
 lightSurface :: [Light] -> Colour -> RenderContext -> SurfaceLocation -> Material -> Vector -> Colour
 lightSurface (x:xs) acc renderContext posTanSpace objMaterial viewDirection 
-    = let result = acc <+> emissive <+> lightRadiance
+    = let result = acc <+> lightRadiance
           lightRadiance = applyLight (sceneGraph renderContext) posTanSpace objMaterial viewDirection x
-          emissive = emission objMaterial
       in seq result (lightSurface xs result renderContext posTanSpace objMaterial viewDirection)
 lightSurface [] acc _ _ _ _ = acc
 
@@ -163,8 +162,10 @@ traceRay renderContext photonMap ray 1 camera _ _ =
           let tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           -- TODO - Need to plug irradiance values into shader model correctly
+          -- We only accumulate the ambient colour for the first hit. Otherwise we would erroneously accumulate it many times over
+          let objMaterial = (material obj) { ambient = colBlack } 
           let viewDir = normalise (intersectionPoint <-> Camera.position camera)
-          let resultColour = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
+          let resultColour = (emission objMaterial) <+> lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) objMaterial viewDir
           put (irrCache', mt)
           return $! resultColour
 
@@ -185,8 +186,13 @@ traceRay renderContext photonMap ray limit camera currentIOR accumulatedReflecti
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           put (irrCache', mt)
 
+          -- We only accumulate the ambient colour for the first hit. Otherwise we would erroneously accumulate it many times over
+          let objMaterial 
+                | limit == maximumRayDepth renderContext = material obj
+                | otherwise = (material obj) { ambient = colBlack } 
+
           let viewDir = normalise (intersectionPoint <-> Camera.position camera)
-          let surfaceShading = lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) (material obj) viewDir
+          let surfaceShading = (emission objMaterial) <+> lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) objMaterial viewDir
 
           -- Reflection specific code
           let offsetToExterior = madd intersectionPoint normal surfaceEpsilon
@@ -294,6 +300,10 @@ pathTrace renderContext ray depth currentIOR weight camera =
                                            | p < diffuseP = (DiffuseReflect, 1.0 / diffuseP)
                                            | p < specularP = (SpecularReflect, 1.0 / specularP)
                                            | otherwise = (Absorb, 0)
+{-
+            let (interaction, probability) | depth >= bounceLimit = (Absorb, 0.0 :: Double)
+                                           | otherwise = (DiffuseReflect, 1.0 :: Double)
+-}
 
             -- Get reflected light
             randomDir <- generateUnstratifiedDirectionOnHemisphere 1
@@ -314,7 +324,10 @@ pathTrace renderContext ray depth currentIOR weight camera =
                 normal = tsNormal tanSpace
                 incoming = (Vector.negate . direction) ray
 
-                objMaterial = material hitObj
+                -- We only accumulate the ambient colour for the first hit. Otherwise we would erroneously accumulate it many times over
+                objMaterial 
+                  | depth == 0 = material hitObj
+                  | otherwise = (material hitObj) { ambient = colBlack } 
 
                 -- Emitted light
                 emittedLight = emission objMaterial

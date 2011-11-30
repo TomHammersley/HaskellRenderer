@@ -40,6 +40,7 @@ import Matrix
 import BoundingBox
 import Data.Maybe
 import Data.List
+import Misc
 
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 

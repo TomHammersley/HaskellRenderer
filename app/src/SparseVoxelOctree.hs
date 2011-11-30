@@ -2,6 +2,8 @@
 
 module SparseVoxelOctree where
 
+import OctTree
+
 data SparseOctTree a = SparseOctTreeDummy !AABB
                      | SparseOctTreeNode !AABB [SparseOctTree a]
                      | SparseOctTreeLeaf !AABB !(Vector, a) deriving (Eq)
@@ -57,3 +59,12 @@ gather pos r (SparseOctTreeLeaf _ (pos', a))
     | otherwise = []
     where dSq = pos `distanceSq` pos'
 gather _ _ (SparseOctTreeDummy _) = []
+
+-- Build a sparse voxel octree for a data set
+build :: (Position -> Bool) -> AABB - Int -> SparseVoxelOctTree
+build func box maxDepth = build' func box 0 maxDepth
+
+build' :: (Position -> Bool) -> AABB - Int -> SparseVoxelOctTree
+build' func box depth maxDepth
+  | depth == maxDepth = error "Should not have been called to this depth"
+  | otherwise = SparseOctTreeDummy box
