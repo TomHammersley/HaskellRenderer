@@ -105,11 +105,7 @@ randDouble = do
   put gen'
   return r
 
-meanRand :: (RandomGen g) => Int -> State g Double
-meanRand n = do nums <- replicateM n randDouble
-                return $! (foldr (+) 0 nums) / (fromIntegral $ length 
-                                                
--- Handy little thing to apply a differnet function to each of the two elements in a Maybe (a, a) pair. USeful in various ray tracing bits of code                                                
+-- Handy little thing to apply a different function to each of the two elements in a Maybe (a, a) pair. Useful in various ray tracing bits of code
 maybePairFunctor :: (Ord a) => (a -> a -> a) -> (a -> a -> a) -> Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
 maybePairFunctor _ _ Nothing Nothing = Nothing
 maybePairFunctor _ _ Nothing x@(Just (_, _)) = x
