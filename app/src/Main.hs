@@ -16,6 +16,7 @@ import RenderContext
 import Light
 import ToneMap
 import Control.Arrow
+import SparseVoxelOctree
 
 -- Command line option support
 data Option

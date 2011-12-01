@@ -297,13 +297,10 @@ pathTrace renderContext ray depth currentIOR weight camera =
             -- Use russian roulette to decide fate at each interaction
             p <- randDouble                       
             let (interaction, probability) | depth >= bounceLimit = (Absorb, 0)
+                                           | depth == 0 && diffuseP > 0 = (DiffuseReflect, 1.0 / diffuseP)
                                            | p < diffuseP = (DiffuseReflect, 1.0 / diffuseP)
                                            | p < specularP = (SpecularReflect, 1.0 / specularP)
                                            | otherwise = (Absorb, 0)
-{-
-            let (interaction, probability) | depth >= bounceLimit = (Absorb, 0.0 :: Double)
-                                           | otherwise = (DiffuseReflect, 1.0 :: Double)
--}
 
             -- Get reflected light
             randomDir <- generateUnstratifiedDirectionOnHemisphere 1
@@ -337,7 +334,7 @@ pathTrace renderContext ray depth currentIOR weight camera =
                 radiance = lightSurface (lights renderContext) colBlack renderContext (shadingPoint, tanSpace) objMaterial viewDir
 
                 -- Perhaps these should be precalculated?
-                (diffuseP, specularP) = russianRouletteCoefficients2 objMaterial
+                (diffuseP, specularP) = russianRouletteCoefficients objMaterial
                                         
                 -- Don't just let things keep going, put a lid on it. Very diminishing returns after 10 bounces
                 bounceLimit = 10

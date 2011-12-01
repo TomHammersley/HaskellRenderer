@@ -15,7 +15,7 @@ data IrradianceGradient = CentralDifferenceGradient {-# UNPACK #-} !(Colour, Col
 -- Direction of normal, colour, radius
 data CacheSample = CacheSample {-# UNPACK #-} !(Normal, Colour, Double)
 
-type IrradianceCache = OctTree CacheSample
+type IrradianceCache = Octree CacheSample
 
 -- Pretty printer for cache samples
 instance Show CacheSample where
@@ -23,7 +23,7 @@ instance Show CacheSample where
 
 -- This gives an initial empty cache that will later be populated
 initialiseCache :: SceneGraph -> IrradianceCache
-initialiseCache sceneGraph = OctTreeNode slightlyEnlargedBox $ map OctTreeDummy (generateOctreeBoxList slightlyEnlargedBox)
+initialiseCache sceneGraph = OctreeNode slightlyEnlargedBox $ map OctreeDummy (splitBoxIntoOctreeChildren slightlyEnlargedBox)
     where
       -- Create the initial irradiance cache tree. This is a box a little larger than the world so that we fit any points offset along the normal etc
       slightlyEnlargedBox = growBoundingBox (finiteBox sceneGraph) 10
@@ -41,17 +41,17 @@ errorWeight (pos', dir') (pos, CacheSample (dir, _, r))
 -- This slightly convoluted version is written to be tail recursive. I effectively have to maintain a software stack of the
 -- nodes remaining to be traversed
 findSamples :: (Position, Direction) -> [IrradianceCache] -> [(Vector, CacheSample, Double)] -> [(Vector, CacheSample, Double)]
-findSamples posDir@(pos, _) (OctTreeNode box nodeChildren : xs) acc
+findSamples posDir@(pos, _) (OctreeNode box nodeChildren : xs) acc
     | box `contains` pos = findSamples posDir (nodeChildren ++ xs) acc
     | otherwise = findSamples posDir xs acc
-findSamples posDir@(pos, _) (OctTreeLeaf _ (samplePos, sample) : xs) acc
+findSamples posDir@(pos, _) (OctreeLeaf _ (samplePos, sample) : xs) acc
     | (pos `distanceSq` samplePos) <= sampleR * sampleR && weight > minimumWeight = findSamples posDir xs ((samplePos, sample, weight) : acc)
     | otherwise = findSamples posDir xs acc
     where
       weight = errorWeight posDir (samplePos, sample)
       (CacheSample (_, _, sampleR)) = sample
       minimumWeight = 1.5 -- The bigger this weight, the less it will reuse samples and the higher the quality
-findSamples posDir (OctTreeDummy _ : xs) acc = findSamples posDir xs acc
+findSamples posDir (OctreeDummy _ : xs) acc = findSamples posDir xs acc
 findSamples _ [] acc = acc
 
 -- Sum together a list of samples and error weights
