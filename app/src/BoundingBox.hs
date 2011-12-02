@@ -11,6 +11,9 @@ import GHC.Prim
 
 type AABB = (Vector, Vector)
 
+boundingBoxCentre :: AABB -> Position
+boundingBoxCentre (boxMin, boxMax) = (boxMin <+> boxMax) <*> (0.5 :: Double)
+
 boundingBoxUnion :: AABB -> AABB -> AABB
 boundingBoxUnion (min1, max1) (min2, max2) = (Vector.min min1 min2, Vector.max max1 max2)
 

@@ -1,7 +1,7 @@
 -- The sparse voxel octree data structure
 {-# LANGUAGE BangPatterns #-}
 
-module SparseVoxelOctree where
+module SparseVoxelOctree(build, SparseOctree) where
 
 import Octree
 import BoundingBox
@@ -23,7 +23,7 @@ display level (SparseOctreeLeaf box value) = take level tabs ++ "[Leaf] box=" ++
 
 -- Build a sparse voxel octree for a data set
 build :: (AABB -> Double) -> AABB -> Int -> SparseOctree
-build func box maxDepth = build' func box 0 maxDepth
+build func box = build' func box 0
 
 build' :: (AABB -> Double) -> AABB -> Int -> Int -> SparseOctree
 build' func box depth maxDepth

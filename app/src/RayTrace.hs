@@ -165,7 +165,7 @@ traceRay renderContext photonMap ray 1 camera _ _ =
           -- We only accumulate the ambient colour for the first hit. Otherwise we would erroneously accumulate it many times over
           let objMaterial = (material obj) { ambient = colBlack } 
           let viewDir = normalise (intersectionPoint <-> Camera.position camera)
-          let resultColour = (emission objMaterial) <+> lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) objMaterial viewDir
+          let resultColour = emission objMaterial <+> lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) objMaterial viewDir
           put (irrCache', mt)
           return $! resultColour
 
@@ -192,7 +192,7 @@ traceRay renderContext photonMap ray limit camera currentIOR accumulatedReflecti
                 | otherwise = (material obj) { ambient = colBlack } 
 
           let viewDir = normalise (intersectionPoint <-> Camera.position camera)
-          let surfaceShading = (emission objMaterial) <+> lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) objMaterial viewDir
+          let surfaceShading = emission objMaterial <+> lightSurface (lights renderContext) surfaceIrradiance renderContext (intersectionPoint, tanSpace) objMaterial viewDir
 
           -- Reflection specific code
           let offsetToExterior = madd intersectionPoint normal surfaceEpsilon

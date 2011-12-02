@@ -17,6 +17,8 @@ import Light
 import ToneMap
 import Control.Arrow
 import SparseVoxelOctree
+import Vector
+import BoundingBox
 
 -- Command line option support
 data Option
@@ -77,6 +79,13 @@ writeImageMipMapChain baseFilename (mipLevel:mipLevels) photonMap renderSettings
   Prelude.putStrLn filename
   writeBMP filename bmp
   writeImageMipMapChain baseFilename mipLevels photonMap renderSettings
+
+-- A simple function to build an SVO. This just works off containment in a sphere
+buildSVOSphere :: Position -> Double -> AABB -> Double
+buildSVOSphere pos r box = Prelude.max 0 (r - (pos `distance` boundingBoxCentre box))
+  
+testSvo :: SparseOctree
+testSvo = build (buildSVOSphere (Vector 0 0 0 1) 10) (Vector (-20) (-20) (-20) 1, Vector 20 20 20 1) 10
 
 -- Strip off the photon map flag from a light
 notInPhotonMap :: Light -> Light
