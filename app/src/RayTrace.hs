@@ -308,7 +308,7 @@ pathTrace renderContext ray depth currentIOR weight camera =
                   | interaction == SpecularReflect = incoming `reflect` normal
                   | otherwise = transformDir randomDir tanSpace
             let ray' = rayWithDirection shadingPoint reflectedDir 10000
-            let weight' = diffuse objMaterial <*> weight <*> (normal `sdot3` reflectedDir)
+            let weight' = weight <*> diffuse objMaterial <*> (normal `sdot3` reflectedDir)
             reflectedLight <- pathTrace renderContext ray' (depth + 1) currentIOR weight' camera
                                  
             -- Combine to give a result
@@ -341,10 +341,10 @@ pathTrace renderContext ray depth currentIOR weight camera =
 
 -- Path-trace a sub-sample
 pathTracePixelSample :: (RandomGen g) => RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> (Double, Double) -> (Double, Double) -> PathTraceState g
-pathTracePixelSample renderContext camera xy (width, height) (du, dv) jitterUV stratUV = pathTrace renderContext ray 0 1 colWhite camera
+pathTracePixelSample renderContext camera (x, y) (width, height) (du, dv) (jitterU, jitterV) (stratU, stratV) = pathTrace renderContext ray 0 1 colWhite camera
     where
-      jitteredX = (fromIntegral . fst) xy + (fst stratUV + fst jitterUV) * du
-      jitteredY = (fromIntegral . snd) xy + (snd stratUV + snd jitterUV) * dv
+      jitteredX = fromIntegral x + (stratU + jitterU) * du
+      jitteredY = fromIntegral y + (stratV + jitterV) * dv
       rayDirection = makeRayDirection width height camera (jitteredX, jitteredY)
       ray = rayWithDirection (Camera.position camera) rayDirection (farClip camera)
 
