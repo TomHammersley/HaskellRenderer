@@ -1,3 +1,5 @@
+app/src/Tests/HemisphereTest
+app/src/Tests/RandomUVTest/RandomUVTest
 *.hi
 *.o-boot
 *.hi-boot
@@ -17,5 +19,4 @@ dist/*
 dist/setup-config
 hlint-output.txt
 *~
-app/src/Tests/HemisphereTest
-app/src/Tests/RandomUVTest/RandomUVTest
+#*
