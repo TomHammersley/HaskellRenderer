@@ -35,6 +35,7 @@ import Vector
 import Material
 import Matrix
 import BoundingBox
+import {-# SOURCE #-} SparseVoxelOctree
 
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 
@@ -51,6 +52,8 @@ data Object = Object { primitive :: Primitive,
 data Primitive = Sphere { radius :: {-# UNPACK #-} !Double }
                | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Double }
                | TriangleMesh { triangles :: [Triangle] }
+               | Box { boxSize :: {-# UNPACK #-} !Vector } 
+               | SparseOctreeModel { svo :: SparseOctree }
 
 primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Double
 primitiveBoundingBox :: Primitive -> Object -> Maybe AABB

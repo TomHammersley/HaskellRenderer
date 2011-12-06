@@ -4,7 +4,7 @@
 module Octree(generateSceneGraphUsingOctree, splitBoxIntoOctreeChildren, Octree(OctreeNode, OctreeLeaf, OctreeDummy), create, Octree.insert, gather) where
 
 import Vector
-import Primitive
+import {-# SOURCE #-} Primitive
 import BoundingBox
 import Misc
 

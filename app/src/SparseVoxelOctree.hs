@@ -1,10 +1,16 @@
 -- The sparse voxel octree data structure
 {-# LANGUAGE BangPatterns #-}
 
-module SparseVoxelOctree(build, SparseOctree) where
+module SparseVoxelOctree(build, 
+                         SparseOctree, 
+                         intersect, 
+                         boundingRadius, 
+                         boundingBox) where
 
 import Octree
 import BoundingBox
+import Ray
+import Matrix
 
 data SparseOctree = SparseOctreeDummy
                   | SparseOctreeNode !AABB [SparseOctree]
@@ -36,3 +42,22 @@ build' func box depth maxDepth
         where
           f = func childBox
                                          
+-- Intersect with a ray
+intersect :: Ray -> SparseOctree -> Maybe (Double, Int)
+intersect _ SparseOctreeDummy = Nothing
+intersect ray (SparseOctreeNode box children) = case intersectRayAABB box ray identity of
+  Nothing -> Nothing
+  Just dist -> undefined
+intersect ray (SparseOctreeLeaf box _) = case intersectRayAABB box ray identity of
+  Nothing -> Nothing
+  Just dist -> Just (dist, 0)
+
+boundingRadius :: SparseOctree -> Double
+boundingRadius SparseOctreeDummy = 0
+boundingRadius (SparseOctreeNode box _) = boundingBoxRadius box
+boundingRadius (SparseOctreeLeaf box _) = boundingBoxRadius box
+
+boundingBox :: SparseOctree -> AABB
+boundingBox SparseOctreeDummy = error "Invalid SVO"
+boundingBox (SparseOctreeNode box _) = box
+boundingBox (SparseOctreeLeaf box _) = box

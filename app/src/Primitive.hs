@@ -30,7 +30,9 @@ module Primitive (primitiveBoundingRadius,
                   makePlane,
                   intersectRayTriangle,
                   TangentSpace,
-                  Vertex) where
+                  Vertex,
+                  boxSize,
+                  svo) where
 
 import PolymorphicNum
 import Ray
@@ -41,6 +43,7 @@ import BoundingBox
 import Data.Maybe
 import Data.List
 import Misc
+import {-# SOURCE #-} SparseVoxelOctree
 
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 
@@ -57,7 +60,8 @@ data Object = Object { primitive :: Primitive,
 data Primitive = Sphere { radius :: {-# UNPACK #-} !Double }
                | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Double }
                | TriangleMesh { triangles :: [Triangle] } 
-               | Box { size :: {-# UNPACK #-} !Vector } deriving (Show, Eq)
+               | Box { boxSize :: {-# UNPACK #-} !Vector } 
+               | SparseOctreeModel { svo :: SparseOctree } deriving (Show, Eq)
 
 -- Get the centre of an object
 getCentre :: Object -> Vector
@@ -258,6 +262,8 @@ primitiveClosestIntersect (Box sz) (Ray rayOrg@(Vector ox oy oz _) rayDir@(Vecto
         t1 = ((f bounds0) - (f rayOrg)) / (f rayDir)
         t2 = ((f bounds1) - (f rayOrg)) / (f rayDir)
                     
+primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.intersect ray svo' -- TODO Need to transform ray by inverse object matrix
+
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
 primitiveAnyIntersect primitive' ray obj = primitiveClosestIntersect primitive' ray obj
@@ -282,13 +288,14 @@ primitiveTangentSpace (TriangleMesh tris) triId intersectionPoint _ = interpolat
 primitiveTangentSpace _ _ _ _ = undefined
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
--- Family of bounding radius functions
+-- Family of bounding radius functions (post-xfrom by localToWorld matrix)
 primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Double
 
 primitiveBoundingRadius (Sphere sphereRadius) sphereTransform pos = sphereRadius + (pos `distance` getTranslation sphereTransform)
 primitiveBoundingRadius (Plane _ _) _ _ = 0
-primitiveBoundingRadius (TriangleMesh tris) _ centre = triangleListRadius 0 tris centre
-primitiveBoundingRadius (Box sze) _ _ = Vector.magnitude sze
+primitiveBoundingRadius (TriangleMesh tris) _ centre = triangleListRadius 0 tris centre -- TODO - need to factor in world matrix
+primitiveBoundingRadius (Box sze) _ _ = Vector.magnitude sze -- TODO - need to factor in world matrix
+primitiveBoundingRadius (SparseOctreeModel svo_) _ _ = boundingRadius svo_ -- TODO - need to factor in world matrix
 
 triangleListRadius :: Double -> [Triangle] -> Vector -> Double
 triangleListRadius maximumRadius (tri:tris) centre = triangleListRadius (Prelude.max maximumRadius triangleRadius) tris centre
@@ -300,7 +307,7 @@ triangleListRadius maximumRadius [] _ = maximumRadius
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of bounding box functions
 
--- Find the bounding box of a primitive
+-- Find the bounding box of a primitive in world space
 primitiveBoundingBox :: Primitive -> Object -> Maybe AABB
 primitiveBoundingBox (Sphere sphereRadius) obj = Just (boxMin, boxMax)
     where
@@ -309,6 +316,7 @@ primitiveBoundingBox (Sphere sphereRadius) obj = Just (boxMin, boxMax)
 primitiveBoundingBox (Plane _ _) _ = Nothing
 primitiveBoundingBox (TriangleMesh tris) obj = Just $ triangleListBoundingBox initialInvalidBox (transform obj) tris
 primitiveBoundingBox (Box sz) _ = Just (sz <*> (-0.5 :: Double), sz <*> (0.5 :: Double)) -- TODO Need to transform this by object's matrix
+primitiveBoundingBox (SparseOctreeModel svo_) _ = Just $ boundingBox svo_ -- TODO need to transform by this object's matrix
 
 -- Bounding box of a list of something
 triangleListBoundingBox :: AABB -> Matrix -> [Triangle] -> AABB

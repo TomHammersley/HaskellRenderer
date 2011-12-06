@@ -8,8 +8,14 @@ import PolymorphicNum
 import Vector
 import GHC.Types
 import GHC.Prim
+import Matrix
+import Misc
+import Ray
 
 type AABB = (Vector, Vector)
+
+boundingBoxRadius :: AABB -> Double
+boundingBoxRadius (boxMin, boxMax) = boxMin `distance` boxMax
 
 boundingBoxCentre :: AABB -> Position
 boundingBoxCentre (boxMin, boxMax) = (boxMin <+> boxMax) <*> (0.5 :: Double)
@@ -67,3 +73,27 @@ overlapsSphere :: AABB -> Position -> Double -> Bool
 overlapsSphere (boxMin, boxMax) p r = all insideInterval [vecX, vecY, vecZ]
     where 
       insideInterval f = f p >= (f boxMin - r) && f p <= (f boxMax + r)
+
+intersectRayAABB :: AABB -> Ray -> Matrix -> Maybe Double
+intersectRayAABB (bounds0, bounds1) (Ray rayOrg@(Vector ox oy oz _) rayDir@(Vector dx dy dz _) rayLen) _ -- TODO Need to transform ray by inverse object matrix
+  | dx == 0 && (ox < vecX bounds0 || ox > vecX bounds1) = Nothing
+  | dy == 0 && (oy < vecY bounds0 || oy > vecY bounds1) = Nothing
+  | dz == 0 && (oz < vecZ bounds0 || oz > vecZ bounds1) = Nothing
+  | otherwise = case tMinMax of
+                     Nothing -> Nothing
+                     Just (tmin, tmax) -> if tmin > tmax || 
+                                             tmax < 0 || 
+                                             tmin > rayLen then Nothing
+                                          else Just tmin
+  where
+    intX = nearestSlabIntersection vecX
+    intY = nearestSlabIntersection vecY
+    intZ = nearestSlabIntersection vecZ
+    tMinMax = maybePairFunctor Prelude.max Prelude.min intX (maybePairFunctor Prelude.max Prelude.min intY intZ)
+    nearestSlabIntersection f
+      | f rayDir == 0 = Nothing
+      | t1 > t2 = Just (t2, t1)
+      | otherwise = Just (t1, t2)
+      where
+        t1 = ((f bounds0) - (f rayOrg)) / (f rayDir)
+        t2 = ((f bounds1) - (f rayOrg)) / (f rayDir)
