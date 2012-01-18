@@ -44,7 +44,7 @@ intersectSphereTree (node:nodes) ray currentHit = intersectSphereTree (newNodeLi
           case children node of
             -- If the node has no children, don't bother with it's bounding volume and just check the object (if it has one)
             [] -> case object node of
-                    Nothing -> error "A node with no children should hold an object"
+                    Nothing -> (currentHit, [], ray) -- error "A node with no children should hold an object"
                     Just obj -> case primitiveClosestIntersect (primitive obj) ray obj of
                                   -- Didn't hit the object. Retain the current hit, and continue with remaining nodes on the list
                                   Nothing -> (currentHit, [], ray)
@@ -130,7 +130,7 @@ photonMapGlobalIllumination (Just photonMap) surfaceLocation irrCache obj render
       PhotonMapper -> if useIrradianceCache renderContext
                       then query irrCache surfaceLocation irradiance'
                       else (fst $ irradiance photonMap (photonMapContext renderContext) (material obj) surfaceLocation, irrCache)
-      _ -> undefined -- Shouldn't hit this path...
+      _ -> error "Called photonMapGlobalIllumination when photon mapping was not selected."
     where
       irradiance' = irradiance photonMap (photonMapContext renderContext) (material obj)
 photonMapGlobalIllumination _ _ irrCache _ _ = (colBlack, irrCache)
@@ -297,9 +297,10 @@ pathTrace renderContext ray depth currentIOR weight camera =
             -- Use russian roulette to decide fate at each interaction
             p <- randDouble                       
             let (interaction, probability) | depth >= bounceLimit = (Absorb, 0)
-                                           | depth == 0 && diffuseP > 0 = (DiffuseReflect, 1.0 / diffuseP)
                                            | p < diffuseP = (DiffuseReflect, 1.0 / diffuseP)
                                            | p < specularP = (SpecularReflect, 1.0 / specularP)
+                                           | depth < minBounces && diffuseP > 0 = (DiffuseReflect, 1.0 / diffuseP)
+                                           | depth < minBounces && specularP > 0 = (DiffuseReflect, 1.0 / specularP)
                                            | otherwise = (Absorb, 0)
 
             -- Get reflected light
@@ -338,6 +339,7 @@ pathTrace renderContext ray depth currentIOR weight camera =
                                         
                 -- Don't just let things keep going, put a lid on it. Very diminishing returns after 10 bounces
                 bounceLimit = 10
+                minBounces = 3
 
 -- Path-trace a sub-sample
 pathTracePixelSample :: (RandomGen g) => RenderContext -> Camera -> (Int, Int) -> (Int, Int) -> (Double, Double) -> (Double, Double) -> (Double, Double) -> PathTraceState g

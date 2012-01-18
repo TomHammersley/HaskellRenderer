@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Build main code
-ghc -optl"-Wl,-read_only_relocs,suppress" -tmpdir tmp -hidir hi -odir obj -fext-core -fexcess-precision -funbox-strict-fields -threaded -rtsopts -fwarn-missing-signatures -Wall -O2 -fspec-constr -fliberate-case -fstatic-argument-transformation Main.hs -o ../crocodile $1 $2 $3 $4 $5 $6 $7 $8 $9
+ghc -optl"-Wl,-read_only_relocs,suppress" -tmpdir tmp -hidir hi -odir obj -fext-core -fexcess-precision -funbox-strict-fields -threaded -rtsopts -fwarn-missing-signatures -Wall -O2 -fspec-constr -fliberate-case -fstatic-argument-transformation -fspec-constr-count=10 Main.hs -o ../crocodile $1 $2 $3 $4 $5 $6 $7 $8 $9
 
 # Tidy up
 mv *.hcr core/

@@ -1,11 +1,8 @@
 -- Various assorted bits and pieces
-{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE BangPatterns #-}
 
 module Misc where
 
-import GHC.Prim
-import GHC.Types
 import Data.List
 import Control.Parallel.Strategies
 import Control.Monad.State
@@ -24,11 +21,6 @@ thr (_, _, c) = c
 -- Little helper for saturation
 saturate :: (Num t, Ord t) => t -> t
 saturate x = Prelude.max 0 (Prelude.min x 1)
-
-saturate## :: Double# -> Double#
-saturate## !x = value
-    where
-      !(D# !value) = Prelude.max 0 (Prelude.min (D# x) 1)
 
 harmonicMean :: (Num t, Fractional t) => [t] -> t
 harmonicMean array@(_:_) = fromIntegral (length array) / foldl' (\a b -> b + 1 / a) 0 array
@@ -90,7 +82,7 @@ zipWith' f l1 l2 = [ f e1 e2 | (e1, e2) <- zipWith k l1 l2 ]
       k x y = x `seq` y `seq` (x,y)
 
 -- Repeatedly call a function and pass state (eg, random numbers)
-replicateWithState :: Int -> s -> (State s b) -> ([b], s)
+replicateWithState :: Int -> s -> State s b -> ([b], s)
 replicateWithState count s f = replicateWithState' count s []
     where
       replicateWithState' 0 st acc = (acc, st)

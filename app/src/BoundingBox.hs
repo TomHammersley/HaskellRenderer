@@ -1,15 +1,11 @@
 -- Bounding box code
-{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE BangPatterns #-}
 
 module BoundingBox where
 
 import PolymorphicNum
 import Vector
-import GHC.Types
-import GHC.Prim
 import Matrix
-import Misc
 import Ray
 
 type AABB = (Vector, Vector)
@@ -64,36 +60,27 @@ selectMaxBoxComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMax else
 -- Does a box contain a point?
 contains :: AABB -> Position -> Bool
 {-# SPECIALIZE INLINE contains :: AABB -> Position -> Bool #-}
-contains (Vector !(D# minX) !(D# minY) !(D# minZ) _, Vector !(D# maxX) !(D# maxY) !(D# maxZ) _) (Vector !(D# x) !(D# y) !(D# z) _) = 
-    x >=## minX && x <=## maxX &&
-    y >=## minY && y <=## maxY &&
-    z >=## minZ && z <=## maxZ
+contains (Vector !minX !minY !minZ _, Vector !maxX !maxY !maxZ _) (Vector !x !y !z _) = 
+    x >= minX && x <= maxX &&
+    y >= minY && y <= maxY &&
+    z >= minZ && z <= maxZ
 
+-- Does a sphere (conservatively) overlap with a bounding box? (Not exact at present)
 overlapsSphere :: AABB -> Position -> Double -> Bool
 overlapsSphere (boxMin, boxMax) p r = all insideInterval [vecX, vecY, vecZ]
     where 
       insideInterval f = f p >= (f boxMin - r) && f p <= (f boxMax + r)
 
 intersectRayAABB :: AABB -> Ray -> Matrix -> Maybe Double
-intersectRayAABB (bounds0, bounds1) (Ray rayOrg@(Vector ox oy oz _) rayDir@(Vector dx dy dz _) rayLen) _ -- TODO Need to transform ray by inverse object matrix
-  | dx == 0 && (ox < vecX bounds0 || ox > vecX bounds1) = Nothing
-  | dy == 0 && (oy < vecY bounds0 || oy > vecY bounds1) = Nothing
-  | dz == 0 && (oz < vecZ bounds0 || oz > vecZ bounds1) = Nothing
-  | otherwise = case tMinMax of
-                     Nothing -> Nothing
-                     Just (tmin, tmax) -> if tmin > tmax || 
-                                             tmax < 0 || 
-                                             tmin > rayLen then Nothing
-                                          else Just tmin
+intersectRayAABB (bounds0, bounds1) (Ray rayOrg _ invRayDir rayLen) _ -- TODO Need to transform ray by inverse object matrix
+  | tmax < tmin = Nothing
+  | tmin > 0 && tmin < rayLen = Just tmin
+  | tmax > 0 && tmax < rayLen = Just tmax
+  | otherwise = Nothing
   where
-    intX = nearestSlabIntersection vecX
-    intY = nearestSlabIntersection vecY
-    intZ = nearestSlabIntersection vecZ
-    tMinMax = maybePairFunctor Prelude.max Prelude.min intX (maybePairFunctor Prelude.max Prelude.min intY intZ)
-    nearestSlabIntersection f
-      | f rayDir == 0 = Nothing
-      | t1 > t2 = Just (t2, t1)
-      | otherwise = Just (t1, t2)
-      where
-        t1 = ((f bounds0) - (f rayOrg)) / (f rayDir)
-        t2 = ((f bounds1) - (f rayOrg)) / (f rayDir)
+    (tmin, tmax) = foldr1 (\(a0, b0) (a1, b1) -> (a0 `Prelude.max` a1, b0 `Prelude.min` b1)) (map intercepts [vecX, vecY, vecZ])
+
+    intercepts f = let x0 = (f bounds0 - f rayOrg) * f invRayDir
+                       x1 = (f bounds1 - f rayOrg) * f invRayDir
+                   in (x0 `Prelude.min` x1, x0 `Prelude.max` x1)
+

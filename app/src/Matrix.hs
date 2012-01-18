@@ -1,5 +1,5 @@
 -- 4D Matrix Library
--- TODO - Rewrite all this to be a lot more efficient. Very early code...
+-- TODO - Rewrite all this to be a lot more efficient. Very early code...2/
 {-# LANGUAGE BangPatterns #-}
 
 module Matrix where

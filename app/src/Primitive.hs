@@ -7,7 +7,7 @@ module Primitive (primitiveBoundingRadius,
                   primitiveAnyIntersect,
                   primitiveTangentSpace, 
                   Object(Object), 
-                  Primitive(Sphere, Plane, TriangleMesh, Box), 
+                  Primitive(Sphere, Plane, TriangleMesh, Box, SparseOctreeModel), 
                   primitive, 
                   material, 
                   makeTriangle, 
@@ -42,8 +42,8 @@ import Matrix
 import BoundingBox
 import Data.Maybe
 import Data.List
-import Misc
 import {-# SOURCE #-} SparseVoxelOctree
+import Debug.Trace
 
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 
@@ -204,20 +204,20 @@ interpolatedTangentSpace triangle triAlpha triBeta triGamma = (tangent, binormal
           normal = normalise $ norm1 <*> triAlpha <+> norm2 <*> triBeta <+> norm3 <*> triGamma
 
 planeIntersect :: Primitive -> Ray -> Maybe (Double, Int)
-planeIntersect (Plane (_, _, planeNormal) planeD) (Ray rayOrg rayDir rayLen)
+planeIntersect (Plane (_, _, planeNormal) planeD) (Ray rayOrg rayDir _ rayLen)
     | dirDotNormal == 0 = Nothing
     | intercept >= 0 && intercept <= rayLen = Just (intercept, 0)
     | otherwise = Nothing
     where dirDotNormal = rayDir `dot3` planeNormal
           intercept = ((-planeD) - (rayOrg `dot3` planeNormal)) / dirDotNormal
-planeIntersect _ _ = undefined -- only available for this case
+planeIntersect _ _ = error "planeIntersect was called for an inappropriate primitive type" -- only available for this case
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of intersection functions
 primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
 
 -- This function intersects a ray with a sphere, and returns the closest intercept
-primitiveClosestIntersect (Sphere sphereRadius) (Ray rayOrg rayDir rayLen) obj
+primitiveClosestIntersect (Sphere sphereRadius) (Ray rayOrg rayDir _ rayLen) obj
     | discriminant < 0 = Nothing
     | discriminant == 0 = Just (((-b) ** 0.5), 0)
     | root1 >= 0 && root1 <= rayLen = Just (root1, 0)
@@ -232,37 +232,29 @@ primitiveClosestIntersect (Sphere sphereRadius) (Ray rayOrg rayDir rayLen) obj
       root2 = ((-b) + sqrt discriminant) * 0.5
 
 -- This function intersects a ray with a plane and returns the closest intercept
-primitiveClosestIntersect pln@(Plane (_, _, _) _) ray@(Ray _ _ _) _ = planeIntersect pln ray
+primitiveClosestIntersect pln@(Plane (_, _, _) _) ray _ = planeIntersect pln ray
 
 -- Find intersection with a triangle mesh
 primitiveClosestIntersect (TriangleMesh tris) ray obj = intersectRayTriangleList tris 0 Nothing ray obj
 
-primitiveClosestIntersect (Box sz) (Ray rayOrg@(Vector ox oy oz _) rayDir@(Vector dx dy dz _) rayLen) _ -- TODO Need to transform ray by inverse object matrix
-  | dx == 0 && (ox < vecX bounds0 || ox > vecX bounds1) = Nothing
-  | dy == 0 && (oy < vecY bounds0 || oy > vecY bounds1) = Nothing
-  | dz == 0 && (oz < vecZ bounds0 || oz > vecZ bounds1) = Nothing
-  | otherwise = case tMinMax of
-                     Nothing -> Nothing
-                     Just (tmin, tmax) -> if tmin > tmax || 
-                                             tmax < 0 || 
-                                             tmin > rayLen then Nothing
-                                          else Just (tmin, 0)
+primitiveClosestIntersect (Box sz) (Ray rayOrg _ invRayDir rayLen) _ -- TODO Need to transform ray by inverse object matrix
+  | tmax < tmin = Nothing
+  | tmin > 0 && tmin < rayLen = Just (tmin, 0)
+  | tmax > 0 && tmax < rayLen = Just (tmax, 0)
+  | otherwise = Nothing
   where
     bounds0 = sz <*> (-0.5 :: Double)
     bounds1 = sz <*> (0.5 :: Double)
-    intX = nearestSlabIntersection vecX
-    intY = nearestSlabIntersection vecY
-    intZ = nearestSlabIntersection vecZ
-    tMinMax = maybePairFunctor Prelude.max Prelude.min intX (maybePairFunctor Prelude.max Prelude.min intY intZ)
-    nearestSlabIntersection f
-      | f rayDir == 0 = Nothing
-      | t1 > t2 = Just (t2, t1)
-      | otherwise = Just (t1, t2)
-      where
-        t1 = ((f bounds0) - (f rayOrg)) / (f rayDir)
-        t2 = ((f bounds1) - (f rayOrg)) / (f rayDir)
-                    
-primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.intersect ray svo' -- TODO Need to transform ray by inverse object matrix
+    
+    (tmin, tmax) = foldr1 (\(a0, b0) (a1, b1) -> (a0 `Prelude.max` a1, b0 `Prelude.min` b1)) (map intercepts [vecX, vecY, vecZ])
+
+    intercepts f = let x0 = (f bounds0 - f rayOrg) * f invRayDir
+                       x1 = (f bounds1 - f rayOrg) * f invRayDir
+                   in (x0 `Prelude.min` x1, x0 `Prelude.max` x1)
+    
+primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.intersect ray 0 maxSvoDepth svo' -- TODO Need to transform ray by inverse object matrix
+  where
+    maxSvoDepth = 50
 
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
@@ -275,7 +267,7 @@ primitiveTangentSpace :: Primitive -> Int -> Position -> Object -> TangentSpace
 -- Normal for a sphere
 primitiveTangentSpace (Sphere sphereRadius) _ intersectionPoint obj = (tangent, binormal, normal)
     where
-      tangent = Vector 1 0 0 0 -- This is clearly incorrect - fix this later!
+      tangent = Vector 1 0 0 0 -- TODO - This is clearly incorrect - fix this later!
       binormal = Vector 0 1 0 0
       normal = (intersectionPoint <-> getCentre obj) <*> (1 / sphereRadius)
 
@@ -284,18 +276,38 @@ primitiveTangentSpace (TriangleMesh tris) triId intersectionPoint _ = interpolat
     where triangle = tris !! triId
           (triAlpha, triBeta, triGamma) = calculateBarycentricCoordinates intersectionPoint triangle
           
+primitiveTangentSpace (Box _) _ intersectionPoint obj
+  | dx > dy && dx > dz = (Vector 0 sx 0 0, Vector 0 0 sx 0, Vector sx 0 0 0)
+  | dy > dx && dy > dz = (Vector sy 0 0 0, Vector 0 0 sy 0, Vector 0 sy 0 0)
+  | otherwise = (Vector sz 0 0 0, Vector 0 sz 0 0, Vector 0 0 sz 0)
+  where
+    delta = normalise (intersectionPoint <-> getCentre obj)
+    dx = (abs . vecX) delta
+    dy = (abs . vecY) delta
+    dz = (abs . vecZ) delta
+    sx = (signum . vecX) delta
+    sy = (signum . vecY) delta
+    sz = (signum . vecZ) delta
+    
+-- TODO - Implement tangent space function for SVO - this is clearly completely incorrect debug code!
+primitiveTangentSpace (SparseOctreeModel svo_) _ intersectionPoint obj = (tangent, binormal, normal)
+    where
+      tangent = Vector 1 0 0 0 -- TODO - This is clearly incorrect - fix this later!
+      binormal = Vector 0 1 0 0
+      normal = normalise (intersectionPoint <-> getCentre obj)
+                    
 -- Unimplemented (no specialised implementation) case
-primitiveTangentSpace _ _ _ _ = undefined
+--primitiveTangentSpace _ _ _ _ = error "primitiveTangentSpace is not defined for a new primitive type"
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of bounding radius functions (post-xfrom by localToWorld matrix)
 primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Double
 
-primitiveBoundingRadius (Sphere sphereRadius) sphereTransform pos = sphereRadius + (pos `distance` getTranslation sphereTransform)
+primitiveBoundingRadius (Sphere sphereRadius) xform pos = sphereRadius + (pos `distance` getTranslation xform)
 primitiveBoundingRadius (Plane _ _) _ _ = 0
 primitiveBoundingRadius (TriangleMesh tris) _ centre = triangleListRadius 0 tris centre -- TODO - need to factor in world matrix
-primitiveBoundingRadius (Box sze) _ _ = Vector.magnitude sze -- TODO - need to factor in world matrix
-primitiveBoundingRadius (SparseOctreeModel svo_) _ _ = boundingRadius svo_ -- TODO - need to factor in world matrix
+primitiveBoundingRadius (Box sze) xform pos = Vector.magnitude sze + (pos `distance` getTranslation xform) -- TODO - need to factor in world matrix
+primitiveBoundingRadius (SparseOctreeModel svo_) xform pos = boundingRadius svo_ + (pos `distance` getTranslation xform)
 
 triangleListRadius :: Double -> [Triangle] -> Vector -> Double
 triangleListRadius maximumRadius (tri:tris) centre = triangleListRadius (Prelude.max maximumRadius triangleRadius) tris centre
@@ -359,18 +371,19 @@ intersectsBox (TriangleMesh tris) matrix box = boundingBoxOverlaps box triListBo
     where
       triListBox = triangleListBoundingBox initialInvalidBox matrix tris
       
-intersectsBox _ _ _ = undefined
+intersectsBox _ _ _ = error "intersectsBox is not implemented for a primitive type"
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Aspect querying of objects
 infinite :: Primitive -> Bool
 infinite (Plane _ _) = True
+infinite (SparseOctreeModel _) = True 
 infinite _ = False
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Specialised intersection code for bounding volume hierarchies
 sphereIntersect :: Double -> Vector -> Ray -> Maybe Double
-sphereIntersect rad centre (Ray rayOrg rayDir rayLen)
+sphereIntersect rad centre (Ray rayOrg rayDir _ rayLen)
     | (centre `distanceSq` rayOrg) < (rad * rad) = Just 0 -- Inside the sphere!
     | discriminant < 0 = Nothing
     | discriminant == 0 = Just ((-b) / 2)

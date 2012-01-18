@@ -1,7 +1,6 @@
 -- Vector library for 3d graphics
 
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Vector where
@@ -10,8 +9,6 @@ import Prelude
 import PolymorphicNum as L
 import Data.List
 import Misc
-import GHC.Prim
-import GHC.Types
 import Control.DeepSeq
 
 data Vector = Vector { vecX :: {-# UNPACK #-} !Double,
@@ -26,33 +23,33 @@ type SurfaceLocation = (Position, TangentSpace)
 
 instance PolymorphicNum Vector Vector Vector where
     {-# SPECIALIZE INLINE (<+>) :: Vector -> Vector -> Vector #-}
-    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) <+> (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = Vector (D# $ x +## x') (D# $ y +## y') (D# $ z +## z') (D# $ w +## w')
+    (Vector !x !y !z !w) <+> (Vector !x' !y' !z' !w') = Vector (x + x') (y + y') (z + z') (w + w')
     {-# SPECIALIZE INLINE (<->) :: Vector -> Vector -> Vector #-}
-    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) <-> (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = Vector (D# $ x -## x') (D# $ y -## y') (D# $ z -## z') (D# $ w -## w')
+    (Vector !x !y !z !w) <-> (Vector !x' !y' !z' !w') = Vector (x - x') (y - y') (z - z') (w - w')
     {-# SPECIALIZE INLINE (<*>) :: Vector -> Vector -> Vector #-}
-    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) <*> (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = Vector (D# $ x *## x') (D# $ y *## y') (D# $ z *## z') (D# $ w *## w')
+    (Vector !x !y !z !w) <*> (Vector !x' !y' !z' !w') = Vector (x * x') (y * y') (z * z') (w * w')
     {-# SPECIALIZE INLINE (</>) :: Vector -> Vector -> Vector #-}
-    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) </> (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = Vector (D# $ x /## x') (D# $ y /## y') (D# $ z /## z') (D# $ w /## w')
+    (Vector !x !y !z !w) </> (Vector !x' !y' !z' !w') = Vector (x / x') (y / y') (z / z') (w / w')
 
 instance PolymorphicNum Vector Double Vector where
     {-# SPECIALIZE INLINE (<+>) :: Vector -> Double -> Vector #-}
-    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) <+> (!(D# k)) = Vector (D# $ x +## k) (D# $ y +## k) (D# $ z +## k) (D# $ w +## k)
+    (Vector !x !y !z !w) <+> (!k) = Vector (x + k) (y + k) (z + k) (w + k)
     {-# SPECIALIZE INLINE (<->) :: Vector -> Double -> Vector #-}
-    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) <-> (!(D# k)) = Vector (D# $ x -## k) (D# $ y -## k) (D# $ z -## k) (D# $ w -## k)
+    (Vector !x !y !z !w) <-> (!k) = Vector (x - k) (y - k) (z - k) (w - k)
     {-# SPECIALIZE INLINE (<*>) :: Vector -> Double -> Vector #-}
-    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) <*> (!(D# k)) = Vector (D# $ x *## k) (D# $ y *## k) (D# $ z *## k) (D# $ w *## k)
+    (Vector !x !y !z !w) <*> (!k) = Vector (x * k) (y * k) (z * k) (w * k)
     {-# SPECIALIZE INLINE (</>) :: Vector -> Double -> Vector #-}
-    (Vector !(D# x) !(D# y) !(D# z) !(D# w)) </> (!(D# k)) = Vector (D# $ x /## k) (D# $ y /## k) (D# $ z /## k) (D# $ w /## k)
+    (Vector !x !y !z !w) </> (!k) = Vector (x / k) (y / k) (z / k) (w / k)
 
 instance PolymorphicNum Double Vector Vector where
     {-# SPECIALIZE INLINE (<+>) :: Double -> Vector -> Vector #-}
-    (!(D# k)) <+> (Vector !(D# x) !(D# y) !(D# z) !(D# w)) = Vector (D# $ k +## x) (D# $ k +## y) (D# $ k +## z) (D# $ k +## w)
+    (!k) <+> (Vector !x !y !z !w) = Vector (k + x) (k + y) (k + z) (k + w)
     {-# SPECIALIZE INLINE (<->) :: Double -> Vector -> Vector #-}
-    (!(D# k)) <-> (Vector !(D# x) !(D# y) !(D# z) !(D# w)) = Vector (D# $ k -## x) (D# $ k -## y) (D# $ k -## z) (D# $ k -## w)
+    (!k) <-> (Vector !x !y !z !w) = Vector (k - x) (k - y) (k - z) (k - w)
     {-# SPECIALIZE INLINE (<*>) :: Double -> Vector -> Vector #-}
-    (!(D# k)) <*> (Vector !(D# x) !(D# y) !(D# z) !(D# w)) = Vector (D# $ k *## x) (D# $ k *## y) (D# $ k *## z) (D# $ k *## w)
+    (!k) <*> (Vector !x !y !z !w) = Vector (k * x) (k * y) (k * z) (k * w)
     {-# SPECIALIZE INLINE (</>) :: Double -> Vector -> Vector #-}
-    (!(D# k)) </> (Vector !(D# x) !(D# y) !(D# z) !(D# w)) = Vector (D# $ k /## x) (D# $ k /## y) (D# $ k /## z) (D# $ k /## w)
+    (!k) </> (Vector !x !y !z !w) = Vector (k / x) (k / y) (k / z) (k / w)
 
 {-
 instance PolymorphicNum Vector (Num a) Vector where
@@ -112,12 +109,12 @@ restoreOriginalW (Vector _ _ _ !w') (Vector !x !y !z _) = Vector x y z w'
 
 madd :: Position -> Direction -> Double -> Vector
 {-# SPECIALIZE INLINE madd :: Vector -> Vector -> Double -> Vector #-}
-madd (Vector !(D# x) !(D# y) !(D# z) !(D# w)) (Vector !(D# x') !(D# y') !(D# z') !(D# w')) !(D# scalar) = Vector x'' y'' z'' w''
+madd (Vector !x !y !z !w) (Vector !x' !y' !z' !w') !scalar = Vector x'' y'' z'' w''
     where
-      x'' = D# (x +## (x' *## scalar))
-      y'' = D# (y +## (y' *## scalar))
-      z'' = D# (z +## (z' *## scalar))
-      w'' = D# (w +## (w' *## scalar))
+      x'' = x + x' * scalar
+      y'' = y + y' * scalar
+      z'' = z + z' * scalar
+      w'' = w + w' * scalar
 
 negate :: Direction -> Direction
 {-# SPECIALIZE INLINE Vector.negate :: Vector -> Vector #-}
@@ -125,27 +122,27 @@ negate (Vector !x !y !z !w) = Vector (-x) (-y) (-z) (-w)
 
 dot3 :: Vector -> Vector -> Double
 {-# SPECIALIZE INLINE dot3 :: Vector -> Vector -> Double #-}
-(Vector !(D# x) !(D# y) !(D# z) _) `dot3` (Vector !(D# x') !(D# y') !(D# z') _) = D# $ (x *## x') +## (y *## y') +## (z *## z')
+(Vector !x !y !z _) `dot3` (Vector !x' !y' !z' _) = x * x' + y * y' + z * z'
 
 dot4 :: Vector -> Vector -> Double
 {-# SPECIALIZE INLINE dot4 :: Vector -> Vector -> Double #-}
-(Vector !(D# x) !(D# y) !(D# z) !(D# w)) `dot4` (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = D# $ (x *## x') +## (y *## y') +## (z *## z') +## (w *## w')
+(Vector !x !y !z !w) `dot4` (Vector !x' !y' !z' !w') = x * x' + y * y' + z * z' + w * w'
 
 sdot3 :: Vector -> Vector -> Double
 {-# SPECIALIZE INLINE dot3 :: Vector -> Vector -> Double #-}
-(Vector !(D# x) !(D# y) !(D# z) _) `sdot3` (Vector !(D# x') !(D# y') !(D# z') _) = D# $ saturate## ((x *## x') +## (y *## y') +## (z *## z'))
+(Vector !x !y !z _) `sdot3` (Vector !x' !y' !z' _) = saturate (x * x' + y * y' + z * z')
 
 sdot4 :: Vector -> Vector -> Double
 {-# SPECIALIZE INLINE sdot4 :: Vector -> Vector -> Double #-}
-(Vector !(D# x) !(D# y) !(D# z) !(D# w)) `sdot4` (Vector !(D# x') !(D# y') !(D# z') !(D# w')) = D# $ saturate## ((x *## x') +## (y *## y') +## (z *## z') +## (w *## w'))
+(Vector !x !y !z !w) `sdot4` (Vector !x' !y' !z' !w') = saturate (x * x' + y * y' + z * z' + w * w')
 
 cross :: Direction -> Direction -> Direction
 {-# SPECIALIZE INLINE cross :: Vector -> Vector -> Vector #-}
-(Vector !(D# x1) !(D# y1) !(D# z1) _) `cross` (Vector !(D# x2) !(D# y2) !(D# z2) _) = Vector x y z 0
+(Vector !x1 !y1 !z1 _) `cross` (Vector !x2 !y2 !z2 _) = Vector x y z 0
     where
-      !x = D# ((y1 *## z2) -## (y2 *## z1))
-      !y = D# ((z1 *## x2) -## (z2 *## x1))
-      !z = D# ((x1 *## y2) -## (x2 *## y1))
+      !x = y1 * z2 - y2 * z1
+      !y = z1 * x2 - z2 * x1
+      !z = x1 * y2 - x2 * y1
 
 magnitude :: Vector -> Double
 {-# SPECIALIZE INLINE magnitude :: Vector -> Double #-}
@@ -153,7 +150,7 @@ magnitude !vec = sqrt (magnitudeSq vec)
 
 magnitudeSq :: Vector -> Double
 {-# SPECIALIZE INLINE magnitudeSq :: Vector -> Double #-}
-magnitudeSq (Vector !(D# x#) !(D# y#) !(D# z#) _) = D# ((x# *## x#) +## (y# *## y#) +## (z# *## z#))
+magnitudeSq (Vector !x !y !z _) = x * x + y * y + z * z
 
 normalise :: Direction -> Direction
 {-# SPECIALIZE INLINE normalise :: Direction -> Direction #-}
@@ -174,12 +171,11 @@ reflect !incoming !normal = setWTo0 $ (normal <*> (2 * (normal `dot3` incoming))
 refract :: Direction -> Direction -> Double -> Direction
 {-# SPECIALIZE INLINE refract :: Vector -> Vector -> Double -> Vector #-}
 refract !incoming !normal !eta
-    | cosTheta1 >## 0.0## = setWTo0 $ (l <*> eta) <+> (normal <*> D# (eta# *## cosTheta1 -## cosTheta2))
-    | otherwise = setWTo0 $ (l <*> eta) <+> (normal <*> D# (eta# *## cosTheta1 +## cosTheta2))
-    where !(D# cosTheta1) = normal `dot3` incoming
-          !cosTheta2 = sqrtDouble# (1.0## -## eta# **## 2.0## *## (1.0## -## cosTheta1 **## 2.0##))
+    | cosTheta1 > 0.0 = setWTo0 $ (l <*> eta) <+> (normal <*> (eta * cosTheta1 - cosTheta2))
+    | otherwise = setWTo0 $ (l <*> eta) <+> (normal <*> (eta * cosTheta1 + cosTheta2))
+    where !cosTheta1 = normal `dot3` incoming
+          !cosTheta2 = sqrt (1.0 - eta ** 2.0 * (1.0 - cosTheta1 ** 2.0))
           !l = Vector.negate incoming
-          !(D# eta#) = eta
 
 largestAxis :: Vector -> Int
 largestAxis (Vector !x !y !z _) 
@@ -218,7 +214,7 @@ directionToSpherical (Vector !x !y !z _) = (theta, phi)
       phi = (atan2 y x + pi) / (2.0 * pi)
 
 sphericalToDirection :: Double -> Double -> Direction
-sphericalToDirection (D# !theta) (D# !phi) = Vector (D# $ sinDouble# theta *## cosDouble# phi) (D# $ sinDouble# theta *## sinDouble# phi) (D# $ cosDouble# theta) 1
+sphericalToDirection !theta !phi = Vector (sin theta * cos phi) (sin theta * sin phi) (cos theta) 1
 
 component :: Vector -> Int -> Double
 {-# SPECIALIZE INLINE component :: Vector -> Int -> Double #-}
@@ -231,3 +227,9 @@ component _ _ = error "Invalid component index"
 transformDir :: Direction -> TangentSpace -> Direction
 {-# SPECIALIZE INLINE transformDir :: Direction -> TangentSpace -> Direction #-}
 transformDir (Vector !x !y !z _) !(tangent, binormal, normal) = (setWTo0 . normalise) (tangent <*> x <+> binormal <*> y <+> normal <*> z)
+
+recipPerElem :: Vector -> Vector
+recipPerElem (Vector !x !y !z !w) = Vector (f x) (f y) (f z) (f w)
+  where
+    f a | a == 0 = 10000000 -- What is Haskell for infinity?
+        | otherwise = 1 / a

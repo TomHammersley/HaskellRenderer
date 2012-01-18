@@ -19,6 +19,10 @@ import Control.Arrow
 import SparseVoxelOctree
 import Vector
 import BoundingBox
+import Primitive
+import Matrix
+import Material
+import Camera
 
 -- Command line option support
 data Option
@@ -56,7 +60,7 @@ renderHeight mipLevel = 720 `shiftR` mipLevel
 renderScaledImage :: Int -> RenderContext -> Maybe PhotonMap -> [Colour]
 renderScaledImage mipLevel renderSettings photonMap = finalImage
     where
-      rawImageOutput = renderScene photonMap renderSettings cornellBoxCamera (renderWidth mipLevel) (renderHeight mipLevel) 
+      rawImageOutput = renderScene photonMap renderSettings testSceneCamera {- cornellBoxCamera -} (renderWidth mipLevel) (renderHeight mipLevel) 
       exposedImage = exposeImage imageAverageLuminance rawImageOutput 4
       toneMappedImage = toneMapImage toneMapHejlBurgessDawson exposedImage
       finalImage = map (clamp . invGammaCorrect) toneMappedImage
@@ -80,18 +84,35 @@ writeImageMipMapChain baseFilename (mipLevel:mipLevels) photonMap renderSettings
   writeBMP filename bmp
   writeImageMipMapChain baseFilename mipLevels photonMap renderSettings
 
--- A simple function to build an SVO. This just works off containment in a sphere
-buildSVOSphere :: Position -> Double -> AABB -> Double
-buildSVOSphere pos r box = Prelude.max 0 (r - (pos `distance` boundingBoxCentre box))
-  
-testSvo :: SparseOctree
-testSvo = build (buildSVOSphere (Vector 0 0 0 1) 10) (Vector (-20) (-20) (-20) 1, Vector 20 20 20 1) 10
-
 -- Strip off the photon map flag from a light
 notInPhotonMap :: Light -> Light
 notInPhotonMap (PointLight (CommonLightData colour' _) position' range') = PointLight (CommonLightData colour' False) position' range'
 notInPhotonMap (AmbientLight (CommonLightData colour' _)) = AmbientLight (CommonLightData colour' False)
 notInPhotonMap (QuadLight (CommonLightData colour' _) position' range' deltaU' deltaV') = QuadLight (CommonLightData colour' False) position' range' deltaU' deltaV'
+
+-- A simple function to build an SVO. This just works off containment in a sphere
+buildSVOSphere :: Position -> Double -> AABB -> Double
+buildSVOSphere pos r box 
+  | overlapsSphere box pos r = 1
+  | otherwise = 0
+  
+testSvo :: SparseOctree
+testSvo = build (buildSVOSphere (Vector 0 0 0 1) 150) (Vector (-100) (-100) (-100) 1, Vector 100 100 100 1) 4
+
+svoTestScene :: [Object]
+svoTestScene = [Object (SparseOctreeModel testSvo) defaultMaterial identity]
+
+boxTestScene :: [Object]
+boxTestScene = [Object (Box (Vector 100 100 100 0)) defaultMaterial identity]
+
+testSceneCamera :: Camera
+testSceneCamera = withVectors (Vector 0 0 (-800.0) 1.0) xaxis yaxis zaxis 45.0 10000
+
+testSceneLights :: [Light]
+testSceneLights = [ 
+    QuadLight (CommonLightData (Colour 500 500 500 0) True) (Vector 0.0 200.0 (-300.0) 1.0) 600 (Vector 100.0 0.0 0.0 0.0) (Vector 0.0 0.0 100.0 0.0)
+    ]
+
 
 -- Main function
 main :: IO ()
@@ -101,8 +122,8 @@ main = do
 
   let renderSettings = RenderContext 
                        numDistributedSamples 
-                       (buildSceneGraph cornellBox generateSceneGraphUsingKDTree) 
-                       cornellBoxLights 
+                       (buildSceneGraph svoTestScene {- cornellBox -} generateSceneGraphUsingKDTree) 
+                       {- cornellBoxLights  -} testSceneLights
                        maxRayDepth 
                        reflectionDistance 
                        refractionDistance 

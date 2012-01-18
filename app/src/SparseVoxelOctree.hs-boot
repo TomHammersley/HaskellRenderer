@@ -20,7 +20,7 @@ instance Eq SparseOctree
 build :: (AABB -> Double) -> AABB -> Int -> SparseOctree
 
 -- Intersect with a ray
-intersect :: Ray -> SparseOctree -> Maybe (Double, Int)
+intersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, Int)
 
 -- The bounding radius
 boundingRadius :: SparseOctree -> Double

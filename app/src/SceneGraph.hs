@@ -12,14 +12,13 @@ data SphereTreeNode = SphereTreeNode { object :: Maybe Object, children :: [Sphe
 data SceneGraph = SceneGraph { root :: SphereTreeNode, infiniteObjects :: [Object], finiteBox :: AABB } deriving (Show)
 
 -- Find the mean of a collection of objects
-calculateMeanPosition' :: [Object] -> Vector -> Vector
-calculateMeanPosition' (obj : objects) acc = calculateMeanPosition' objects acc <+> getCentre obj
-calculateMeanPosition' [] acc = acc
 
 calculateMeanPosition :: [Object] -> Vector
 calculateMeanPosition objects = setWTo1 (calculateMeanPosition' objects zeroVector </> len')
     where
       len' = fromIntegral (length objects) :: Double
+      calculateMeanPosition' (obj : objs) acc = calculateMeanPosition' objs acc <+> getCentre obj
+      calculateMeanPosition' [] acc = acc
 
 -- Find the overall bounding radius of a list of objects
 calculateBoundingRadius :: [Object] -> Vector -> Double
@@ -39,7 +38,7 @@ buildSphereTree builder (obj:objs)
       nodeCentre = calculateMeanPosition (obj:objs)
       nodeRadius = calculateBoundingRadius (obj:objs) nodeCentre
       nodeChildren = map (buildSphereTree builder) (builder (obj:objs))
-buildSphereTree _ [] = error "Should not hit this pattern for buildSphereTree" 
+buildSphereTree _ [] = SphereTreeNode Nothing [] 0 zeroVector -- error "Should not hit this pattern for buildSphereTree" 
 
 -- Build a scene graph
 buildSceneGraph :: [Object] -> ([Object] -> [[Object]]) -> SceneGraph

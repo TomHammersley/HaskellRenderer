@@ -1,5 +1,4 @@
 -- The sparse voxel octree data structure
-{-# LANGUAGE BangPatterns #-}
 
 module SparseVoxelOctree(build, 
                          SparseOctree, 
@@ -11,6 +10,7 @@ import Octree
 import BoundingBox
 import Ray
 import Matrix
+import Debug.Trace
 
 data SparseOctree = SparseOctreeDummy
                   | SparseOctreeNode !AABB [SparseOctree]
@@ -23,34 +23,43 @@ tabs :: String
 tabs = '\t' : tabs
 
 display :: Int -> SparseOctree -> String
-display level (SparseOctreeDummy) = take level tabs ++ "[Dummy]\n"
-display level (SparseOctreeNode box children) = take level tabs ++ "[Node] box=" ++ show box ++ "\n" ++ concatMap (display (level + 1)) children ++ "\n"
-display level (SparseOctreeLeaf box value) = take level tabs ++ "[Leaf] box=" ++ show box ++ " value=" ++ show value ++ "\n"
+display level (SparseOctreeDummy) = take level tabs ++ show level ++ " [Dummy]\n"
+display level (SparseOctreeNode box children) = take level tabs ++ show level ++ " [Node] box=" ++ show box ++ "\n" ++ concatMap (display (level + 1)) children ++ "\n"
+display level (SparseOctreeLeaf box value) = take level tabs ++ show level ++ " [Leaf] box=" ++ show box ++ " value=" ++ show value ++ "\n"
 
 -- Build a sparse voxel octree for a data set
 build :: (AABB -> Double) -> AABB -> Int -> SparseOctree
-build func box = build' func box 0
-
-build' :: (AABB -> Double) -> AABB -> Int -> Int -> SparseOctree
-build' func box depth maxDepth
-  | depth == maxDepth = SparseOctreeLeaf box (func box)
-  | otherwise = SparseOctreeNode box (map buildNonEmptyNodes subBoxList)
-    where
-      subBoxList = splitBoxIntoOctreeChildren box
-      buildNonEmptyNodes childBox = if f > 0 then build' func childBox (depth + 1) maxDepth
-                                    else SparseOctreeDummy
-        where
-          f = func childBox
+build = build' 0
+  where
+    build' depth func box maxDepth
+      | func box <= 0 = SparseOctreeDummy -- Really this is a soft error. But, the user might specify an invalid input...
+      | depth == maxDepth = SparseOctreeLeaf box (func box)
+      | otherwise = SparseOctreeNode box (concatMap buildNonEmptyNodes subBoxList)
+      where
+        subBoxList = splitBoxIntoOctreeChildren box
+        buildNonEmptyNodes childBox 
+          | func childBox > 0 = [build' (depth + 1) func childBox maxDepth]
+          | otherwise = []
                                          
+-- Find the closest Maybe intersection
+nearestIntersection :: Maybe (Double, Int) -> Maybe (Double, Int) -> Maybe (Double, Int)
+nearestIntersection Nothing Nothing = Nothing
+nearestIntersection Nothing x@(Just (_, _)) = x
+nearestIntersection y@(Just (_, _)) Nothing = y
+nearestIntersection x@(Just (d1, _)) y@(Just (d2, _)) | d1 < d2 = x 
+                                                      | otherwise = y
+
 -- Intersect with a ray
-intersect :: Ray -> SparseOctree -> Maybe (Double, Int)
-intersect _ SparseOctreeDummy = Nothing
-intersect ray (SparseOctreeNode box children) = case intersectRayAABB box ray identity of
-  Nothing -> Nothing
-  Just dist -> undefined
-intersect ray (SparseOctreeLeaf box _) = case intersectRayAABB box ray identity of
-  Nothing -> Nothing
-  Just dist -> Just (dist, 0)
+intersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, Int)
+intersect _ _ _ SparseOctreeDummy = Nothing
+intersect ray depth maxDepth (SparseOctreeNode box children)
+  | depth >= maxDepth = case intersectRayAABB box ray identity of Nothing -> Nothing
+                                                                  Just dist -> Just (dist, 0)
+  | otherwise = case intersectRayAABB box ray identity of Nothing -> Nothing
+                                                          Just _ -> foldr1 nearestIntersection (map (intersect ray (depth + 1) maxDepth) children) -- TODO : change ray according to closest intersection?
+
+intersect ray _ _ (SparseOctreeLeaf box _) = case intersectRayAABB box ray identity of Nothing -> Nothing
+                                                                                       Just dist -> Just (dist, 0)
 
 boundingRadius :: SparseOctree -> Double
 boundingRadius SparseOctreeDummy = 0
