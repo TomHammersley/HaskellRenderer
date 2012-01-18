@@ -4,7 +4,8 @@ module SparseVoxelOctree(build,
 			 SparseOctree, 
 			 intersect, 
 			 boundingRadius, 
-			 boundingBox) where
+			 boundingBox,
+			 enumerateLeafBoxes) where
 
 import BoundingBox
 import Ray
@@ -27,3 +28,5 @@ boundingRadius :: SparseOctree -> Double
 
 -- The bounding box
 boundingBox :: SparseOctree -> AABB
+
+enumerateLeafBoxes :: SparseOctree -> [AABB]

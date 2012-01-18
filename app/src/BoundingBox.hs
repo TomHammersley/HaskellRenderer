@@ -71,8 +71,8 @@ overlapsSphere (boxMin, boxMax) p r = all insideInterval [vecX, vecY, vecZ]
     where 
       insideInterval f = f p >= (f boxMin - r) && f p <= (f boxMax + r)
 
-intersectRayAABB :: AABB -> Ray -> Matrix -> Maybe Double
-intersectRayAABB (bounds0, bounds1) (Ray rayOrg _ invRayDir rayLen) _ -- TODO Need to transform ray by inverse object matrix
+intersectRayAABB :: AABB -> Ray -> Maybe Double
+intersectRayAABB (bounds0, bounds1) (Ray rayOrg _ invRayDir rayLen)
   | tmax < tmin = Nothing
   | tmin > 0 && tmin < rayLen = Just tmin
   | tmax > 0 && tmax < rayLen = Just tmax

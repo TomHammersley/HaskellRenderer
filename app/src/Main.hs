@@ -101,9 +101,10 @@ testSvo = build (buildSVOSphere (Vector 0 0 0 1) 150) (Vector (-100) (-100) (-10
 
 svoTestScene :: [Object]
 svoTestScene = [Object (SparseOctreeModel testSvo) defaultMaterial identity]
+--svoTestScene = map (\x -> Object (Box x) defaultMaterial identity) (enumerateLeafBoxes testSvo)
 
 boxTestScene :: [Object]
-boxTestScene = [Object (Box (Vector 100 100 100 0)) defaultMaterial identity]
+boxTestScene = [Object (Box (Vector (-50) (-50) (-50) 0, Vector 50 50 50 0)) defaultMaterial identity]
 
 testSceneCamera :: Camera
 testSceneCamera = withVectors (Vector 0 0 (-800.0) 1.0) xaxis yaxis zaxis 45.0 10000

@@ -4,13 +4,12 @@ module SparseVoxelOctree(build,
                          SparseOctree, 
                          intersect, 
                          boundingRadius, 
-                         boundingBox) where
+                         boundingBox,
+                         enumerateLeafBoxes) where
 
 import Octree
 import BoundingBox
 import Ray
-import Matrix
-import Debug.Trace
 
 data SparseOctree = SparseOctreeDummy
                   | SparseOctreeNode !AABB [SparseOctree]
@@ -53,13 +52,13 @@ nearestIntersection x@(Just (d1, _)) y@(Just (d2, _)) | d1 < d2 = x
 intersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, Int)
 intersect _ _ _ SparseOctreeDummy = Nothing
 intersect ray depth maxDepth (SparseOctreeNode box children)
-  | depth >= maxDepth = case intersectRayAABB box ray identity of Nothing -> Nothing
-                                                                  Just dist -> Just (dist, 0)
-  | otherwise = case intersectRayAABB box ray identity of Nothing -> Nothing
-                                                          Just _ -> foldr1 nearestIntersection (map (intersect ray (depth + 1) maxDepth) children) -- TODO : change ray according to closest intersection?
+  | depth >= maxDepth = case intersectRayAABB box ray of Nothing -> Nothing
+                                                         Just dist -> Just (dist, 0)
+  | otherwise = case intersectRayAABB box ray of Nothing -> Nothing
+                                                 Just _ -> foldr1 nearestIntersection (map (intersect ray (depth + 1) maxDepth) children) -- TODO : change ray according to closest intersection?
 
-intersect ray _ _ (SparseOctreeLeaf box _) = case intersectRayAABB box ray identity of Nothing -> Nothing
-                                                                                       Just dist -> Just (dist, 0)
+intersect ray _ _ (SparseOctreeLeaf box _) = case intersectRayAABB box ray of Nothing -> Nothing
+                                                                              Just dist -> Just (dist, 0)
 
 boundingRadius :: SparseOctree -> Double
 boundingRadius SparseOctreeDummy = 0
@@ -70,3 +69,11 @@ boundingBox :: SparseOctree -> AABB
 boundingBox SparseOctreeDummy = error "Invalid SVO"
 boundingBox (SparseOctreeNode box _) = box
 boundingBox (SparseOctreeLeaf box _) = box
+
+-- Traverse the whole tree and make a list of bounding boxes for each leaf
+enumerateLeafBoxes :: SparseOctree -> [AABB]
+enumerateLeafBoxes = enumerateLeafBoxes' []
+  where
+    enumerateLeafBoxes' acc SparseOctreeDummy = acc
+    enumerateLeafBoxes' acc (SparseOctreeNode _ children) = acc ++ concatMap (enumerateLeafBoxes' []) children
+    enumerateLeafBoxes' acc (SparseOctreeLeaf box _) = box : acc

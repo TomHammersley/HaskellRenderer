@@ -52,7 +52,7 @@ data Object = Object { primitive :: Primitive,
 data Primitive = Sphere { radius :: {-# UNPACK #-} !Double }
                | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Double }
                | TriangleMesh { triangles :: [Triangle] }
-               | Box { boxSize :: {-# UNPACK #-} !Vector } 
+               | Box { bounds :: {-# UNPACK #-} !AABB } 
                | SparseOctreeModel { svo :: SparseOctree }
 
 primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Double

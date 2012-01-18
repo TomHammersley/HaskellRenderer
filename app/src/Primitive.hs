@@ -31,7 +31,7 @@ module Primitive (primitiveBoundingRadius,
                   intersectRayTriangle,
                   TangentSpace,
                   Vertex,
-                  boxSize,
+                  bounds,
                   svo) where
 
 import PolymorphicNum
@@ -43,7 +43,6 @@ import BoundingBox
 import Data.Maybe
 import Data.List
 import {-# SOURCE #-} SparseVoxelOctree
-import Debug.Trace
 
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Position, 
@@ -60,7 +59,7 @@ data Object = Object { primitive :: Primitive,
 data Primitive = Sphere { radius :: {-# UNPACK #-} !Double }
                | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Double }
                | TriangleMesh { triangles :: [Triangle] } 
-               | Box { boxSize :: {-# UNPACK #-} !Vector } 
+               | Box { bounds :: {-# UNPACK #-} !AABB } 
                | SparseOctreeModel { svo :: SparseOctree } deriving (Show, Eq)
 
 -- Get the centre of an object
@@ -237,20 +236,9 @@ primitiveClosestIntersect pln@(Plane (_, _, _) _) ray _ = planeIntersect pln ray
 -- Find intersection with a triangle mesh
 primitiveClosestIntersect (TriangleMesh tris) ray obj = intersectRayTriangleList tris 0 Nothing ray obj
 
-primitiveClosestIntersect (Box sz) (Ray rayOrg _ invRayDir rayLen) _ -- TODO Need to transform ray by inverse object matrix
-  | tmax < tmin = Nothing
-  | tmin > 0 && tmin < rayLen = Just (tmin, 0)
-  | tmax > 0 && tmax < rayLen = Just (tmax, 0)
-  | otherwise = Nothing
-  where
-    bounds0 = sz <*> (-0.5 :: Double)
-    bounds1 = sz <*> (0.5 :: Double)
-    
-    (tmin, tmax) = foldr1 (\(a0, b0) (a1, b1) -> (a0 `Prelude.max` a1, b0 `Prelude.min` b1)) (map intercepts [vecX, vecY, vecZ])
-
-    intercepts f = let x0 = (f bounds0 - f rayOrg) * f invRayDir
-                       x1 = (f bounds1 - f rayOrg) * f invRayDir
-                   in (x0 `Prelude.min` x1, x0 `Prelude.max` x1)
+-- TODO Need to transform ray by inverse object matrix
+primitiveClosestIntersect (Box aabb) ray obj = case intersectRayAABB aabb ray of Nothing -> Nothing
+                                                                                 Just x -> Just (x, 0)
     
 primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.intersect ray 0 maxSvoDepth svo' -- TODO Need to transform ray by inverse object matrix
   where
@@ -306,7 +294,7 @@ primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Double
 primitiveBoundingRadius (Sphere sphereRadius) xform pos = sphereRadius + (pos `distance` getTranslation xform)
 primitiveBoundingRadius (Plane _ _) _ _ = 0
 primitiveBoundingRadius (TriangleMesh tris) _ centre = triangleListRadius 0 tris centre -- TODO - need to factor in world matrix
-primitiveBoundingRadius (Box sze) xform pos = Vector.magnitude sze + (pos `distance` getTranslation xform) -- TODO - need to factor in world matrix
+primitiveBoundingRadius (Box (boxMin, boxMax)) xform pos = (boxMin `distance` boxMax) + (pos `distance` getTranslation xform) -- TODO - need to factor in world matrix
 primitiveBoundingRadius (SparseOctreeModel svo_) xform pos = boundingRadius svo_ + (pos `distance` getTranslation xform)
 
 triangleListRadius :: Double -> [Triangle] -> Vector -> Double
@@ -327,7 +315,7 @@ primitiveBoundingBox (Sphere sphereRadius) obj = Just (boxMin, boxMax)
       boxMax = getCentre obj <+> Vector sphereRadius sphereRadius sphereRadius 0
 primitiveBoundingBox (Plane _ _) _ = Nothing
 primitiveBoundingBox (TriangleMesh tris) obj = Just $ triangleListBoundingBox initialInvalidBox (transform obj) tris
-primitiveBoundingBox (Box sz) _ = Just (sz <*> (-0.5 :: Double), sz <*> (0.5 :: Double)) -- TODO Need to transform this by object's matrix
+primitiveBoundingBox (Box box) _ = Just box -- TODO Need to transform this by object's matrix
 primitiveBoundingBox (SparseOctreeModel svo_) _ = Just $ boundingBox svo_ -- TODO need to transform by this object's matrix
 
 -- Bounding box of a list of something
