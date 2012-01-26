@@ -6,7 +6,7 @@
 module Primitive (primitiveBoundingRadius, 
                   primitiveClosestIntersect, 
                   primitiveAnyIntersect,
-                  primitiveTangentSpace, 
+--                  primitiveTangentSpace, 
                   Object(Object), 
                   Primitive(Sphere, Plane, TriangleMesh, Box, SparseOctreeModel), 
                   primitive, 
@@ -58,10 +58,10 @@ data Primitive = Sphere { radius :: {-# UNPACK #-} !Double }
 primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Double
 primitiveBoundingBox :: Primitive -> Object -> Maybe AABB
 
-primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
-primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
+primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
+primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 
-primitiveTangentSpace :: Primitive -> Int -> Position -> Object -> TangentSpace
+--primitiveTangentSpace :: Primitive -> Int -> Position -> Object -> TangentSpace
 makeTriangle :: Position -> Position -> Position -> Triangle
 makeQuad :: [Position] -> [Triangle]
 quadsToTriangles :: [Position] -> [Triangle]

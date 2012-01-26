@@ -5,10 +5,24 @@ module BoundingBox where
 
 import PolymorphicNum
 import Vector
-import Matrix
 import Ray
 
 type AABB = (Vector, Vector)
+
+boundingBoxTangentSpace :: AABB -> Position -> TangentSpace
+boundingBoxTangentSpace (boxMin, boxMax) p
+  | dx > dy && dx > dz = (Vector 0 sx 0 0, Vector 0 0 sx 0, Vector sx 0 0 0)
+  | dy > dx && dy > dz = (Vector sy 0 0 0, Vector 0 0 sy 0, Vector 0 sy 0 0)
+  | otherwise = (Vector sz 0 0 0, Vector 0 sz 0 0, Vector 0 0 sz 0)
+  where
+    centre = (boxMin <+> boxMax) <*> (0.5 :: Double)
+    delta = normalise (p <-> centre)
+    dx = (abs . vecX) delta
+    dy = (abs . vecY) delta
+    dz = (abs . vecZ) delta
+    sx = (signum . vecX) delta
+    sy = (signum . vecY) delta
+    sz = (signum . vecZ) delta
 
 boundingBoxRadius :: AABB -> Double
 boundingBoxRadius (boxMin, boxMax) = boxMin `distance` boxMax
@@ -32,16 +46,16 @@ boundingBoxOverlaps box1 box2 = overlaps box1 box2 || overlaps box2 box1
                                            vecZ min1 <= vecZ max2 && (vecZ max1 >= vecZ min2)
 
 -- Enlarge a bounding box to include a point
-enlargeBoundingBox :: Position -> AABB -> AABB
-enlargeBoundingBox pos(boxMin, boxMax) = (Vector.min boxMin pos, Vector.max boxMax pos)
+boundingBoxEnlarge :: Position -> AABB -> AABB
+boundingBoxEnlarge pos(boxMin, boxMax) = (Vector.min boxMin pos, Vector.max boxMax pos)
 
 -- Linearly scale a box
-scaleBoundingBox :: AABB -> Double -> AABB
-scaleBoundingBox (boxMin, boxMax) k = (setWTo1 $ boxMin <*> k, setWTo1 $ boxMax <*> k)
+boundingBoxScale :: AABB -> Double -> AABB
+boundingBoxScale (boxMin, boxMax) k = (setWTo1 $ boxMin <*> k, setWTo1 $ boxMax <*> k)
 
 -- Give a bounding box a buffer of a certain distance all the way around
-growBoundingBox :: AABB -> Double -> AABB
-growBoundingBox (Vector x1 y1 z1 _, Vector x2 y2 z2 _) k = (Vector (x1 - k) (y1 - k) (z1 - k) 1, Vector (x2 + k) (y2 + k) (z2 + k) 1)
+boundingBoxGrow :: AABB -> Double -> AABB
+boundingBoxGrow (Vector x1 y1 z1 _, Vector x2 y2 z2 _) k = (Vector (x1 - k) (y1 - k) (z1 - k) 1, Vector (x2 + k) (y2 + k) (z2 + k) 1)
 
 -- This is a dummy box that is used initially. If anything is intersected with it, it becomes valid. Else it is an invalid box that can be tested for
 initialInvalidBox :: AABB
@@ -51,11 +65,11 @@ initialInvalidBox = (Vector bigNumber bigNumber bigNumber 1, Vector smallNumber 
       smallNumber = -10000000
 
 -- These functions are useful for finding the greatest or smallest part of a box relative to a normal
-selectMinBoxComponent :: (Vector -> Double) -> Vector -> AABB -> Double
-selectMinBoxComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMin else f boxMax
+boundingBoxMinComponent :: (Vector -> Double) -> Vector -> AABB -> Double
+boundingBoxMinComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMin else f boxMax
 
-selectMaxBoxComponent :: (Vector -> Double) -> Vector -> AABB -> Double
-selectMaxBoxComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMax else f boxMin
+boundingBoxMaxComponent :: (Vector -> Double) -> Vector -> AABB -> Double
+boundingBoxMaxComponent f norm (boxMin, boxMax) = if f norm > 0 then f boxMax else f boxMin
 
 -- Does a box contain a point?
 contains :: AABB -> Position -> Bool
@@ -65,17 +79,19 @@ contains (Vector !minX !minY !minZ _, Vector !maxX !maxY !maxZ _) (Vector !x !y 
     y >= minY && y <= maxY &&
     z >= minZ && z <= maxZ
 
--- Does a sphere (conservatively) overlap with a bounding box? (Not exact at present)
+-- Does a sphere (conservatively) overlap with a bounding box? (Arvo's method)
 overlapsSphere :: AABB -> Position -> Double -> Bool
-overlapsSphere (boxMin, boxMax) p r = all insideInterval [vecX, vecY, vecZ]
+overlapsSphere (boxMin, boxMax) p r = (foldr1 (+) [closestDistance vecX, closestDistance vecY, closestDistance vecZ]) < (r * r)
     where 
-      insideInterval f = f p >= (f boxMin - r) && f p <= (f boxMax + r)
+      closestDistance f | f p < f boxMin = (f p - f boxMin) ** (2.0 :: Double)
+                        | f p > f boxMax = (f p - f boxMax) ** (2.0 :: Double)
+                        | otherwise = 0
 
-intersectRayAABB :: AABB -> Ray -> Maybe Double
-intersectRayAABB (bounds0, bounds1) (Ray rayOrg _ invRayDir rayLen)
+boundingBoxIntersectRay :: AABB -> Ray -> Maybe (Double, Double)
+boundingBoxIntersectRay (bounds0, bounds1) (Ray rayOrg _ invRayDir rayLen)
   | tmax < tmin = Nothing
-  | tmin > 0 && tmin < rayLen = Just tmin
-  | tmax > 0 && tmax < rayLen = Just tmax
+  | tmin > 0 && tmin < rayLen = Just (tmin, tmax `Prelude.min` rayLen)
+  | tmax > 0 && tmax < rayLen = Just (tmax, tmax)
   | otherwise = Nothing
   where
     (tmin, tmax) = foldr1 (\(a0, b0) (a1, b1) -> (a0 `Prelude.max` a1, b0 `Prelude.min` b1)) (map intercepts [vecX, vecY, vecZ])

@@ -25,7 +25,6 @@ import Control.Monad.State
 import RenderContext
 import System.Random
 import RussianRoulette
---import Debug.Trace
 import Misc
 
 data PathTraceContext = PathTraceContext {
@@ -36,7 +35,7 @@ data PathTraceContext = PathTraceContext {
     }
 
 -- Intersect a ray against a sphere tree
-intersectSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Double, Int) -> Maybe (Object, Double, Int)
+intersectSphereTree :: [SphereTreeNode] -> Ray -> Maybe (Object, Double, TangentSpace) -> Maybe (Object, Double, TangentSpace)
 intersectSphereTree (node:nodes) ray currentHit = intersectSphereTree (newNodeList ++ nodes) newRay thisResult
     where
       -- Intersect the ray with the bounding volume of this node
@@ -49,7 +48,7 @@ intersectSphereTree (node:nodes) ray currentHit = intersectSphereTree (newNodeLi
                                   -- Didn't hit the object. Retain the current hit, and continue with remaining nodes on the list
                                   Nothing -> (currentHit, [], ray)
                                   -- We did hit this object. Update the intersection, and continue with remaining nodes on the list
-                                  Just (objHitDistance, objHitId) -> (Just (obj, objHitDistance, objHitId), [], shortenRay ray objHitDistance)
+                                  Just (objHitDistance, objHitTanSpace) -> (Just (obj, objHitDistance, objHitTanSpace), [], shortenRay ray objHitDistance)
             -- We have children. In this case it makes sense to test our bounding volume
             nodeChildren -> case sphereIntersect (boundingRadius node) (boundingCentre node) ray of -- (make a sphere centred at the object's transform matrix with given radius)
                               -- If we do not find an intersection, we do not update the results and we offer no further nodes to be traversed, thus skipping this subtree
@@ -61,22 +60,22 @@ intersectSphereTree (node:nodes) ray currentHit = intersectSphereTree (newNodeLi
                                                         -- Didn't hit the object. Retain the current hit, but offer up the children of the node as we hit the bounding volume
                                                         Nothing -> (currentHit, nodeChildren, ray)
                                                         -- We did hit this object. Update the intersection, and continue with the bounding volume's children
-                                                        Just (objHitDistance, objHitId) -> (Just (obj, objHitDistance, objHitId), nodeChildren, shortenRay ray objHitDistance)
+                                                        Just (objHitDistance, objHitTanSpace) -> (Just (obj, objHitDistance, objHitTanSpace), nodeChildren, shortenRay ray objHitDistance)
 intersectSphereTree [] _ currentHit = currentHit
 
 -- Intersect with the list of infinite objects
-intersectObjectList :: [Object] -> Ray -> Maybe (Object, Double, Int) -> Maybe (Object, Double, Int)
+intersectObjectList :: [Object] -> Ray -> Maybe (Object, Double, TangentSpace) -> Maybe (Object, Double, TangentSpace)
 intersectObjectList (obj:objs) ray currentHit = intersectObjectList objs newRay thisResult
     where
       (thisResult, newRay) = case primitiveClosestIntersect (primitive obj) ray obj of
                                Nothing -> (currentHit, ray)
-                               Just (objHitDistance, objHitId) -> (Just (obj, objHitDistance, objHitId), shortenRay ray objHitDistance)
+                               Just (objHitDistance, objHitTanSpace) -> (Just (obj, objHitDistance, objHitTanSpace), shortenRay ray objHitDistance)
 intersectObjectList [] _ currentHit = currentHit
 
 -- Find the nearest intersection along a line
-findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Double, Int)
+findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Double, TangentSpace)
 findNearestIntersection sceneGraph' ray = case intersectObjectList (infiniteObjects sceneGraph') ray Nothing of
-                                            Just (obj, dist, objId) -> intersectSphereTree [root sceneGraph'] (shortenRay ray dist) (Just (obj, dist, objId))
+                                            Just (obj, dist, tanSpace) -> intersectSphereTree [root sceneGraph'] (shortenRay ray dist) (Just (obj, dist, tanSpace))
                                             Nothing -> intersectSphereTree [root sceneGraph'] ray Nothing
 
 -- Intersect a ray against a scene graph. Return first (ie, any) hit without finding the closest
@@ -156,10 +155,9 @@ traceRay _ _ _ 0 _ _ _ = error "Should not hit this codepath"
 traceRay renderContext photonMap ray 1 camera _ _ = 
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> return $! defaultColour (direction ray)
-        Just (obj, intersectionDistance, hitId) -> do
+        Just (obj, intersectionDistance, tanSpace) -> do
           (irrCache, mt) <- get
           let intersectionPoint = pointAlongRay ray intersectionDistance
-          let tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           -- TODO - Need to plug irradiance values into shader model correctly
           -- We only accumulate the ambient colour for the first hit. Otherwise we would erroneously accumulate it many times over
@@ -173,10 +171,9 @@ traceRay renderContext photonMap ray 1 camera _ _ =
 traceRay renderContext photonMap ray limit camera currentIOR accumulatedReflectivity = 
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> return $! defaultColour (direction ray)
-        Just (obj, intersectionDistance, hitId) -> do
+        Just (obj, intersectionDistance, tanSpace) -> do
           -- Evaluate surface-location specific things such as shader results
           let intersectionPoint = pointAlongRay ray intersectionDistance
-          let tanSpace = primitiveTangentSpace (primitive obj) hitId intersectionPoint obj
           let normal = thr tanSpace
           let incoming = Vector.negate $ direction ray
           -- TODO - Need to plug irradiance values into shader model correctly
@@ -233,9 +230,8 @@ irradianceOverHemisphere renderContext numSamples (pos, tanSpace) viewDir gather
                                    ray = rayWithDirection pos gatherDir gatherDistance
                                in case findNearestIntersection (sceneGraph renderContext) ray of
                                  Nothing -> colBlack
-                                 Just (obj, dist, hitId) -> let hitPoint = pointAlongRay ray dist
-                                                                hitTanSpace = primitiveTangentSpace (primitive obj) hitId hitPoint obj
-                                                            in lightSurface (lights renderContext) colBlack renderContext (hitPoint, hitTanSpace) (material obj) viewDir
+                                 Just (obj, dist, hitTanSpace) -> let hitPoint = pointAlongRay ray dist
+                                                                  in lightSurface (lights renderContext) colBlack renderContext (hitPoint, hitTanSpace) (material obj) viewDir
                         ) 
                     hemisphereDirs
       return $! averageColour samples -- Reduce samples down
@@ -292,7 +288,7 @@ pathTrace _ _ 10 _ _ _ = return $! colBlack
 pathTrace renderContext ray depth currentIOR weight camera =
     case findNearestIntersection (sceneGraph renderContext) ray of
         Nothing -> return $! colBlack
-        Just (hitObj, hitDistance, hitId) -> 
+        Just (hitObj, hitDistance, tanSpace) -> 
           do 
             -- Use russian roulette to decide fate at each interaction
             p <- randDouble                       
@@ -318,7 +314,6 @@ pathTrace renderContext ray depth currentIOR weight camera =
             -- Evaluate surface-location specific things such as shader results
           where hitPoint = pointAlongRay ray hitDistance
                 shadingPoint = madd hitPoint normal surfaceEpsilon
-                tanSpace = primitiveTangentSpace (primitive hitObj) hitId hitPoint hitObj
                 normal = tsNormal tanSpace
                 incoming = (Vector.negate . direction) ray
 

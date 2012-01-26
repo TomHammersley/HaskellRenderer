@@ -1,5 +1,3 @@
-{-# LANGUAGE UnboxedTuples #-}
-
 module Tests.PrimitiveTest where
 
 import PolymorphicNum
@@ -18,7 +16,7 @@ test_triIntersect1 = TestCase (assertEqual "Triangle intersection 1" expectedRes
       tri = makeTriangle v1 v2 v3
       ray = rayWithDirection (Vector 10 5 (-10) 1) (Vector 0 0 1 0) 1000
       expectedResult = True
-      (# actualResult, _, _ #) = (intersectRayTriangle ray tri True)
+      (actualResult, _, _) = (intersectRayTriangle ray tri True)
 
 test_triIntersect2 = TestCase (assertEqual "Triangle intersection 2" expectedResult actualResult)
     where
@@ -28,7 +26,7 @@ test_triIntersect2 = TestCase (assertEqual "Triangle intersection 2" expectedRes
       tri = makeTriangle v1 v2 v3
       ray = rayWithDirection (Vector (-100) 5 (-10) 1) (Vector 0 0 1 0) 1000
       expectedResult = False
-      (# actualResult, _, _ #) = (intersectRayTriangle ray tri True)
+      (actualResult, _, _) = (intersectRayTriangle ray tri True)
 
 test_triIntersect3 = TestCase (assertEqual "Triangle intersection 3" expectedResult actualResult)
     where
@@ -38,7 +36,7 @@ test_triIntersect3 = TestCase (assertEqual "Triangle intersection 3" expectedRes
       tri = makeTriangle v1 v2 v3
       ray = rayWithDirection (Vector 100 5 (-10) 1) (Vector 0 0 1 0) 1000
       expectedResult = False
-      (# actualResult, _, _ #) = (intersectRayTriangle ray tri True)
+      (actualResult, _, _) = (intersectRayTriangle ray tri True)
 
 test_triIntersect4 = TestCase (assertEqual "Triangle intersection 4" expectedResult actualResult)
     where
@@ -48,7 +46,7 @@ test_triIntersect4 = TestCase (assertEqual "Triangle intersection 4" expectedRes
       tri = makeTriangle v1 v2 v3
       ray = rayWithDirection (Vector 10 500 (-10) 1) (Vector 0 0 1 0) 1000
       expectedResult = False
-      (# actualResult, _, _ #) = (intersectRayTriangle ray tri True)
+      (actualResult, _, _) = (intersectRayTriangle ray tri True)
 
 test_triIntersect5 = TestCase (assertEqual "Triangle intersection 5" expectedResult actualResult)
     where
@@ -58,11 +56,11 @@ test_triIntersect5 = TestCase (assertEqual "Triangle intersection 5" expectedRes
       tri = makeTriangle v1 v2 v3
       ray = rayWithDirection (Vector 10 (-500) (-10) 1) (Vector 0 0 1 0) 1000
       expectedResult = False
-      (# actualResult, _, _ #) = (intersectRayTriangle ray tri True)
+      (actualResult, _, _) = (intersectRayTriangle ray tri True)
 
 test_boxIntersect1 = TestCase (assertEqual "Box intersection 1" expectedResult actualResult)
     where
-      box = Box (Vector 10 10 10 0)
+      box = Box (Vector (-5) (-5) (-5) 0, Vector 5 5 5 0)
       ray = rayWithDirection (Vector 0 0 (-100) 1) (Vector 0 0 1 0) 1000
       expectedResult = True
       obj = Object box defaultMaterial identity
@@ -72,7 +70,7 @@ test_boxIntersect1 = TestCase (assertEqual "Box intersection 1" expectedResult a
 
 test_boxIntersect2 = TestCase (assertEqual "Box intersection 2" expectedResult actualResult)
     where
-      box = Box (Vector 10 10 10 0)
+      box = Box (Vector (-5) (-5) (-5) 0, Vector 5 5 5 0)
       ray = rayWithDirection (Vector (-1000) 0 (-100) 1) (Vector 0 0 1 0) 1000
       expectedResult = Nothing
       obj = Object box defaultMaterial identity

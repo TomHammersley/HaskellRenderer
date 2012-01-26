@@ -2,13 +2,14 @@
 
 module SparseVoxelOctree(build, 
 			 SparseOctree, 
-			 intersect, 
+			 closestIntersect, 
 			 boundingRadius, 
 			 boundingBox,
 			 enumerateLeafBoxes) where
 
 import BoundingBox
 import Ray
+import Vector
 
 data SparseOctree = SparseOctreeDummy
                   | SparseOctreeNode !AABB [SparseOctree]
@@ -18,10 +19,10 @@ instance Show SparseOctree
 instance Eq SparseOctree
 
 -- Build a sparse voxel octree for a data set
-build :: (AABB -> Double) -> AABB -> Int -> SparseOctree
+build :: (AABB -> Double) -> AABB -> Int -> Double -> SparseOctree
 
 -- Intersect with a ray
-intersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, Int)
+closestIntersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, TangentSpace)
 
 -- The bounding radius
 boundingRadius :: SparseOctree -> Double

@@ -1,11 +1,8 @@
 -- Module for general primitives and intersections
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE UnboxedTuples #-}
 
 module Primitive (primitiveBoundingRadius, 
                   primitiveClosestIntersect, 
                   primitiveAnyIntersect,
-                  primitiveTangentSpace, 
                   Object(Object), 
                   Primitive(Sphere, Plane, TriangleMesh, Box, SparseOctreeModel), 
                   primitive, 
@@ -169,29 +166,33 @@ pointInsideTriangleBary tri point = u >= 0 && v >= 0 && (u + v) < 1
 -}
 
 -- Intersect a ray with a triangle
-intersectRayTriangle :: Ray -> Triangle -> Bool -> (# Bool, Double, Triangle #)
+intersectRayTriangle :: Ray -> Triangle -> Bool -> (Bool, Double, Triangle)
 intersectRayTriangle ray triangle doubleSided
-    | not doubleSided && direction ray `dot3` (tsNormal . planeTangentSpace . plane) triangle >= 0 = (# False, 0, triangle #)
+    | not doubleSided && direction ray `dot3` (tsNormal . planeTangentSpace . plane) triangle >= 0 = (False, 0, triangle)
     | otherwise = case planeIntersect (plane triangle) ray of
-                    Nothing -> (# False, 0, triangle #)
+                    Nothing -> (False, 0, triangle)
                     Just (dist', _) -> if pointInsideTriangle triangle (pointAlongRay ray dist')
-                                       then (# True, dist', triangle #)
-                                       else (# False, 0, triangle #)
+                                       then (True, dist', triangle)
+                                       else (False, 0, triangle)
 
 -- Intersect against a list of triangles
-intersectRayTriangleList :: [Triangle] -> Int -> Maybe (Double, Int) -> Ray -> Object -> Maybe (Double, Int)
+intersectRayTriangleList :: [Triangle] -> Int -> Maybe (Double, TangentSpace) -> Ray -> Object -> Maybe (Double, TangentSpace)
 intersectRayTriangleList (x:xs) index acc ray obj = intersectRayTriangleList xs (index + 1) acc' ray' obj
     where
       (ray', acc') = case intersectRayTriangle ray x False of
-                       (# False, _, _ #) -> (ray, acc)
-                       (# True, dist, _ #) -> (shortenRay ray dist, Just (dist, index))
+                       (False, _, _) -> (ray, acc)
+                       (True, dist, _) -> let intersectionPoint = pointAlongRay ray dist
+                                              (triAlpha, triBeta, triGamma) = calculateBarycentricCoordinates intersectionPoint x
+                                          in (shortenRay ray dist, Just (dist, interpolatedTangentSpace x triAlpha triBeta triGamma))
 intersectRayTriangleList [] _ acc _ _ = acc
 
 -- Intersect against any triangle
-intersectRayAnyTriangleList :: [Triangle] -> Int  -> Ray -> Object -> Maybe (Double, Int)
+intersectRayAnyTriangleList :: [Triangle] -> Int  -> Ray -> Object -> Maybe (Double, TangentSpace)
 intersectRayAnyTriangleList (x:xs) index ray obj = case intersectRayTriangle ray x False of
-                                                     (# False, _, _ #) -> intersectRayAnyTriangleList xs (index + 1) ray obj
-                                                     (# True, dist, _ #) -> Just (dist, index)
+                                                     (False, _, _) -> intersectRayAnyTriangleList xs (index + 1) ray obj
+                                                     (True, dist, _) -> let intersectionPoint = pointAlongRay ray dist
+                                                                            (triAlpha, triBeta, triGamma) = calculateBarycentricCoordinates intersectionPoint x
+                                                                        in Just (dist, interpolatedTangentSpace x triAlpha triBeta triGamma)
 intersectRayAnyTriangleList [] _ _ _ = Nothing
 
 -- Get the interpolated vertex normal
@@ -202,10 +203,10 @@ interpolatedTangentSpace triangle triAlpha triBeta triGamma = (tangent, binormal
           binormal = normalise $ bi1 <*> triAlpha <+> bi2 <*> triBeta <+> bi3 <*> triGamma
           normal = normalise $ norm1 <*> triAlpha <+> norm2 <*> triBeta <+> norm3 <*> triGamma
 
-planeIntersect :: Primitive -> Ray -> Maybe (Double, Int)
-planeIntersect (Plane (_, _, planeNormal) planeD) (Ray rayOrg rayDir _ rayLen)
+planeIntersect :: Primitive -> Ray -> Maybe (Double, TangentSpace)
+planeIntersect (Plane planeTanSpace@(_, _, planeNormal) planeD) (Ray rayOrg rayDir _ rayLen)
     | dirDotNormal == 0 = Nothing
-    | intercept >= 0 && intercept <= rayLen = Just (intercept, 0)
+    | intercept >= 0 && intercept <= rayLen = Just (intercept, planeTanSpace)
     | otherwise = Nothing
     where dirDotNormal = rayDir `dot3` planeNormal
           intercept = ((-planeD) - (rayOrg `dot3` planeNormal)) / dirDotNormal
@@ -213,14 +214,14 @@ planeIntersect _ _ = error "planeIntersect was called for an inappropriate primi
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of intersection functions
-primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
+primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 
 -- This function intersects a ray with a sphere, and returns the closest intercept
-primitiveClosestIntersect (Sphere sphereRadius) (Ray rayOrg rayDir _ rayLen) obj
+primitiveClosestIntersect (Sphere sphereRadius) ray@(Ray rayOrg rayDir _ rayLen) obj
     | discriminant < 0 = Nothing
-    | discriminant == 0 = Just (((-b) ** 0.5), 0)
-    | root1 >= 0 && root1 <= rayLen = Just (root1, 0)
-    | root2 >= 0 && root2 <= rayLen = Just (root2, 0)
+    | discriminant == 0 = Just ((-b) ** (0.5 :: Double), tanSpace $ (-b) ** (0.5 :: Double))
+    | root1 >= 0 && root1 <= rayLen = Just (root1, tanSpace root1)
+    | root2 >= 0 && root2 <= rayLen = Just (root2, tanSpace root2)
     | otherwise = Nothing
     where 
       delta = rayOrg <-> getCentre obj
@@ -229,6 +230,10 @@ primitiveClosestIntersect (Sphere sphereRadius) (Ray rayOrg rayDir _ rayLen) obj
       discriminant = b ** 2 - 4 * c -- A is 1 because the ray direction is normalised
       root1 = ((-b) - sqrt discriminant) * 0.5
       root2 = ((-b) + sqrt discriminant) * 0.5
+      tanSpace d = let tangent = Vector 1 0 0 0 -- TODO - This is clearly incorrect - fix this later!
+                       binormal = Vector 0 1 0 0
+                       normal = (pointAlongRay ray d <-> getCentre obj) <*> (1 / sphereRadius)
+                   in (tangent, binormal, normal)
 
 -- This function intersects a ray with a plane and returns the closest intercept
 primitiveClosestIntersect pln@(Plane (_, _, _) _) ray _ = planeIntersect pln ray
@@ -237,55 +242,14 @@ primitiveClosestIntersect pln@(Plane (_, _, _) _) ray _ = planeIntersect pln ray
 primitiveClosestIntersect (TriangleMesh tris) ray obj = intersectRayTriangleList tris 0 Nothing ray obj
 
 -- TODO Need to transform ray by inverse object matrix
-primitiveClosestIntersect (Box aabb) ray obj = case intersectRayAABB aabb ray of Nothing -> Nothing
-                                                                                 Just x -> Just (x, 0)
-    
-primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.intersect ray 0 maxSvoDepth svo' -- TODO Need to transform ray by inverse object matrix
-  where
-    maxSvoDepth = 50
+primitiveClosestIntersect (Box aabb) ray _ = case boundingBoxIntersectRay aabb ray of Nothing -> Nothing
+                                                                                      Just (d, _) -> Just (d, boundingBoxTangentSpace aabb (pointAlongRay ray d))
 
-primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Int)
+primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.closestIntersect ray 0 50 svo' -- TODO Need to transform ray by inverse object matrix
+
+primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
 primitiveAnyIntersect primitive' ray obj = primitiveClosestIntersect primitive' ray obj
-
--- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
--- Family of normal query functions
-primitiveTangentSpace :: Primitive -> Int -> Position -> Object -> TangentSpace
-
--- Normal for a sphere
-primitiveTangentSpace (Sphere sphereRadius) _ intersectionPoint obj = (tangent, binormal, normal)
-    where
-      tangent = Vector 1 0 0 0 -- TODO - This is clearly incorrect - fix this later!
-      binormal = Vector 0 1 0 0
-      normal = (intersectionPoint <-> getCentre obj) <*> (1 / sphereRadius)
-
-primitiveTangentSpace (Plane planeNormal _) _ _ _ = planeNormal
-primitiveTangentSpace (TriangleMesh tris) triId intersectionPoint _ = interpolatedTangentSpace triangle triAlpha triBeta triGamma
-    where triangle = tris !! triId
-          (triAlpha, triBeta, triGamma) = calculateBarycentricCoordinates intersectionPoint triangle
-          
-primitiveTangentSpace (Box _) _ intersectionPoint obj
-  | dx > dy && dx > dz = (Vector 0 sx 0 0, Vector 0 0 sx 0, Vector sx 0 0 0)
-  | dy > dx && dy > dz = (Vector sy 0 0 0, Vector 0 0 sy 0, Vector 0 sy 0 0)
-  | otherwise = (Vector sz 0 0 0, Vector 0 sz 0 0, Vector 0 0 sz 0)
-  where
-    delta = normalise (intersectionPoint <-> getCentre obj)
-    dx = (abs . vecX) delta
-    dy = (abs . vecY) delta
-    dz = (abs . vecZ) delta
-    sx = (signum . vecX) delta
-    sy = (signum . vecY) delta
-    sz = (signum . vecZ) delta
-    
--- TODO - Implement tangent space function for SVO - this is clearly completely incorrect debug code!
-primitiveTangentSpace (SparseOctreeModel svo_) _ intersectionPoint obj = (tangent, binormal, normal)
-    where
-      tangent = Vector 1 0 0 0 -- TODO - This is clearly incorrect - fix this later!
-      binormal = Vector 0 1 0 0
-      normal = normalise (intersectionPoint <-> getCentre obj)
-                    
--- Unimplemented (no specialised implementation) case
---primitiveTangentSpace _ _ _ _ = error "primitiveTangentSpace is not defined for a new primitive type"
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of bounding radius functions (post-xfrom by localToWorld matrix)
@@ -300,7 +264,7 @@ primitiveBoundingRadius (SparseOctreeModel svo_) xform pos = boundingRadius svo_
 triangleListRadius :: Double -> [Triangle] -> Vector -> Double
 triangleListRadius maximumRadius (tri:tris) centre = triangleListRadius (Prelude.max maximumRadius triangleRadius) tris centre
     where
-      radii = map (\v -> centre `distance` (vertPosition v)) (vertices tri)
+      radii = map (\v -> centre `distance` vertPosition v) (vertices tri)
       triangleRadius = foldl' Prelude.max 0 radii
 triangleListRadius maximumRadius [] _ = maximumRadius
 
@@ -344,12 +308,12 @@ intersectsBox (Sphere sphereRadius) matrix (boxMin, boxMax) = (centreX + sphereR
 
 intersectsBox (Plane (_, _, planeNormal) planeD) _ box = signum minDistance /= signum maxDistance
     where
-      minX = selectMinBoxComponent vecX planeNormal box
-      minY = selectMinBoxComponent vecY planeNormal box
-      minZ = selectMinBoxComponent vecZ planeNormal box
-      maxX = selectMaxBoxComponent vecX planeNormal box
-      maxY = selectMaxBoxComponent vecY planeNormal box
-      maxZ = selectMaxBoxComponent vecZ planeNormal box
+      minX = boundingBoxMinComponent vecX planeNormal box
+      minY = boundingBoxMinComponent vecY planeNormal box
+      minZ = boundingBoxMinComponent vecZ planeNormal box
+      maxX = boundingBoxMaxComponent vecX planeNormal box
+      maxY = boundingBoxMaxComponent vecY planeNormal box
+      maxZ = boundingBoxMaxComponent vecZ planeNormal box
       minAgainstPlane = Vector minX minY minZ 1
       maxAgainstPlane = Vector maxX maxY maxZ 1
       minDistance = (planeNormal `dot3` minAgainstPlane) + planeD
@@ -365,7 +329,7 @@ intersectsBox _ _ _ = error "intersectsBox is not implemented for a primitive ty
 -- Aspect querying of objects
 infinite :: Primitive -> Bool
 infinite (Plane _ _) = True
-infinite (SparseOctreeModel _) = True 
+--infinite (SparseOctreeModel _) = True
 infinite _ = False
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------

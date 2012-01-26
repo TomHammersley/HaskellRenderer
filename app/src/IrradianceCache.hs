@@ -26,7 +26,7 @@ initialiseCache :: SceneGraph -> IrradianceCache
 initialiseCache sceneGraph = OctreeNode slightlyEnlargedBox $ map OctreeDummy (splitBoxIntoOctreeChildren slightlyEnlargedBox)
     where
       -- Create the initial irradiance cache tree. This is a box a little larger than the world so that we fit any points offset along the normal etc
-      slightlyEnlargedBox = growBoundingBox (finiteBox sceneGraph) 10
+      slightlyEnlargedBox = boundingBoxGrow (finiteBox sceneGraph) 10
 
 -- Quantify the error if we use a given sample to shade a point
 -- The bigger the number, the better the estimate

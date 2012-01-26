@@ -93,41 +93,40 @@ diffuseReflectionDirection stdGen tanSpace = (transformDir dir tanSpace, stdGen'
 -- Realistic Image Synthesis Using Photon Mapping p60
 tracePhoton :: (RandomGen g) => [Photon] -> Photon -> SceneGraph -> g -> (Int, Int) -> [Photon]
 tracePhoton currentPhotons (Photon photonPower photonPosDir) sceneGraph rndState (bounce, maxBounces) = 
-    -- See if the photon intersects a surfaces
-    case findNearestIntersection sceneGraph ray of
-      Nothing -> currentPhotons
-      Just (obj, t, subId) -> case photonFate of
-                                -- Diffuse reflection. Here, we store the photon that got reflected, and trace a new photon - but only if it's bright enough to be worthwhile
-                                DiffuseReflect -> if Colour.magnitude newPhotonPower > brightnessEpsilon && (bounce + 1) <= maxBounces
-                                                  then tracePhoton (storedPhoton : currentPhotons) reflectedPhoton sceneGraph rndState'' (bounce + 1, maxBounces)
-                                                  else storedPhoton : currentPhotons
-                                    where
-                                      reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
-                                      (reflectedDir, rndState'') = diffuseReflectionDirection rndState' tanSpace
+  -- See if the photon intersects a surfaces
+  case findNearestIntersection sceneGraph ray of
+    Nothing -> currentPhotons
+    Just (obj, t, tanSpace) -> case photonFate of
+      -- Diffuse reflection. Here, we store the photon that got reflected, and trace a new photon - but only if it's bright enough to be worthwhile
+      DiffuseReflect -> if Colour.magnitude newPhotonPower > brightnessEpsilon && (bounce + 1) <= maxBounces
+                        then tracePhoton (storedPhoton : currentPhotons) reflectedPhoton sceneGraph rndState'' (bounce + 1, maxBounces)
+                        else storedPhoton : currentPhotons
+        where
+          reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
+          (reflectedDir, rndState'') = diffuseReflectionDirection rndState' tanSpace
+            
+      -- Specular reflection. Here, we reflect the photon in the fashion that the surface would reflect towards the viewer and
+      -- aim to absorb it somewhere else in the photon map
+      SpecularReflect -> if Colour.magnitude newPhotonPower > brightnessEpsilon && (bounce + 1) <= maxBounces
+                         then tracePhoton currentPhotons reflectedPhoton sceneGraph rndState' (bounce + 1, maxBounces)
+                         else currentPhotons
+        where
+          reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
+          reflectedDir = Vector.negate (snd photonPosDir) `reflect` normal
 
-                                -- Specular reflection. Here, we reflect the photon in the fashion that the surface would reflect towards the viewer and
-                                -- aim to absorb it somewhere else in the photon map
-                                SpecularReflect -> if Colour.magnitude newPhotonPower > brightnessEpsilon && (bounce + 1) <= maxBounces
-                                                   then tracePhoton currentPhotons reflectedPhoton sceneGraph rndState' (bounce + 1, maxBounces)
-                                                   else currentPhotons
-                                    where
-                                      reflectedPhoton = Photon newPhotonPower (surfacePos, reflectedDir)
-                                      reflectedDir = Vector.negate (snd photonPosDir) `reflect` normal
-
-                                -- Absorb. The photon simply gets absorbed into the map
-                                Absorb -> storedPhoton : currentPhotons
-          where
-            (photonFate, rndState') = runState (choosePhotonFate coefficients) rndState
-            coefficients = russianRouletteCoefficients (material obj)
-            newPhotonPower = computeNewPhotonPower photonFate coefficients photonPower (material obj)
-            tanSpace = primitiveTangentSpace (primitive obj) subId hitPosition obj
-            normal = thr tanSpace
-            hitPosition = pointAlongRay ray t
-            surfacePos = hitPosition <+> normal <*> surfaceEpsilon
-            brightnessEpsilon = 0.1
-            storedPhoton = Photon photonPower (surfacePos, snd photonPosDir)
-    where
-      ray = rayWithPosDir photonPosDir 10000
+      -- Absorb. The photon simply gets absorbed into the map
+      Absorb -> storedPhoton : currentPhotons
+      where
+        (photonFate, rndState') = runState (choosePhotonFate coefficients) rndState
+        coefficients = russianRouletteCoefficients (material obj)
+        newPhotonPower = computeNewPhotonPower photonFate coefficients photonPower (material obj)
+        normal = thr tanSpace
+        hitPosition = pointAlongRay ray t
+        surfacePos = hitPosition <+> normal <*> surfaceEpsilon
+        brightnessEpsilon = 0.1
+        storedPhoton = Photon photonPower (surfacePos, snd photonPosDir)
+  where
+    ray = rayWithPosDir photonPosDir 10000
 
 -- Build a list of photons for a light source
 tracePhotonsForLight :: Int -> SceneGraph -> Light -> [Photon]
@@ -147,7 +146,7 @@ buildPhotonMap sceneGraph lights numPhotonsPerLight = photons `seq` kdTree `seq`
 
 -- Make a bounding box of a list of photons
 photonsBoundingBox :: [Photon] -> AABB
-photonsBoundingBox = foldl' (\box photon -> enlargeBoundingBox (fst . posDir $ photon) box) initialInvalidBox
+photonsBoundingBox = foldl' (\box photon -> boundingBoxEnlarge (fst . posDir $ photon) box) initialInvalidBox
 
 -- Construct a balanced kd tree of photons
 -- Realistic Image Synthesis Using Photon Mapping p72
