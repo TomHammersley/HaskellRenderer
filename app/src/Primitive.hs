@@ -249,6 +249,7 @@ primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.clo
 
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
+primitiveAnyIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.anyIntersect ray 0 50 svo' -- TODO Need to transform ray by inverse object matrix
 primitiveAnyIntersect primitive' ray obj = primitiveClosestIntersect primitive' ray obj
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------

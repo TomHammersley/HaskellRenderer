@@ -18,7 +18,6 @@ import ToneMap
 import Control.Arrow
 import Primitive
 import Camera
-import TestScenes
 
 -- Command line option support
 data Option
@@ -87,13 +86,13 @@ notInPhotonMap (AmbientLight (CommonLightData colour' _)) = AmbientLight (Common
 notInPhotonMap (QuadLight (CommonLightData colour' _) position' range' deltaU' deltaV') = QuadLight (CommonLightData colour' False) position' range' deltaU' deltaV'
 
 scene :: [Object]
-scene = svoTestScene {-cornellBox-}
+scene = cornellBox
 
 lights :: [Light]
-lights = testSceneLights {-cornellBoxLights-}
+lights = cornellBoxLights
 
 camera :: Camera
-camera = testSceneCamera {-cornellBoxCamera-}
+camera = cornellBoxCamera
 
 -- Main function
 main :: IO ()

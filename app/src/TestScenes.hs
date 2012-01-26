@@ -19,7 +19,7 @@ buildSVOSphere pos r box
   | otherwise = 0
   
 testSvo :: SparseOctree
-testSvo = build (buildSVOSphere (Vector 0 0 0 1) 50) (Vector (-100) (-100) (-100) 1, Vector 100 100 100 1) maxRecursion minDimension
+testSvo = build (buildSVOSphere (Vector 250 250 300 1) 100) (Vector 140 140 190 1, Vector 360 360 410 1) maxRecursion minDimension
   where
     maxRecursion = 10
     minDimension = 5
@@ -34,9 +34,9 @@ boxTestScene :: [Object]
 boxTestScene = [Object (Box (Vector (-50) (-50) (-50) 0, Vector 50 50 50 0)) defaultMaterial identity]
 
 testSceneCamera :: Camera
-testSceneCamera = withVectors (Vector 0 0 (-600.0) 1.0) xaxis yaxis zaxis 45.0 10000
+testSceneCamera = withVectors (Vector 0 0 (-400.0) 1.0) xaxis yaxis zaxis 45.0 10000
 
 testSceneLights :: [Light]
 testSceneLights = [ 
-    QuadLight (CommonLightData (Colour 500 500 500 0) True) (Vector 0.0 200.0 (-300.0) 1.0) 600 (Vector 100.0 0.0 0.0 0.0) (Vector 0.0 0.0 100.0 0.0)
+    QuadLight (CommonLightData (Colour 500 500 500 0) True) (Vector 0.0 200.0 (-300.0) 1.0) 1000 (Vector 1000.0 0.0 0.0 0.0) (Vector 0.0 0.0 1000.0 0.0)
     ]

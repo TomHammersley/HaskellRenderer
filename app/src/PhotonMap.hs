@@ -84,10 +84,8 @@ computeNewPhotonPower fate (diffuseP, specularP) photonPower mat = case fate of
 diffuseReflectionDirection :: (RandomGen g) => g -> TangentSpace -> (Direction, g)
 diffuseReflectionDirection stdGen tanSpace = (transformDir dir tanSpace, stdGen')
     where
-      ((u, v), stdGen') = runState randomUV stdGen
-      theta = acos (sqrt u)
-      phi = 2 * pi * v
-      dir = sphericalToDirection theta phi
+      (uv, stdGen') = runState randomUV stdGen
+      dir = uvToHemisphere 1 0 uv
 
 -- Main working photon tracing function
 -- Realistic Image Synthesis Using Photon Mapping p60

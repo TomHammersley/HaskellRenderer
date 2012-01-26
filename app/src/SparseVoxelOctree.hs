@@ -3,6 +3,7 @@
 module SparseVoxelOctree(build, 
                          SparseOctree, 
                          closestIntersect, 
+                         anyIntersect, 
                          boundingRadius, 
                          boundingBox,
                          enumerateLeafBoxes) where
@@ -33,7 +34,7 @@ build = build' 0
   where
     build' depth func box maxDepth minDimension
       | func box <= 0 = SparseOctreeDummy -- Really this is a soft error. But, the user might specify an invalid input...
-      | depth == maxDepth || boundingBoxRadius box <= minDimension = SparseOctreeLeaf box (func box) -- TODO Or size of box < threshold
+      | depth == maxDepth || boundingBoxRadius box <= minDimension = SparseOctreeLeaf box (func box)
       | otherwise = SparseOctreeNode box (concatMap buildNonEmptyNodes subBoxList)
       where
         subBoxList = splitBoxIntoOctreeChildren box
@@ -58,6 +59,20 @@ closestIntersect ray depth maxDepth (SparseOctreeNode box children) =
                                                                 else foldr1 nearestIntersection (map (closestIntersect (shortenRay ray dist2) (depth + 1) maxDepth) children)
 closestIntersect ray _ _ (SparseOctreeLeaf box _) = case boundingBoxIntersectRay box ray of Nothing -> Nothing
                                                                                             Just (dist, _) -> Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
+
+anyIntersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, TangentSpace)
+anyIntersect _ _ _ SparseOctreeDummy = Nothing
+anyIntersect ray depth maxDepth (SparseOctreeNode box children) =
+  case boundingBoxIntersectRay box ray of Nothing -> Nothing
+                                          Just (dist, dist2) -> if depth >= maxDepth then Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
+                                                                else traverseChildren children
+                                            where
+                                              traverseChildren [] = Nothing
+                                              traverseChildren (x:xs) = case anyIntersect (shortenRay ray dist2) (depth + 1) maxDepth x of
+                                                Nothing -> traverseChildren xs
+                                                Just z -> Just z
+anyIntersect ray _ _ (SparseOctreeLeaf box _) = case boundingBoxIntersectRay box ray of Nothing -> Nothing
+                                                                                        Just (dist, _) -> Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
 
 boundingRadius :: SparseOctree -> Double
 boundingRadius SparseOctreeDummy = 0

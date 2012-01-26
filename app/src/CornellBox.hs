@@ -10,7 +10,7 @@ import Colour
 import Shader
 import Matrix
 import Light
---import GHC.Types
+import TestScenes
 
 cornellBoxLights :: [Light]
 
@@ -169,5 +169,5 @@ tallBlockObject = Object (TriangleMesh (quadsToTriangles tallBlockVertices)) whi
 --lightObject = Object (TriangleMesh (quadsToTriangles lightVertices)) lightMaterial identity
 
 cornellBox :: [Object]
-cornellBox = [ceilingObject, floorObject, leftWallObject, rightWallObject, backWallObject, frontWallObject, tallBlockObject, shortBlockObject]
+cornellBox = [ceilingObject, floorObject, leftWallObject, rightWallObject, backWallObject, frontWallObject, tallBlockObject, shortBlockObject, Object (SparseOctreeModel testSvo) defaultMaterial identity]
 --cornellBox = [leftWallObject, rightWallObject]

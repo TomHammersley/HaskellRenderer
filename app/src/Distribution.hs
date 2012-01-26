@@ -11,7 +11,8 @@ module Distribution (generatePointsOnSphere,
                      generateStratifiedDirectionsOnHemisphere,
                      generateUnstratifiedDirectionsOnHemisphere,
                      randomUV,
-                     stratify) where
+                     stratify,
+                     uvToHemisphere) where
 
 import PolymorphicNum
 import Vector

@@ -81,7 +81,7 @@ contains (Vector !minX !minY !minZ _, Vector !maxX !maxY !maxZ _) (Vector !x !y 
 
 -- Does a sphere (conservatively) overlap with a bounding box? (Arvo's method)
 overlapsSphere :: AABB -> Position -> Double -> Bool
-overlapsSphere (boxMin, boxMax) p r = (foldr1 (+) [closestDistance vecX, closestDistance vecY, closestDistance vecZ]) < (r * r)
+overlapsSphere (boxMin, boxMax) p r = sum [closestDistance vecX, closestDistance vecY, closestDistance vecZ] < (r * r)
     where 
       closestDistance f | f p < f boxMin = (f p - f boxMin) ** (2.0 :: Double)
                         | f p > f boxMax = (f p - f boxMax) ** (2.0 :: Double)
