@@ -7,7 +7,6 @@ module Primitive (primitiveBoundingRadius,
                   Primitive(Sphere, Plane, TriangleMesh, Box, SparseOctreeModel), 
                   primitive, 
                   material, 
-                  makeTriangle, 
                   makeQuad, 
                   quadsToTriangles,
                   vertPosition, 
@@ -84,17 +83,6 @@ makePlaneWithTangents v1 v2 v3 tangent binormal = Plane (tangent, binormal, norm
 -- Triangle base functionality
 
 -- Make a triangle
-makeTriangle :: Position -> Position -> Position -> Triangle
-makeTriangle v1 v2 v3 = Triangle verts newPlane newHalfPlanes
-    where newPlane = makePlane v1 v2 v3
-          newTanSpace = planeTangentSpace newPlane
-          verts = map (\v -> Vertex v zeroVector newTanSpace) [v1, v2, v3]
-          edgeVertices = [v1, v2, v3]
-          edges = map normalise [v2 <-> v1, v3 <-> v2, v1 <-> v3]
-          edgeNormals = map (\edge -> normalise $ tsNormal newTanSpace `cross` edge) edges
-          -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
-          newHalfPlanes = zipWith (\edgeNormal edgeVertex -> Plane (Vector 1 0 0 1, Vector 0 1 0 1, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices
-
 makeTriangleWithTangents :: Position -> Position -> Position -> Direction -> Direction -> Triangle
 makeTriangleWithTangents v1 v2 v3 tangent binormal = Triangle verts newPlane newHalfPlanes
     where newPlane = makePlaneWithTangents v1 v2 v3 tangent binormal
@@ -103,7 +91,6 @@ makeTriangleWithTangents v1 v2 v3 tangent binormal = Triangle verts newPlane new
           edgeVertices = [v1, v2, v3]
           edges = map normalise [v2 <-> v1, v3 <-> v2, v1 <-> v3]
           edgeNormals = map (\edge -> normalise (tsNormal newTanSpace `cross` edge)) edges
-          -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
           newHalfPlanes = zipWith3 (\edgeNormal edgeVertex edgeDir -> Plane (edgeDir, tsNormal newTanSpace, edgeNormal) (-(edgeNormal `dot3` edgeVertex))) edgeNormals edgeVertices edges
 
 makeQuad :: [Position] -> [Triangle]
@@ -245,7 +232,8 @@ primitiveClosestIntersect (TriangleMesh tris) ray obj = intersectRayTriangleList
 primitiveClosestIntersect (Box aabb) ray _ = case boundingBoxIntersectRay aabb ray of Nothing -> Nothing
                                                                                       Just (d, _) -> Just (d, boundingBoxTangentSpace aabb (pointAlongRay ray d))
 
-primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.closestIntersect ray 0 50 svo' -- TODO Need to transform ray by inverse object matrix
+-- TODO Need to transform ray by inverse object matrix
+primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.closestIntersect ray 0 50 svo' 
 
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj

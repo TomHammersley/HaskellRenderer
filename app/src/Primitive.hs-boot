@@ -6,12 +6,10 @@
 module Primitive (primitiveBoundingRadius, 
                   primitiveClosestIntersect, 
                   primitiveAnyIntersect,
---                  primitiveTangentSpace, 
                   Object(Object), 
                   Primitive(Sphere, Plane, TriangleMesh, Box, SparseOctreeModel), 
                   primitive, 
                   material, 
-                  makeTriangle, 
                   makeQuad, 
                   quadsToTriangles,
                   vertPosition, 
@@ -62,7 +60,6 @@ primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Double, Tangen
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 
 --primitiveTangentSpace :: Primitive -> Int -> Position -> Object -> TangentSpace
-makeTriangle :: Position -> Position -> Position -> Triangle
 makeQuad :: [Position] -> [Triangle]
 quadsToTriangles :: [Position] -> [Triangle]
 getCentre :: Object -> Vector
