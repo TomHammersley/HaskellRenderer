@@ -100,3 +100,15 @@ boundingBoxIntersectRay (bounds0, bounds1) (Ray rayOrg _ invRayDir rayLen)
                        x1 = (f bounds1 - f rayOrg) * f invRayDir
                    in (x0 `Prelude.min` x1, x0 `Prelude.max` x1)
 
+boundingBoxVertices :: AABB -> [Position]
+boundingBoxVertices (Vector x0 y0 z0 _, Vector x1 y1 z1 _) =
+  [
+    Vector x0 y0 z0 1,
+    Vector x1 y0 z0 1,
+    Vector x0 y1 z0 1,
+    Vector x1 y1 z0 1,
+    Vector x0 y0 z1 1,
+    Vector x1 y0 z1 1,
+    Vector x0 y1 z1 1,
+    Vector x1 y1 z1 1
+  ]

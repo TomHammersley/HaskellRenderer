@@ -20,7 +20,7 @@ instance Show SparseOctree
 instance Eq SparseOctree
 
 -- Build a sparse voxel octree for a data set
-build :: (AABB -> Double) -> AABB -> Int -> Double -> SparseOctree
+build :: (AABB -> Double) -> (Position -> Double) -> AABB -> Int -> Double -> SparseOctree
 
 -- Intersect with a ray
 closestIntersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, TangentSpace)

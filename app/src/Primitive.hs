@@ -324,13 +324,14 @@ intersectsBox (TriangleMesh tris) matrix box = boundingBoxOverlaps box triListBo
     where
       triListBox = triangleListBoundingBox initialInvalidBox matrix tris
       
-intersectsBox _ _ _ = error "intersectsBox is not implemented for a primitive type"
+intersectsBox (Box primBox) _ box = boundingBoxOverlaps box primBox
+
+intersectsBox (SparseOctreeModel svo_) _ box = boundingBoxOverlaps box (boundingBox svo_)
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Aspect querying of objects
 infinite :: Primitive -> Bool
 infinite (Plane _ _) = True
---infinite (SparseOctreeModel _) = True
 infinite _ = False
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------

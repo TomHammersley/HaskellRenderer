@@ -12,17 +12,18 @@ import Matrix
 import Material
 import Camera
 
--- A simple function to build an SVO. This just works off containment in a sphere
-buildSVOSphere :: Position -> Double -> AABB -> Double
-buildSVOSphere pos r box 
-  | overlapsSphere box pos r = 1
-  | otherwise = 0
-  
 testSvo :: SparseOctree
-testSvo = build (buildSVOSphere (Vector 250 250 300 1) 100) (Vector 140 140 190 1, Vector 360 360 410 1) maxRecursion minDimension
+testSvo = build (sphereOverlapsBox spherePos sphereRadius) (sphereContainsPoint spherePos sphereRadius) (Vector 140 140 190 1, Vector 360 360 410 1) maxRecursion minDimension
   where
-    maxRecursion = 10
+    spherePos = Vector 250 250 300 1
+    sphereRadius = 100
+    maxRecursion = 100
     minDimension = 5
+    sphereOverlapsBox pos r box 
+      | overlapsSphere box pos r = 1
+      | otherwise = 0
+    sphereContainsPoint pos r p | p `distance` pos <= r = 1
+                                | otherwise = 0
 
 svoTestScene :: [Object]
 svoTestScene = [Object (SparseOctreeModel testSvo) defaultMaterial identity]

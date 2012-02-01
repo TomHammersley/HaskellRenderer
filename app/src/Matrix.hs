@@ -12,30 +12,25 @@ data Matrix = Matrix ![Double] deriving (Show, Read, Eq)
 identity ::  Matrix
 identity = Matrix [1, 0, 0, 0,   0, 1, 0, 0,   0, 0, 1, 0,   0, 0, 0, 1]
 
--- This multiplies one element of the matrix against
-mulElement :: Matrix -> Matrix -> Int -> Int -> Double
-mulElement (Matrix mat1) (Matrix mat2) i j = sum [(mat1 !! (i * 4 + k)) * (mat2 !! (k * 4 + j)) | k <- [0..3]]
-
 -- Multiply together two matrices
--- TODO - Turn mulElement into a lambda function?
 mul :: Matrix -> Matrix -> Matrix
-mul a b = Matrix [mulElement a b i j | j <- [0..3], i <- [0..3]]
+mul (Matrix a) (Matrix b) = Matrix [sum [(a !! (i * 4 + k)) * (b !! (k * 4 + j)) | k <- [0..3]] | j <- [0..3], i <- [0..3]]
 
 -- Need matrix inversion code
 
 -- Vector * Matrix
 transformVector :: Matrix -> Vector -> Vector
 transformVector (Matrix mat) (Vector !x !y !z !w) = Vector x' y' z' w'
-                          where
-                            !vec = [x, y, z, w]
-                            !xvector = take 4 mat
-                            !yvector = take 4 (drop 4 mat)
-                            !zvector = take 4 (drop 8 mat)
-                            !wvector = take 4 (drop 12 mat)
-                            !x' = sum $ zipWith (*) vec xvector
-                            !y' = sum $ zipWith (*) vec yvector
-                            !z' = sum $ zipWith (*) vec zvector
-                            !w' = sum $ zipWith (*) vec wvector
+  where
+    !vec = [x, y, z, w]
+    !xvector = take 4 mat
+    !yvector = take 4 (drop 4 mat)
+    !zvector = take 4 (drop 8 mat)
+    !wvector = take 4 (drop 12 mat)
+    !x' = sum $ zipWith (*) vec xvector
+    !y' = sum $ zipWith (*) vec yvector
+    !z' = sum $ zipWith (*) vec zvector
+    !w' = sum $ zipWith (*) vec wvector
 
 -- Build a matrix from 4 vectors
 buildMatrix :: Vector -> Vector -> Vector -> Vector -> Matrix

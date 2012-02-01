@@ -233,3 +233,14 @@ recipPerElem (Vector !x !y !z !w) = Vector (f x) (f y) (f z) (f w)
   where
     f a | a == 0 = 10000000 -- What is Haskell for infinity?
         | otherwise = 1 / a
+
+-- This function constructs a tangent space for a given normal. It gives no guarantees about how that space is rotated... just that it works
+-- So, be careful if you use this to do anything anisotropic!
+constructTangentSpace :: Direction -> TangentSpace
+constructTangentSpace givenNormal@(Vector nx ny nz _) = (setWTo0 tangent, setWTo0 binormal, setWTo0 givenNormal)
+  where
+    tangent' | nx /= 0 = Vector ny nx nz 0
+             | ny /= 0 = Vector nx nz ny 0
+             | otherwise = Vector nz ny nx 0
+    tangent = tangent' <-> givenNormal <*> (givenNormal `dot3` tangent')
+    binormal = normalise (tangent `cross` givenNormal)
