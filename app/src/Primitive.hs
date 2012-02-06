@@ -8,6 +8,8 @@ module Primitive (primitiveBoundingRadius,
                   primitive, 
                   material, 
                   makeQuad, 
+                  makeTriangleWithTangents,
+                  makeTriangle,
                   quadsToTriangles,
                   vertPosition, 
                   vertUV, 
@@ -83,6 +85,13 @@ makePlaneWithTangents v1 v2 v3 tangent binormal = Plane (tangent, binormal, norm
 -- Triangle base functionality
 
 -- Make a triangle
+makeTriangle :: Position -> Position -> Position -> Triangle
+makeTriangle v1 v2 v3 = makeTriangleWithTangents v1 v2 v3 tangent binormal
+  where
+      normal = normalise (surfaceNormal v1 v2 v3)
+      tangent = normalise (v2 <-> v1)
+      binormal = normalise (normal `cross` tangent)
+
 makeTriangleWithTangents :: Position -> Position -> Position -> Direction -> Direction -> Triangle
 makeTriangleWithTangents v1 v2 v3 tangent binormal = Triangle verts newPlane newHalfPlanes
     where newPlane = makePlaneWithTangents v1 v2 v3 tangent binormal
@@ -233,11 +242,15 @@ primitiveClosestIntersect (Box aabb) ray _ = case boundingBoxIntersectRay aabb r
                                                                                       Just (d, _) -> Just (d, boundingBoxTangentSpace aabb (pointAlongRay ray d))
 
 -- TODO Need to transform ray by inverse object matrix
-primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.closestIntersect ray 0 50 svo' 
+primitiveClosestIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.closestIntersect ray 0 50 lodScaler svo' 
+  where
+    lodScaler = 500 -- resolution * fov * k
 
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 primitiveAnyIntersect (TriangleMesh tris) ray obj = intersectRayAnyTriangleList tris 0 ray obj
-primitiveAnyIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.anyIntersect ray 0 50 svo' -- TODO Need to transform ray by inverse object matrix
+primitiveAnyIntersect (SparseOctreeModel svo') ray _ = SparseVoxelOctree.anyIntersect ray 0 50 lodScaler svo' -- TODO Need to transform ray by inverse object matrix
+  where
+    lodScaler = 500 -- resolution * fov * k
 primitiveAnyIntersect primitive' ray obj = primitiveClosestIntersect primitive' ray obj
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------

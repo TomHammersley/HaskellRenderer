@@ -41,22 +41,22 @@ data PhotonMap = PhotonMap { photonList :: [Photon],
 instance NFData Photon where
     rnf (Photon power' posDir') = rnf power' `seq` rnf posDir'
 
--- TODO - Sort this out!
-mtToRefactor :: StdGen
-mtToRefactor = mkStdGen 12345
+-- TODO - I would ideally like to eliminate this... but it's really not that big of a deal
+randomNumberGenerator :: StdGen
+randomNumberGenerator = mkStdGen 12345
 
 -- Generate a list of photon position and direction tuples to emit
 -- I zip up each pos,dir tuple with a random number generator to give each photon a different sequence of random values
 -- Helps parallelisation...
 -- TODO Eliminate magic number seeds from here
 emitPhotons :: Light -> Int -> [(Position, Direction, StdGen, Colour)]
-emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, mkStdGen num, flux)) (fst $ generatePointsOnSphere numPhotons 1 mtToRefactor) [1..numPhotons]
+emitPhotons (PointLight (CommonLightData lightPower True) pos _) numPhotons = zipWith (\dir num -> (pos, dir, mkStdGen num, flux)) (fst $ generatePointsOnSphere numPhotons 1 randomNumberGenerator) [1..numPhotons]
     where
       flux = lightPower <*> ((1.0 / fromIntegral numPhotons) :: Double)
 emitPhotons (QuadLight (CommonLightData lightPower True) corner _ du dv) numPhotons = zipWith3 (\pos dir num -> (pos, transformDir dir tanSpace, mkStdGen num, flux)) randomPoints randomDirs [1..numPhotons]
     where
-      randomPoints = fst $ generatePointsOnQuad corner du dv numPhotons mtToRefactor
-      randomDirs = fst $ generatePointsOnHemisphere numPhotons 1 mtToRefactor
+      randomPoints = fst $ generatePointsOnQuad corner du dv numPhotons randomNumberGenerator
+      randomDirs = fst $ generatePointsOnHemisphere numPhotons 1 randomNumberGenerator
       area =  Vector.magnitude (du `cross` dv)
       flux = lightPower <*> (area / fromIntegral numPhotons)
       tanSpace = (normalise du, normalise dv, normalise (du `cross` dv))

@@ -41,7 +41,7 @@ mapWithState arr s f = mapWithState' arr s []
     where
       mapWithState' (x:xs) st acc = mapWithState' xs st' (result : acc)
           where
-            (result, st') = runState (f x) st
+            (!result, !st') = runState (f x) st
       mapWithState' [] st acc = (acc, st)
 
 -- As above, but discard state
@@ -50,7 +50,7 @@ mapWithStateDiscard arr s f = mapWithState' arr s []
     where
       mapWithState' (x:xs) st acc = mapWithState' xs st' (result : acc)
           where
-            (result, st') = runState (f x) st
+            (!result, !st') = runState (f x) st
       mapWithState' [] _ acc = acc
 
 -- Zip over two lists, passing state from one to the next with the state monad
@@ -59,7 +59,7 @@ zipWithState f arr1 arr2 s = zipWithState' arr1 arr2 s []
     where
       zipWithState' (x:xs) (y:ys) st acc = zipWithState' xs ys st' (result : acc)
           where
-            (result, st') = runState (f x y) st
+            (!result, !st') = runState (f x y) st
       zipWithState' (_:_) [] _ _ = error "Lists are of a different size - unhandled case!"
       zipWithState' [] (_:_) _ _ = error "Lists are of a different size - unhandled case!"
       zipWithState' [] [] st acc = (acc, st)
@@ -69,7 +69,7 @@ zipWithState3 f arr1 arr2 arr3 s = zipWithState3' arr1 arr2 arr3 s []
     where
       zipWithState3' (x:xs) (y:ys) (z:zs) st acc = zipWithState3' xs ys zs st' (result : acc)
           where
-            (result, st') = runState (f x y z) st
+            (!result, !st') = runState (f x y z) st
       zipWithState3' (_:_) [] _ st acc = (acc, st)
       zipWithState3' (_:_) (_:_) [] st acc = (acc, st)
       zipWithState3' [] (_:_) _ st acc = (acc, st)
@@ -88,7 +88,7 @@ replicateWithState count s f = replicateWithState' count s []
       replicateWithState' 0 st acc = (acc, st)
       replicateWithState' ct st acc = replicateWithState' (ct - 1) st' (result : acc)
           where
-            (result, st') = runState f st
+            (!result, !st') = runState f st
 
 randDouble :: (RandomGen g) => State g Double
 randDouble = do

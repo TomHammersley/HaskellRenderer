@@ -11,6 +11,8 @@ module Primitive (primitiveBoundingRadius,
                   primitive, 
                   material, 
                   makeQuad, 
+		  makeTriangle,
+		  makeTriangleWithTangents,
                   quadsToTriangles,
                   vertPosition, 
                   vertUV, 
@@ -59,8 +61,9 @@ primitiveBoundingBox :: Primitive -> Object -> Maybe AABB
 primitiveClosestIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 primitiveAnyIntersect :: Primitive -> Ray -> Object -> Maybe (Double, TangentSpace)
 
---primitiveTangentSpace :: Primitive -> Int -> Position -> Object -> TangentSpace
 makeQuad :: [Position] -> [Triangle]
+makeTriangle :: Position -> Position -> Position -> Triangle
+makeTriangleWithTangents :: Position -> Position -> Position -> Direction -> Direction -> Triangle
 quadsToTriangles :: [Position] -> [Triangle]
 getCentre :: Object -> Vector
 objectListBoundingBox :: [Object] -> AABB

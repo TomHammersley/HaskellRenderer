@@ -1,4 +1,5 @@
 -- The sparse voxel octree data structure
+{-# LANGUAGE BangPatterns #-}
 
 module SparseVoxelOctree(build, 
                          SparseOctree, 
@@ -64,30 +65,37 @@ nearestIntersection Nothing x@(Just _) = x
 nearestIntersection y@(Just _) Nothing = y
 nearestIntersection x@(Just (d1, _)) y@(Just (d2, _)) | d1 < d2 = x 
                                                       | otherwise = y
+                                                                    
+-- Work out if a further refinement of given intersection is likely to result in a feature hardly visible in the image
+-- TODO: Make this work on distance to eye, not distance along ray
+intersectionWorthSubdivision :: Double -> Double -> Double -> Bool
+intersectionWorthSubdivision d scaler radius = radius * scaler / d >= 2
 
 -- Intersect with a ray
-closestIntersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, TangentSpace)
-closestIntersect _ _ _ SparseOctreeDummy = Nothing
-closestIntersect ray depth maxDepth (SparseOctreeNode box children) =
+closestIntersect :: Ray -> Int -> Int -> Double -> SparseOctree -> Maybe (Double, TangentSpace)
+closestIntersect _ _ _ _ SparseOctreeDummy = Nothing
+closestIntersect ray depth maxDepth lodScale (SparseOctreeNode box children) =
   case boundingBoxIntersectRay box ray of Nothing -> Nothing
-                                          Just (dist, dist2) -> if depth >= maxDepth then Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
-                                                                else foldr1 nearestIntersection (map (closestIntersect (shortenRay ray dist2) (depth + 1) maxDepth) children)
-closestIntersect ray _ _ (SparseOctreeLeaf box _ tanSpace) = case boundingBoxIntersectRay box ray of Nothing -> Nothing
-                                                                                                     Just (dist, _) -> Just (dist, tanSpace)
+                                          Just (dist, dist2) -> if depth >= maxDepth || (not $ intersectionWorthSubdivision dist lodScale (boundingBoxRadius box))
+                                                                then Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
+                                                                else foldr1 nearestIntersection (map (closestIntersect (shortenRay ray dist2) (depth + 1) maxDepth lodScale) children)
+closestIntersect ray _ _ _ (SparseOctreeLeaf box _ tanSpace) = case boundingBoxIntersectRay box ray of Nothing -> Nothing
+                                                                                                       Just (dist, _) -> Just (dist, tanSpace)
 
-anyIntersect :: Ray -> Int -> Int -> SparseOctree -> Maybe (Double, TangentSpace)
-anyIntersect _ _ _ SparseOctreeDummy = Nothing
-anyIntersect ray depth maxDepth (SparseOctreeNode box children) =
+anyIntersect :: Ray -> Int -> Int -> Double -> SparseOctree -> Maybe (Double, TangentSpace)
+anyIntersect _ _ _ _ SparseOctreeDummy = Nothing
+anyIntersect ray depth maxDepth lodScale (SparseOctreeNode box children) =
   case boundingBoxIntersectRay box ray of Nothing -> Nothing
-                                          Just (dist, dist2) -> if depth >= maxDepth then Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
+                                          Just (dist, dist2) -> if depth >= maxDepth || (not $ intersectionWorthSubdivision dist lodScale (boundingBoxRadius box))
+                                                                then Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
                                                                 else traverseChildren children
                                             where
                                               traverseChildren [] = Nothing
-                                              traverseChildren (x:xs) = case anyIntersect (shortenRay ray dist2) (depth + 1) maxDepth x of
+                                              traverseChildren (x:xs) = case anyIntersect (shortenRay ray dist2) (depth + 1) maxDepth lodScale x of
                                                 Nothing -> traverseChildren xs
                                                 Just z -> Just z
-anyIntersect ray _ _ (SparseOctreeLeaf box _ tanSpace) = case boundingBoxIntersectRay box ray of Nothing -> Nothing
-                                                                                                 Just (dist, _) -> Just (dist, tanSpace)
+anyIntersect ray _ _ _ (SparseOctreeLeaf box _ tanSpace) = case boundingBoxIntersectRay box ray of Nothing -> Nothing
+                                                                                                   Just (dist, _) -> Just (dist, tanSpace)
 
 boundingRadius :: SparseOctree -> Double
 boundingRadius SparseOctreeDummy = 0
