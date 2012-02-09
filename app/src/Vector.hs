@@ -11,6 +11,10 @@ import Data.List
 import Misc
 import Control.DeepSeq
 
+{-# SPECIALIZE INLINE vecX :: Vector -> Double #-}
+{-# SPECIALIZE INLINE vecY :: Vector -> Double #-}
+{-# SPECIALIZE INLINE vecZ :: Vector -> Double #-}
+
 data Vector = Vector { vecX :: {-# UNPACK #-} !Double,
                        vecY :: {-# UNPACK #-} !Double,
                        vecZ :: {-# UNPACK #-} !Double,
