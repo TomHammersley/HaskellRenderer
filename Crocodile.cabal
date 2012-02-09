@@ -8,7 +8,7 @@ Name:                crocodile
 -- The package version. See the Haskell package versioning policy
 -- (http://www.haskell.org/haskellwiki/Package_versioning_policy) for
 -- standards guiding when and how versions should be incremented.
-Version:             0.1.2
+Version:             0.1.3
 
 stability:	     Experimental
 
@@ -16,7 +16,7 @@ stability:	     Experimental
 Synopsis:            An offline renderer supporting ray tracing and photon mapping
 
 -- A longer description of the package.
-Description:         This is an offline renderer written purely in Haskell, supporting ray tracing and photon mapping with an irradiance cache
+Description:         This is an offline renderer written purely in Haskell, supporting ray tracing, path tracing and photon mapping with an irradiance cache
 
 -- URL for the project homepage or repository.
 Homepage:            https://github.com/TomHammersley/HaskellRenderer/
@@ -57,7 +57,7 @@ Executable crocodile
   
   Hs-Source-Dirs: app/src
   
-  ghc-options: -O2 -fexcess-precision -funbox-strict-fields -threaded -rtsopts -fwarn-missing-signatures -Wall -O2 -fspec-constr -fliberate-case -fstatic-argument-transformation
+  ghc-options: -O2 -fexcess-precision -funbox-strict-fields -threaded -rtsopts -fwarn-missing-signatures -Wall -O2 -fspec-constr -fliberate-case -fstatic-argument-transformation -fspec-constr-count=10
 
 source-repository head
   type: git
