@@ -1,7 +1,7 @@
 -- This is a module for constructing bounding volume hierarchies using an octree approach
 {-# LANGUAGE BangPatterns #-}
 
-module Octree(generateSceneGraphUsingOctree, splitBoxIntoOctreeChildren, Octree(OctreeNode, OctreeLeaf, OctreeDummy), create, Octree.insert, gather) where
+module Octree(generateSceneGraphUsingOctree, splitBoxIntoOctreeChildren, octreeChildBox, Octree(OctreeNode, OctreeLeaf, OctreeDummy), create, Octree.insert, gather) where
 
 import Vector
 import {-# SOURCE #-} Primitive
@@ -82,6 +82,24 @@ splitBoxIntoOctreeChildren (Vector xmin ymin zmin _, Vector xmax ymax zmax _) =
       centreX = (xmin + xmax) * 0.5
       centreY = (ymin + ymax) * 0.5
       centreZ = (zmin + zmax) * 0.5
+
+octreeChildBox :: AABB -> Int -> AABB
+octreeChildBox (Vector !xmin !ymin !zmin _, Vector !xmax !ymax ! zmax _) index
+  = case index of
+    0 -> (Vector xmin ymin zmin 1, Vector centreX centreY centreZ 1)
+    1 -> (Vector centreX ymin zmin 1, Vector xmax centreY centreZ 1)
+    2 -> (Vector xmin centreY zmin 1, Vector centreX ymax centreZ 1)
+    3 -> (Vector centreX centreY zmin 1, Vector xmax ymax centreZ 1)
+
+    4 -> (Vector xmin ymin centreZ 1, Vector centreX centreY zmax 1)
+    5 -> (Vector centreX ymin centreZ 1, Vector xmax centreY zmax 1)
+    6 -> (Vector xmin centreY centreZ 1, Vector centreX ymax zmax 1)
+    7 -> (Vector centreX centreY centreZ 1, Vector xmax ymax zmax 1)
+    _ -> error "Invalid index"
+    where
+      !centreX = (xmin + xmax) * 0.5
+      !centreY = (ymin + ymax) * 0.5
+      !centreZ = (zmin + zmax) * 0.5
 
 -- Octree code that's spilt out from other modules... this is scene graph specific helper code rather than self-contained octree stuff
 

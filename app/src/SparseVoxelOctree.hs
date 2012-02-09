@@ -1,3 +1,4 @@
+
 -- The sparse voxel octree data structure
 {-# LANGUAGE BangPatterns #-}
 
@@ -15,9 +16,10 @@ import Ray
 import Vector
 import PolymorphicNum
 
+-- Boxes are strict to prevent accumulation of large amounts of thunks. Children and other bits are lazy to save space
 data SparseOctree = SparseOctreeDummy
-                  | SparseOctreeNode AABB [SparseOctree]
-                  | SparseOctreeLeaf AABB Double TangentSpace deriving (Eq)
+                  | SparseOctreeNode !AABB [SparseOctree]
+                  | SparseOctreeLeaf !AABB Double TangentSpace deriving (Eq)
 
 instance Show SparseOctree where
     show = display 0
@@ -34,8 +36,8 @@ display level (SparseOctreeLeaf box value tanSpace) = take level tabs ++ show le
 calculateTangentSpace :: (Position -> Double) -> AABB -> TangentSpace
 calculateTangentSpace f box = constructTangentSpace finalNormal
   where
-    centre = boundingBoxCentre box
-    normals = accumulateNormal (boundingBoxVertices box)
+    !centre = boundingBoxCentre box
+    !normals = accumulateNormal (boundingBoxVertices box)
     finalNormal | null normals = error "Error - we should not be trying to form a tangent space for an empty leaf!"
                 | otherwise = normalise $ foldr1 (<+>) normals </> ((fromIntegral $ length normals) :: Double)
     -- This little function makes a list of "solid matter to point away from". Ie, if there is some solid matter on our right, the normal should point away from it
@@ -48,12 +50,12 @@ calculateTangentSpace f box = constructTangentSpace finalNormal
 build :: (AABB -> Double) -> (Position -> Double) -> AABB -> Int -> Double -> SparseOctree
 build = build' 0
   where
-    build' depth func func2 box maxDepth minDimension
+    build' !depth !func !func2 !box !maxDepth !minDimension
       | func box <= 0 = SparseOctreeDummy -- Really this is a soft error. But, the user might specify an invalid input...
       | depth == maxDepth || boundingBoxRadius box <= minDimension = SparseOctreeLeaf box (func box) (calculateTangentSpace func2 box)
-      | otherwise = SparseOctreeNode box (concatMap buildNonEmptyNodes subBoxList)
+      | otherwise = SparseOctreeNode box (concatMap (buildNonEmptyNodes . octreeChildBox box) [0..7])
       where
-        subBoxList = splitBoxIntoOctreeChildren box
+--        subBoxList = splitBoxIntoOctreeChildren box
         buildNonEmptyNodes childBox 
           | func childBox > 0 = [build' (depth + 1) func func2 childBox maxDepth minDimension]
           | otherwise = []
@@ -74,19 +76,20 @@ intersectionWorthSubdivision d scaler radius = radius * scaler / d >= 2
 -- Intersect with a ray
 closestIntersect :: Ray -> Int -> Int -> Double -> SparseOctree -> Maybe (Double, TangentSpace)
 closestIntersect _ _ _ _ SparseOctreeDummy = Nothing
-closestIntersect ray depth maxDepth lodScale (SparseOctreeNode box children) =
+closestIntersect ray depth maxDepth lodScale !(SparseOctreeNode box children) =
   case boundingBoxIntersectRay box ray of Nothing -> Nothing
-                                          Just (dist, dist2) -> if depth >= maxDepth || (not $ intersectionWorthSubdivision dist lodScale (boundingBoxRadius box))
+                                          Just (dist, dist2) -> if depth >= maxDepth || not (intersectionWorthSubdivision dist lodScale (boundingBoxRadius box))
                                                                 then Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
                                                                 else foldr1 nearestIntersection (map (closestIntersect (shortenRay ray dist2) (depth + 1) maxDepth lodScale) children)
-closestIntersect ray _ _ _ (SparseOctreeLeaf box _ tanSpace) = case boundingBoxIntersectRay box ray of Nothing -> Nothing
-                                                                                                       Just (dist, _) -> Just (dist, tanSpace)
+closestIntersect ray _ _ _ !(SparseOctreeLeaf box _ tanSpace) = 
+  case boundingBoxIntersectRay box ray of Nothing -> Nothing
+                                          Just (dist, _) -> Just (dist, tanSpace)
 
 anyIntersect :: Ray -> Int -> Int -> Double -> SparseOctree -> Maybe (Double, TangentSpace)
 anyIntersect _ _ _ _ SparseOctreeDummy = Nothing
 anyIntersect ray depth maxDepth lodScale (SparseOctreeNode box children) =
   case boundingBoxIntersectRay box ray of Nothing -> Nothing
-                                          Just (dist, dist2) -> if depth >= maxDepth || (not $ intersectionWorthSubdivision dist lodScale (boundingBoxRadius box))
+                                          Just (dist, dist2) -> if depth >= maxDepth || not (intersectionWorthSubdivision dist lodScale (boundingBoxRadius box))
                                                                 then Just (dist, boundingBoxTangentSpace box (pointAlongRay ray dist))
                                                                 else traverseChildren children
                                             where
