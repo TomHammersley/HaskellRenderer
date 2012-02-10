@@ -68,13 +68,19 @@ getCentre object = getTranslation $ transform object
 surfaceNormal :: Position -> Position -> Position -> Direction
 surfaceNormal v1 v2 v3 = (v2 <-> v1) `cross` (v3 <-> v1)
 
+-- Make a tangent spac
+triangleTangentSpace :: Position -> Position -> Position -> TangentSpace
+triangleTangentSpace v1 v2 v3 = (tangent, binormal, normal)
+  where
+    normal = normalise (surfaceNormal v1 v2 v3)
+    tangent = normalise (v2 <-> v1)
+    binormal = normalise (normal `cross` tangent)
+    
 -- Make a plane
 makePlane :: Position -> Position -> Position -> Primitive
-makePlane v1 v2 v3 = Plane (tangent, binormal, normal) (-(v1 `dot3` normal))
+makePlane v1 v2 v3 = Plane tanSpace (-(v1 `dot3` normal))
     where 
-      normal = normalise (surfaceNormal v1 v2 v3)
-      tangent = normalise (v2 <-> v1)
-      binormal = normalise (normal `cross` tangent)
+      tanSpace@(_, _, normal) = triangleTangentSpace v1 v2 v3
 
 makePlaneWithTangents :: Position -> Position -> Position -> Direction -> Direction -> Primitive
 makePlaneWithTangents v1 v2 v3 tangent binormal = Plane (tangent, binormal, normal) (-(v1 `dot3` normal))
@@ -88,9 +94,7 @@ makePlaneWithTangents v1 v2 v3 tangent binormal = Plane (tangent, binormal, norm
 makeTriangle :: Position -> Position -> Position -> Triangle
 makeTriangle v1 v2 v3 = makeTriangleWithTangents v1 v2 v3 tangent binormal
   where
-      normal = normalise (surfaceNormal v1 v2 v3)
-      tangent = normalise (v2 <-> v1)
-      binormal = normalise (normal `cross` tangent)
+    (tangent, binormal, _) = triangleTangentSpace v1 v2 v3
 
 makeTriangleWithTangents :: Position -> Position -> Position -> Direction -> Direction -> Triangle
 makeTriangleWithTangents v1 v2 v3 tangent binormal = Triangle verts newPlane newHalfPlanes
@@ -259,16 +263,13 @@ primitiveBoundingRadius :: Primitive -> Matrix -> Vector -> Double
 
 primitiveBoundingRadius (Sphere sphereRadius) xform pos = sphereRadius + (pos `distance` getTranslation xform)
 primitiveBoundingRadius (Plane _ _) _ _ = 0
-primitiveBoundingRadius (TriangleMesh tris) _ centre = triangleListRadius 0 tris centre -- TODO - need to factor in world matrix
+primitiveBoundingRadius (TriangleMesh tris) xform centre = maximum (map triangleRadius tris)
+  where
+    triangleRadius tri = maximum (map (\v -> centre `distance` (xform `transformVector` vertPosition v)) (vertices tri))
+        
 primitiveBoundingRadius (Box (boxMin, boxMax)) xform pos = (boxMin `distance` boxMax) + (pos `distance` getTranslation xform) -- TODO - need to factor in world matrix
 primitiveBoundingRadius (SparseOctreeModel svo_) xform pos = boundingRadius svo_ + (pos `distance` getTranslation xform)
 
-triangleListRadius :: Double -> [Triangle] -> Vector -> Double
-triangleListRadius maximumRadius (tri:tris) centre = triangleListRadius (Prelude.max maximumRadius triangleRadius) tris centre
-    where
-      radii = map (\v -> centre `distance` vertPosition v) (vertices tri)
-      triangleRadius = foldl' Prelude.max 0 radii
-triangleListRadius maximumRadius [] _ = maximumRadius
 
 -- -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Family of bounding box functions

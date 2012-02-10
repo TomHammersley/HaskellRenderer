@@ -39,7 +39,7 @@ mapS f z s = mapS' z s []
 mapWithState :: [a] -> s -> (a -> State s b) -> ([b], s)
 mapWithState arr s f = mapWithState' arr s []
     where
-      mapWithState' (x:xs) !st !acc = result `seq` (mapWithState' xs st' (result : acc))
+      mapWithState' (x:xs) !st !acc = result `seq` mapWithState' xs st' (result : acc)
           where
             (!result, !st') = runState (f x) st
       mapWithState' [] !st !acc = (acc, st)
@@ -48,7 +48,7 @@ mapWithState arr s f = mapWithState' arr s []
 mapWithStateDiscard :: [a] -> s -> (a -> State s b) -> [b]
 mapWithStateDiscard arr s f = mapWithState' arr s []
     where
-      mapWithState' (x:xs) !st !acc = result `seq` (mapWithState' xs st' (result : acc))
+      mapWithState' (x:xs) !st !acc = result `seq` mapWithState' xs st' (result : acc)
           where
             (!result, !st') = runState (f x) st `using` rseq
       mapWithState' [] _ !acc = acc

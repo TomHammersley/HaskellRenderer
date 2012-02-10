@@ -20,3 +20,4 @@ dist/setup-config
 hlint-output.txt
 *~
 #*
+*.jpg
