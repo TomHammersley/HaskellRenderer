@@ -159,7 +159,10 @@ traceRay renderContext photonMap ray 1 camera _ _ =
           (irrCache, mt) <- get
           let intersectionPoint = pointAlongRay ray intersectionDistance
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
-          -- TODO - Need to plug irradiance values into shader model correctly
+          -- Deliberately chosen not to shade the fetched irradiance value by the material
+          -- This may seem immediately strange, but the reason is that the value generated should already have been appropriately shaded
+          -- by the diffuse contributions of the materials and shaders. So we should just sum it, like we do with the local lighting values
+              
           -- We only accumulate the ambient colour for the first hit. Otherwise we would erroneously accumulate it many times over
           let objMaterial = (material obj) { ambient = colBlack } 
           let viewDir = normalise (intersectionPoint <-> Camera.position camera)
@@ -176,12 +179,14 @@ traceRay renderContext photonMap ray limit camera currentIOR accumulatedReflecti
           let intersectionPoint = pointAlongRay ray intersectionDistance
           let normal = thr tanSpace
           let incoming = Vector.negate $ direction ray
-          -- TODO - Need to plug irradiance values into shader model correctly
 
           -- Evaluate result from irradiance cache
           (irrCache, mt) <- get
           let (surfaceIrradiance, irrCache') = calculateGI renderContext photonMap (intersectionPoint, tanSpace) irrCache obj renderContext
           put (irrCache', mt)
+          -- Deliberately chosen not to shade the fetched irradiance value by the material
+          -- This may seem immediately strange, but the reason is that the value generated should already have been appropriately shaded
+          -- by the diffuse contributions of the materials and shaders. So we should just sum it, like we do with the local lighting values
 
           -- We only accumulate the ambient colour for the first hit. Otherwise we would erroneously accumulate it many times over
           let objMaterial 
