@@ -1,12 +1,27 @@
--- HS-boot interface file for PhotonMap to break circular dependencies
+-- Photon mapping
 
 module PhotonMap(buildPhotonMap, PhotonMap(photonList), irradiance, PhotonMapContext(PhotonMapContext)) where
 
-import Colour
+--import PolymorphicNum
+import {-# SOURCE #-} Light hiding (position)
 import Vector
-import SceneGraph
+--import Distribution
 import Material
-import {-# SOURCE #-} Light
+import Colour
+import SceneGraph
+--import Ray hiding (direction)
+--import Control.Monad.State
+--import BoundingBox
+--import KDTree
+--import Debug.Trace
+--import Misc
+--import Control.Parallel.Strategies
+--import Control.DeepSeq
+--import Data.Heap hiding (partition)
+--import System.Random
+--import Data.List hiding (union, insert)
+--import Primitive
+--import RussianRoulette
 
 data PhotonMapContext = PhotonMapContext {
       photonGatherDistance :: Double,
@@ -14,15 +29,13 @@ data PhotonMapContext = PhotonMapContext {
       coneFilterK :: Double,
       directVisualisation :: Bool }
 
-data Photon = Photon { power :: !Colour,
-                       position :: !Position,
-                       direction :: !Direction }
+data Photon = Photon { power :: {-# UNPACK #-} !Colour, posDir :: {-# UNPACK #-} !(Position, Direction) }
 
-data PhotonMapTree = PhotonMapNode { splitAxis :: Int, splitValue :: Double, child0 :: PhotonMapTree, child1 :: PhotonMapTree} 
-                   | PhotonMapLeaf { photon :: Photon }
+data PhotonMapTree = PhotonMapNode {-# UNPACK #-} !Int {-# UNPACK #-} !Double PhotonMapTree PhotonMapTree
+                   | PhotonMapLeaf {-# UNPACK #-} !Photon
 
 data PhotonMap = PhotonMap { photonList :: [Photon],
                              photonMapTree :: PhotonMapTree }
 
-irradiance :: PhotonMap -> PhotonMapContext -> Material -> (Position, TangentSpace) -> (Colour, Double)
 buildPhotonMap :: SceneGraph -> [Light] -> Int -> (PhotonMap, [Light])
+irradiance :: PhotonMap -> PhotonMapContext -> Material -> SurfaceLocation -> (Colour, Double)

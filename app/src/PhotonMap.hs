@@ -9,7 +9,7 @@ import Distribution
 import Material
 import Colour
 import SceneGraph
-import RayTrace
+import {-# SOURCE #-} RayTrace
 import Ray hiding (direction)
 import Control.Monad.State
 import BoundingBox

@@ -21,7 +21,7 @@ import Material
 import Shader
 import SceneGraph
 import Misc
-import RayTrace (findAnyIntersection)
+import {-# SOURCE #-} RayTrace (findAnyIntersection)
 
 data CommonLightData = CommonLightData { colour :: !Colour,
                                          addToPhotonMap :: !Bool } deriving (Show)

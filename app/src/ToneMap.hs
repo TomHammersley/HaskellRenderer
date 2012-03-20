@@ -1,4 +1,5 @@
 -- Tone map an image
+{-# LANGUAGE BangPatterns #-}
 
 module ToneMap(toneMapImage, 
                toneMapIdentity, 
@@ -11,6 +12,7 @@ module ToneMap(toneMapImage,
 
 import PolymorphicNum
 import Colour
+import Data.List
 
 -- x = x
 toneMapIdentity :: [Colour] -> [Colour]
@@ -40,19 +42,34 @@ toneMapImage f = f
 
 -- Normal averaging
 imageAverageLuminance :: [Colour] -> Double
+imageAverageLuminance xs = s / fromIntegral l
+  where
+    (s, l) = foldl' step (0, (0 :: Integer)) xs
+    step (!s', !l') a = (s' + (luminance a), l' + 1)
+
+{-
 imageAverageLuminance = imageAverageLuminance' 0 0
     where
       imageAverageLuminance' accLum accCount (x:xs) = imageAverageLuminance' (accLum + luminance x) (accCount + 1) xs
       imageAverageLuminance' accLum 0 [] = accLum
       imageAverageLuminance' accLum accCount [] = accLum / accCount
+-}
 
 -- Get the average luminance of a scene, using Reinhard style log-lum averaging to damp down the effect of outlier pixels
+imageAverageLogLuminance :: [Colour] -> Double
+imageAverageLogLuminance xs = exp (s / fromIntegral l)
+  where
+    (s, l) = foldl' step (0, (0 :: Integer)) xs
+    step (!s', !l') a = (s' + (logLuminance a), l' + 1)
+
+{-
 imageAverageLogLuminance :: [Colour] -> Double
 imageAverageLogLuminance = imageAverageLogLuminance' 0 0
     where
       imageAverageLogLuminance' accLum accCount (x:xs) = imageAverageLogLuminance' (accLum + logLuminance x) (accCount + 1) xs
       imageAverageLogLuminance' accLum 0 [] = exp accLum
       imageAverageLogLuminance' accLum accCount [] = exp (accLum / accCount)
+-}
 
 -- Adjust the exposure of an image
 exposeImage :: ([Colour] -> Double) -> [Colour] -> Double -> [Colour]

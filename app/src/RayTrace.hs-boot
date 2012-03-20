@@ -1,22 +1,18 @@
-module RayTrace (rayTraceImage, findNearestIntersection, findAnyIntersection, RenderContext(RenderContext)) where
+module RayTrace (renderScene, findNearestIntersection, findAnyIntersection) where
 
 import Vector
-import Light
+--import {-# SOURCE #-} Light
+import {-# SOURCE #-} PhotonMap
 import Primitive
 import Colour
 import Ray
-import Material
-import Matrix
+--import Material
+--import Matrix
 import Camera
 import SceneGraph
+import RenderContext
 
-data RenderContext = RenderContext {
-      numDistribSamples :: Int,
-      photonGatherDistance :: Double,
-      sceneGraph :: SceneGraph,
-      lights :: [Light],
-      maximumRayDepth :: Int }
-
-rayTraceImage :: RenderContext -> Camera -> Int -> Int -> PhotonMap -> [Colour]
-findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Double, Int)
-findAnyIntersection :: SceneGraph -> Ray -> Maybe (Object, Double)
+--rayTraceImage :: RenderContext -> Camera -> Int -> Int -> PhotonMap -> [Colour]
+findNearestIntersection :: SceneGraph -> Ray -> Maybe (Object, Double, TangentSpace)
+findAnyIntersection :: SceneGraph -> Ray -> Maybe (Object, Double, TangentSpace)
+renderScene :: Maybe PhotonMap -> RenderContext -> Camera -> Int -> Int -> [Colour]
