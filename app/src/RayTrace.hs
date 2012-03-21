@@ -117,7 +117,7 @@ type LightSurfaceState = State ShadowCache Colour
 lightSurface :: [Light] -> Colour -> RenderContext -> SurfaceLocation -> Material -> Vector -> LightSurfaceState
 lightSurface (x:xs) acc renderContext posTanSpace objMaterial viewDirection =
   do
-    let lightRadiance = applyLight (sceneGraph renderContext) posTanSpace objMaterial viewDirection x
+    lightRadiance <- applyLight (sceneGraph renderContext) posTanSpace objMaterial viewDirection x
     result <- lightSurface xs (acc <+> lightRadiance) renderContext posTanSpace objMaterial viewDirection
     return $! result
 lightSurface [] acc _ _ _ _ = return $! acc
@@ -274,8 +274,8 @@ rayTracePixel photonMap renderContext camera (width, height) (x, y) =
     in do 
       (irrCache, mt, shadowCache) <- get
       let (distributedPositions, mt') = generatePointsOnSphere (numDistribSamples renderContext) (rayOriginDistribution renderContext) mt
-      let (pixelColour, (irrCache', mt'', shadowCache')) = runState (rayTracePixelSample photonMap renderContext colBlack distributedPositions (eye, rayDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext)) camera) (irrCache, mt', shadowCache)
-      put (irrCache', mt'', shadowCache')
+      let (pixelColour, newState) = runState (rayTracePixelSample photonMap renderContext colBlack distributedPositions (eye, rayDirection) (1.0 / (fromIntegral . numDistribSamples $ renderContext)) camera) (irrCache, mt', shadowCache)
+      put newState
       return $! pixelColour
 
 -- This function converts a pixel co-ordinate to a direction of the ray

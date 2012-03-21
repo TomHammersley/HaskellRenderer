@@ -15,6 +15,8 @@ import Vector
 import Colour
 import Material
 import SceneGraph
+import Control.Monad.State
+import {-# SOURCE #-} ShadowCache
 
 data CommonLightData = CommonLightData { colour :: !Colour,
                                          addToPhotonMap :: !Bool } 
@@ -25,5 +27,5 @@ data Light = PointLight { common :: CommonLightData, position :: !Position, rang
 
 type LightingResult = (Colour, Colour, Colour) -- Ambient, diffuse, specular
 
-applyLight :: SceneGraph -> (Position, TangentSpace) -> Material -> Direction -> Light -> Colour
+applyLight :: SceneGraph -> (Position, TangentSpace) -> Material -> Direction -> Light -> State ShadowCache Colour
 surfaceEpsilon :: Double
