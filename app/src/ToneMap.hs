@@ -44,8 +44,8 @@ toneMapImage f = f
 imageAverageLuminance :: [Colour] -> Double
 imageAverageLuminance xs = s / fromIntegral l
   where
-    (s, l) = foldl' step (0, (0 :: Integer)) xs
-    step (!s', !l') a = (s' + (luminance a), l' + 1)
+    (s, l) = foldl' step (0, 0 :: Integer) xs
+    step (!s', !l') a = (s' + luminance a, l' + 1)
 
 {-
 imageAverageLuminance = imageAverageLuminance' 0 0
@@ -59,8 +59,8 @@ imageAverageLuminance = imageAverageLuminance' 0 0
 imageAverageLogLuminance :: [Colour] -> Double
 imageAverageLogLuminance xs = exp (s / fromIntegral l)
   where
-    (s, l) = foldl' step (0, (0 :: Integer)) xs
-    step (!s', !l') a = (s' + (logLuminance a), l' + 1)
+    (s, l) = foldl' step (0, 0 :: Integer) xs
+    step (!s', !l') a = (s' + logLuminance a, l' + 1)
 
 {-
 imageAverageLogLuminance :: [Colour] -> Double
